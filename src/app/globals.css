@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+@variant dark (&:where(.dark, .dark *));
+
+@layer utilities {
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.3);
+    border-radius: 9999px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(148, 163, 184, 0.6);
+  }
+
+  /* Impeccable Micro-Interactions & Tactile Classes */
+  .impeccable-card {
+    transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1),
+                box-shadow 0.2s cubic-bezier(0.2, 0.8, 0.2, 1),
+                border-color 0.2s ease;
+  }
+  .impeccable-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.07);
+  }
+  :is(.dark .impeccable-card:hover) {
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+  }
+
+  .impeccable-tap {
+    transition: transform 0.12s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .impeccable-tap:active {
+    transform: scale(0.96);
+  }
+
+  .impeccable-glass {
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+}
+
+:root {
+  --font-jakarta: "Plus Jakarta Sans", sans-serif;
+  /* Skala 92% membuat seluruh font, padding, dan kartu Tailwind 
+     terlihat ringkas, pas di resolusi standar laptop (1366x768 & 1920x1080) */
+  font-size: 14.5px;
+}
+
+@media (min-width: 1536px) {
+  :root {
+    font-size: 15px;
+  }
+}
