@@ -8,7 +8,7 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const viewport: Viewport = {
-  themeColor: "#4f46e5",
+  themeColor: "#064e3b",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -17,8 +17,17 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: "SIPS - Sistem Informasi Pengasuhan Santri",
-  description: "Pusat Kendali Terpadu Data, Perizinan & Kedisiplinan Santri",
+  description: "Pusat Kendali Data Terintegrasi, Perizinan & Kedisiplinan Santri",
   manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/sips-logo.png?v=2" },
+      { url: "/sips-logo.png?v=2", sizes: "192x192", type: "image/png" },
+      { url: "/sips-logo.png?v=2", sizes: "512x512", type: "image/png" },
+    ],
+    shortcut: "/sips-logo.png?v=2",
+    apple: "/sips-logo.png?v=2",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -34,7 +43,7 @@ export default function RootLayout({
   return (
     <html lang="id" className="dark" suppressHydrationWarning>
       <body
-        className={`${jakarta.className} bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-slate-100 antialiased selection:bg-indigo-500 selection:text-white transition-colors duration-200`}
+        className={`${jakarta.className} bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-slate-100 antialiased selection:bg-emerald-600 selection:text-white transition-colors duration-200`}
       >
         {children}
       </body>
