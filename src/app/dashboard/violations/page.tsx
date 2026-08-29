@@ -34,6 +34,7 @@ import {
   GraduationCap,
   QrCode,
   Sparkles,
+  ArrowLeft,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import QRScannerModal from "@/components/QRScannerModal";
@@ -170,7 +171,6 @@ export default function ViolationsDashboardPage() {
 
     let studentMeta = studentsMap[targetNis];
 
-    // Jika belum ditemukan di state lokal, cari langsung ke Supabase
     if (!studentMeta && targetNis) {
       const { data: st } = await supabase
         .from("students")
@@ -559,6 +559,14 @@ export default function ViolationsDashboardPage() {
       <div className="relative overflow-hidden rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-900/90 p-4 sm:p-5 shadow-sm backdrop-blur-xl print:hidden">
         <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
           <div className="flex items-center space-x-3.5 min-w-0">
+            <Link
+              href="/dashboard"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-rose-600 transition active:scale-95"
+              title="Kembali ke Dashboard"
+            >
+              <ArrowLeft className="h-4 w-4 stroke-[2.4]" />
+            </Link>
+
             <div className="flex h-11 w-11 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-rose-500 to-amber-600 text-white shadow-md shadow-rose-500/20">
               <ShieldAlert className="h-6 w-6 stroke-[2.3]" />
             </div>
@@ -682,7 +690,7 @@ export default function ViolationsDashboardPage() {
       <div className="space-y-2.5 print:hidden">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div className="relative flex-1 max-w-lg group">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 transition-colors group-focus-within:text-rose-500" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 transition-colors group-focus-within:text-rose-500 pointer-events-none" />
             <input
               type="text"
               value={searchQuery}
@@ -792,9 +800,174 @@ export default function ViolationsDashboardPage() {
         )}
       </div>
 
-      {/* ================= TABEL DATA PELANGGARAN ================= */}
+      {/* ================= DATA PELANGGARAN: RESPONSIVE DUAL VIEW ================= */}
       <div className="overflow-hidden rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-900/90 shadow-xl shadow-slate-200/30 dark:shadow-black/40 backdrop-blur-xl print:hidden">
-        <div className="overflow-x-auto">
+        
+        {/* TAMPILAN 1: MOBILE CARD LIST (Layar HP < md) */}
+        <div className="block md:hidden divide-y divide-slate-100 dark:divide-slate-800/60">
+          <div className="p-3 bg-slate-50/90 dark:bg-slate-950/60 flex items-center justify-between border-b border-slate-200 dark:border-slate-800">
+            <button
+              type="button"
+              onClick={handleToggleSelectAll}
+              className="inline-flex items-center space-x-2 text-xs font-bold text-slate-600 dark:text-slate-300"
+            >
+              {isAllFilteredSelected ? (
+                <CheckSquare className="h-4 w-4 text-rose-500" />
+              ) : (
+                <Square className="h-4 w-4" />
+              )}
+              <span>Pilih Semua ({filteredViolations.length})</span>
+            </button>
+          </div>
+
+          {loading ? (
+            <div className="py-16 text-center text-slate-400">
+              <RefreshCw className="h-7 w-7 animate-spin mx-auto mb-2 text-rose-500" />
+              <span className="text-xs font-semibold">Memuat rekaman kedisiplinan...</span>
+            </div>
+          ) : filteredViolations.length === 0 ? (
+            <div className="py-16 text-center text-slate-400 p-6 space-y-3">
+              <ShieldAlert className="h-10 w-10 mx-auto text-slate-400 opacity-40" />
+              <div>
+                <p className="font-bold text-sm text-slate-700 dark:text-slate-300">Tidak ada catatan pelanggaran</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">Tidak ditemukan data kedisiplinan yang sesuai filter.</p>
+              </div>
+            </div>
+          ) : (
+            filteredViolations.map((v) => {
+              const isSelected = selectedIds.includes(v.id);
+              const meta = studentsMap[v.nis] || {};
+
+              return (
+                <div
+                  key={v.id}
+                  className={`p-4 space-y-3 transition-colors ${
+                    isSelected ? "bg-rose-500/[0.08] dark:bg-rose-950/30" : "hover:bg-slate-50/50 dark:hover:bg-slate-800/30"
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => handleToggleSelect(v.id)}
+                      className="mt-1 rounded text-rose-600 focus:ring-rose-500 cursor-pointer h-4 w-4 shrink-0"
+                    />
+
+                    <div className="flex-1 min-w-0 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center space-x-2.5 min-w-0">
+                          <div className="relative h-9 w-9 shrink-0 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-black text-xs overflow-hidden flex items-center justify-center">
+                            {meta.photo_url ? (
+                              <img src={meta.photo_url} alt={v.student_name} className="h-full w-full object-cover" />
+                            ) : (
+                              v.student_name.charAt(0)
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenStudentDossier(v)}
+                              className="font-extrabold text-sm text-slate-900 dark:text-white truncate hover:underline text-left block"
+                            >
+                              {v.student_name}
+                            </button>
+                            <p className="font-mono text-[11px] text-slate-500">
+                              NIS: <strong className="text-cyan-600 dark:text-cyan-400">{v.nis}</strong> • {meta.class || "-"}
+                            </p>
+                          </div>
+                        </div>
+
+                        <span className="inline-flex items-center px-2 py-0.5 text-xs font-black font-mono bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 rounded-lg shrink-0">
+                          +{v.points}
+                        </span>
+                      </div>
+
+                      <div className="bg-slate-50 dark:bg-slate-950/50 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 space-y-1">
+                        <p className="font-bold text-xs text-slate-900 dark:text-white leading-tight">
+                          {v.violation_name}
+                        </p>
+                        <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                          <span
+                            className={`rounded-md px-1.5 py-0.2 text-[9px] font-black uppercase tracking-wider ${
+                              v.category === "Berat"
+                                ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"
+                                : v.category === "Sedang"
+                                ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+                                : "bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20"
+                            }`}
+                          >
+                            {v.category}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            {new Date(v.created_at).toLocaleDateString("id-ID", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            })}
+                          </span>
+                        </div>
+                        {v.sanction && (
+                          <p className="text-[11px] text-slate-600 dark:text-slate-300 pt-1">
+                            <strong className="text-slate-400">Takzir:</strong> {v.sanction}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="flex items-center justify-between pt-1 text-xs">
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                            v.status === "Proses"
+                              ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+                              : v.status === "Ditindak"
+                              ? "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20"
+                              : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                          }`}
+                        >
+                          <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                          <span>{v.status}</span>
+                        </span>
+
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenStudentDossier(v)}
+                            className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-cyan-500"
+                            title="Rekam Jejak"
+                          >
+                            <History className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingItem(v);
+                              setEditStatus(v.status);
+                              setEditSanction(v.sanction || "");
+                            }}
+                            className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-amber-500"
+                            title="Edit"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setItemToDelete(v)}
+                            className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-rose-500"
+                            title="Hapus"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* TAMPILAN 2: DESKTOP TABLE VIEW (Layar md ke atas) */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-800/80 bg-slate-50/90 dark:bg-slate-950/60 text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 select-none">
@@ -1039,7 +1212,7 @@ export default function ViolationsDashboardPage() {
         </div>
       )}
 
-      {/* ================= MODAL DOSSIER REKAM JEJAK SANTRI ================= */}
+      {/* ================= MODAL DOSSIER REKAM JEJAK SANTRI (DENGAN TOMBOL INPUT PELANGGARAN INSTAN) ================= */}
       {selectedStudentForDossier && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 p-4 sm:p-6 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200 print:hidden">
           <div className="w-full max-w-3xl my-auto overflow-hidden rounded-[32px] border border-slate-800 bg-slate-900 text-white space-y-5 p-6 sm:p-8 shadow-2xl animate-in zoom-in-95">
@@ -1095,7 +1268,7 @@ export default function ViolationsDashboardPage() {
               <button
                 type="button"
                 onClick={() => setSelectedStudentForDossier(null)}
-                className="text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-slate-800 transition cursor-pointer"
+                className="text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-slate-800 transition cursor-pointer self-end sm:self-auto"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -1154,7 +1327,7 @@ export default function ViolationsDashboardPage() {
             </div>
 
             {/* List Kronologis Rekam Jejak Pelanggaran Santri */}
-            <div className="max-h-72 overflow-y-auto custom-scrollbar space-y-2.5 pr-1">
+            <div className="max-h-64 overflow-y-auto custom-scrollbar space-y-2.5 pr-1">
               {studentDossierViolations.length === 0 ? (
                 <div className="py-8 text-center text-slate-400 text-xs font-medium">
                   Tidak ada catatan pelanggaran pada periode ini.
@@ -1195,24 +1368,34 @@ export default function ViolationsDashboardPage() {
               )}
             </div>
 
-            {/* Footer Modal: Tombol Cetak Rapor Santri & Tutup */}
-            <div className="flex items-center justify-between pt-3 border-t border-slate-800 gap-2">
-              <button
-                type="button"
-                onClick={handlePrintStudentDossier}
-                disabled={studentDossierViolations.length === 0}
-                className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs transition active:scale-95 disabled:opacity-40 cursor-pointer"
-              >
-                <Printer className="h-4 w-4 stroke-[2.5]" />
-                <span>Cetak / PDF Rapor Santri Ini</span>
-              </button>
+            {/* Footer Modal: Tombol Input Pelanggaran Instan, Cetak Rapor, & Tutup */}
+            <div className="flex flex-col sm:flex-row items-center justify-between pt-3 border-t border-slate-800 gap-2.5">
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <Link
+                  href={`/dashboard/violations/create?nis=${selectedStudentForDossier.nis}`}
+                  className="flex-1 sm:flex-none inline-flex items-center justify-center space-x-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-amber-500 hover:from-rose-500 hover:to-amber-400 text-white font-black text-xs shadow-md shadow-rose-500/20 transition active:scale-95 cursor-pointer"
+                >
+                  <Plus className="h-4 w-4 stroke-[2.5]" />
+                  <span>+ Catat Pelanggaran Santri Ini</span>
+                </Link>
+
+                <button
+                  type="button"
+                  onClick={handlePrintStudentDossier}
+                  disabled={studentDossierViolations.length === 0}
+                  className="flex-1 sm:flex-none inline-flex items-center justify-center space-x-1.5 px-4 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs transition active:scale-95 disabled:opacity-40 cursor-pointer"
+                >
+                  <Printer className="h-4 w-4 stroke-[2.5]" />
+                  <span>Cetak Rapor</span>
+                </button>
+              </div>
 
               <button
                 type="button"
                 onClick={() => setSelectedStudentForDossier(null)}
-                className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs cursor-pointer"
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs cursor-pointer"
               >
-                Tutup Rapor Disiplin
+                Tutup Rapor
               </button>
             </div>
           </div>

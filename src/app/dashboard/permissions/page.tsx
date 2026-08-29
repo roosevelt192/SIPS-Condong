@@ -569,14 +569,14 @@ export default function PermissionsPage() {
             <div>
               <div className="flex items-center space-x-2">
                 <h1 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight">
-                  Biro Perizinan Santri
+                  Input Perizinan Santri
                 </h1>
                 <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
                   Gate Control
                 </span>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Monitoring perizinan keluar/pulang santri dan verifikasi barcode gerbang terpadu
+                Monitoring perizinan keluar/pulang santri dan verifikasi barcode gerbang terintegrasi
               </p>
             </div>
           </div>
@@ -780,9 +780,162 @@ export default function PermissionsPage() {
         </div>
       </div>
 
-      {/* ================= TABEL DATA PERIZINAN ================= */}
+      {/* ================= DATA PERIZINAN: RESPONSIVE DUAL-VIEW ================= */}
       <div className="overflow-hidden rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-900/90 shadow-xl shadow-slate-200/30 dark:shadow-black/40 backdrop-blur-xl">
-        <div className="overflow-x-auto">
+        
+        {/* TAMPILAN 1: MOBILE CARD VIEW (Hanya tampil di layar HP < md) */}
+        <div className="block md:hidden divide-y divide-slate-100 dark:divide-slate-800/60">
+          {loading ? (
+            <div className="py-16 text-center text-slate-400">
+              <RefreshCw className="h-7 w-7 animate-spin mx-auto mb-2 text-emerald-600" />
+              <span className="text-xs font-semibold">Menghubungkan ke basis data perizinan...</span>
+            </div>
+          ) : filteredPermissions.length === 0 ? (
+            <div className="py-16 text-center text-slate-400 p-6 space-y-3">
+              <FileCheck2 className="h-10 w-10 mx-auto text-slate-400 opacity-40" />
+              <div>
+                <p className="font-bold text-sm text-slate-700 dark:text-slate-300">Belum ada data perizinan</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">Silakan terbitkan izin baru melalui tombol di bawah.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  clearAllSelectedStudents();
+                  setShowCreateModal(true);
+                }}
+                className="inline-flex items-center space-x-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white px-4 py-2 text-xs font-bold shadow-md shadow-emerald-700/20 transition active:scale-95 cursor-pointer"
+              >
+                <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
+                <span>Terbitkan Izin Baru</span>
+              </button>
+            </div>
+          ) : (
+            filteredPermissions.map((p) => {
+              const late = isOverdue(p);
+              return (
+                <div
+                  key={p.id}
+                  className={`p-4 space-y-3 transition-colors ${
+                    late ? "bg-rose-500/[0.06] dark:bg-rose-950/20" : "hover:bg-slate-50/50 dark:hover:bg-slate-800/30"
+                  }`}
+                >
+                  {/* Header Card: Identitas & Status Gerbang */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center space-x-2.5 min-w-0">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 font-black text-xs">
+                        {p.student_name.charAt(0)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-extrabold text-sm text-slate-900 dark:text-white truncate">
+                          {p.student_name}
+                        </p>
+                        <span className="font-mono text-[11px] text-emerald-700 dark:text-emerald-400 font-bold">
+                          NIS: {p.nis}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Badge Status */}
+                    <div className="shrink-0">
+                      {late ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 text-[10px] font-black uppercase tracking-wider animate-pulse">
+                          <AlertTriangle className="h-3 w-3" />
+                          <span>Terlambat</span>
+                        </span>
+                      ) : (
+                        <span
+                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider ${
+                            p.status === "approved"
+                              ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+                              : p.status === "out_pondok"
+                              ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20"
+                              : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                          }`}
+                        >
+                          <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                          <span>
+                            {p.status === "approved"
+                              ? "Disetujui"
+                              : p.status === "out_pondok"
+                              ? "Di Luar"
+                              : "Selesai"}
+                          </span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Kategori & Keperluan */}
+                  <div className="space-y-1.5 bg-slate-50 dark:bg-slate-950/50 p-3 rounded-2xl border border-slate-100 dark:border-slate-800">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-lg bg-emerald-500/10 px-2 py-0.5 font-bold text-emerald-800 dark:text-emerald-300 border border-emerald-500/20 text-[10px]">
+                        {p.category}
+                      </span>
+                      {p.companion_info && (
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1 font-semibold">
+                          <Users2 className="h-3 w-3 text-emerald-600 shrink-0" />
+                          <span className="truncate">{p.companion_info}</span>
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-slate-600 dark:text-slate-300 text-xs leading-relaxed">
+                      {p.reason}
+                    </p>
+                  </div>
+
+                  {/* Jadwal Waktu */}
+                  <div className="grid grid-cols-2 gap-2 text-[11px] bg-slate-100/60 dark:bg-slate-800/40 p-2.5 rounded-xl border border-slate-200/60 dark:border-slate-800">
+                    <div className="space-y-0.5">
+                      <span className="text-[10px] text-slate-400 block font-semibold">🛫 Berangkat:</span>
+                      <span className="font-bold text-slate-800 dark:text-slate-200">
+                        {new Date(p.departure_target).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" })}
+                      </span>
+                    </div>
+                    <div className="space-y-0.5">
+                      <span className="text-[10px] text-slate-400 block font-semibold">🛬 Batas Kembali:</span>
+                      <span className={`font-bold ${late ? "text-rose-500 font-black" : "text-slate-800 dark:text-slate-200"}`}>
+                        {new Date(p.return_target).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" })}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Tombol Aksi */}
+                  <div className="pt-1 flex items-center justify-end gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPermitForPrint(p)}
+                      className="inline-flex items-center space-x-1 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 px-3 py-1.5 text-xs font-bold active:scale-95 cursor-pointer"
+                    >
+                      <Printer className="h-3.5 w-3.5" />
+                      <span>Slip Izin</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEditModal(p)}
+                      className="inline-flex items-center space-x-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 px-3 py-1.5 text-xs font-bold active:scale-95 cursor-pointer"
+                    >
+                      <Edit className="h-3.5 w-3.5" />
+                      <span>Edit</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setPermitToDelete(p)}
+                      className="p-1.5 text-rose-500 rounded-xl hover:bg-rose-500/10 active:scale-95 cursor-pointer"
+                      title="Hapus Izin"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* TAMPILAN 2: DESKTOP TABLE VIEW (Hanya tampil di tablet/desktop md ke atas) */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-800/80 bg-slate-50/90 dark:bg-slate-950/60 text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 select-none">

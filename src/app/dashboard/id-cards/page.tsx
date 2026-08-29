@@ -364,7 +364,7 @@ export default function IdCardsGeneratorPage() {
               Generator Cetak KTS Massal
             </h1>
             <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-              Cetak cepat &amp; simpan PDF multi-halaman resmi Pondok Pesantren Condong
+              Cetak cepat &amp; simpan PDF multi-halaman Kartu Tanda Santri
             </p>
           </div>
         </div>

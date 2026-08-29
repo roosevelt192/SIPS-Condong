@@ -300,7 +300,7 @@ export default function DashboardLivePage() {
               Dashboard Utama
             </h1>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Ringkasan operasional dan kendali layanan santri terpadu secara real-time
+              Ringkasan operasional dan kendali pengasuhan santri secara real-time
             </p>
           </div>
 
@@ -346,7 +346,7 @@ export default function DashboardLivePage() {
             </span>
           </div>
           <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-emerald-900/30 flex items-center justify-between text-[10.5px]">
-            <span className="text-slate-400 truncate">{insidePondokPercent}% di dalam asrama</span>
+            <span className="text-slate-400 truncate">{insidePondokPercent}% di dalam pondok</span>
             <span className="text-emerald-600 dark:text-emerald-400 font-bold group-hover:underline flex items-center gap-0.5">
               Detail <ChevronRight className="h-3 w-3" />
             </span>
@@ -380,10 +380,10 @@ export default function DashboardLivePage() {
           </div>
           <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-emerald-900/30 flex items-center justify-between text-[10.5px]">
             <span className="text-slate-400 truncate">
-              {currentlyOutList.length === 0 ? "Semua santri di asrama" : `${currentlyOutList.length} santri di luar`}
+              {currentlyOutList.length === 0 ? "Semua santri di pondok" : `${currentlyOutList.length} santri di luar`}
             </span>
             <span className="text-amber-600 dark:text-amber-400 font-bold group-hover:underline flex items-center gap-0.5">
-              Biro <ChevronRight className="h-3 w-3" />
+              Buka <ChevronRight className="h-3 w-3" />
             </span>
           </div>
         </Link>
@@ -475,7 +475,7 @@ export default function DashboardLivePage() {
               color: "text-emerald-800 dark:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/30",
             },
             {
-              label: "Biro Izin",
+              label: "Input Izin",
               sub: "Buat Surat Izin",
               href: "/dashboard/permissions",
               icon: FileCheck2,
@@ -551,7 +551,7 @@ export default function DashboardLivePage() {
               href="/dashboard/permissions"
               className="text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:underline flex items-center gap-1"
             >
-              <span>Detail Biro</span>
+              <span>Detail</span>
               <ChevronRight className="h-3.5 w-3.5" />
             </Link>
           </div>
@@ -603,7 +603,7 @@ export default function DashboardLivePage() {
             </div>
           </div>
 
-          {/* Progress Bar Santri Mukim di Asrama */}
+          {/* Progress Bar Santri Mukim di Pondok */}
           <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#0c1815] border border-slate-200/80 dark:border-emerald-900/30 space-y-2">
             <div className="flex items-center justify-between text-xs font-bold">
               <span className="text-slate-700 dark:text-slate-300">Presensi Santri Berada di Dalam Pondok</span>

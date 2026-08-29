@@ -6,7 +6,6 @@ import {
   Lock,
   Eye,
   EyeOff,
-  ShieldCheck,
   ArrowRight,
   User,
   Clock,
@@ -22,9 +21,11 @@ import {
   ArrowLeft,
   Trophy,
   FileSpreadsheet,
+  ShieldCheck,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { playScanSound } from "@/lib/feedback";
+import SIPSLogo from "@/components/SIPSLogo";
 
 export default function LoginPage() {
   const [isRegister, setIsRegister] = useState(false);
@@ -167,37 +168,37 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex h-screen w-screen items-center justify-center bg-[#f1f5f9] dark:bg-[#07130e] p-4 sm:p-6 antialiased selection:bg-emerald-600 selection:text-white font-sans relative overflow-hidden transition-colors duration-500">
+    <div className="flex min-h-screen w-full items-center justify-center bg-[#f1f5f9] dark:bg-[#07130e] p-4 sm:p-6 antialiased selection:bg-emerald-600 selection:text-white font-sans relative overflow-x-hidden transition-colors duration-500">
       {/* Background Decorative Blur Lights */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
         <div className="absolute -left-24 -top-24 h-[550px] w-[550px] rounded-full bg-emerald-600/15 dark:bg-emerald-600/20 blur-[140px]" />
         <div className="absolute -bottom-24 -right-24 h-[550px] w-[550px] rounded-full bg-teal-500/15 dark:bg-teal-500/20 blur-[140px]" />
       </div>
 
-      {/* Main Split Box Canvas */}
-      <div className="relative w-full max-w-[880px] h-[550px] rounded-[36px] bg-white/95 dark:bg-slate-900/95 shadow-2xl border border-slate-200/90 dark:border-slate-800/90 p-3 flex overflow-hidden z-10 transition-all duration-300">
+      {/* Main Container */}
+      <div className="relative w-full max-w-[880px] rounded-[32px] sm:rounded-[36px] bg-white/95 dark:bg-slate-900/95 shadow-2xl border border-slate-200/90 dark:border-slate-800/90 p-5 sm:p-7 md:p-4 flex flex-col md:flex-row overflow-hidden z-10 transition-all duration-300 md:min-h-[560px]">
         
         {/* ================= PANEL 1: FORMULIR LOGIN ================= */}
         <div
-          className={`w-full md:w-1/2 h-full flex flex-col justify-between px-6 sm:px-8 py-3.5 transition-all duration-700 ease-[cubic-bezier(0.65,0,0.35,1)] ${
+          className={`w-full md:w-1/2 flex flex-col justify-between py-2 md:py-4 px-1 sm:px-4 md:px-7 transition-all duration-500 ${
             isRegister
-              ? "opacity-0 pointer-events-none -translate-x-10 scale-95"
-              : "opacity-100 translate-x-0 scale-100"
+              ? "hidden md:flex md:opacity-0 md:pointer-events-none md:-translate-x-10 md:scale-95"
+              : "flex opacity-100 translate-x-0 scale-100"
           }`}
         >
           {/* Header Brand & Theme Switcher */}
-          <div className="space-y-2">
+          <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <div className="inline-flex items-center space-x-2">
-                <div className="h-9 w-9 rounded-2xl bg-[#064e3b] text-emerald-300 flex items-center justify-center shadow-md shadow-emerald-950/30">
-                  <ShieldCheck className="h-5 w-5 stroke-[2.3]" />
+              <div className="inline-flex items-center space-x-2.5">
+                <SIPSLogo className="h-10 w-10 min-w-[40px] min-h-[40px] shrink-0" />
+                <div className="flex items-center space-x-1.5">
+                  <span className="text-base font-black tracking-tight text-slate-900 dark:text-white uppercase">
+                    SIPS
+                  </span>
+                  <span className="text-[9px] font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                    v2.6
+                  </span>
                 </div>
-                <span className="text-base font-black tracking-tight text-slate-900 dark:text-white uppercase">
-                  SIPS
-                </span>
-                <span className="text-[9px] font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                  v2.6
-                </span>
               </div>
 
               {/* Theme Switcher */}
@@ -239,21 +240,21 @@ export default function LoginPage() {
 
           {/* Feedback Messages */}
           {errorMessage && (
-            <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-2.5 text-xs font-semibold text-rose-600 dark:text-rose-300 flex items-center gap-2 animate-in fade-in">
-              <AlertTriangle className="h-3.5 w-3.5 text-rose-500 shrink-0" />
-              <span className="truncate">{errorMessage}</span>
+            <div className="my-2 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs font-semibold text-rose-600 dark:text-rose-300 flex items-center gap-2 animate-in fade-in">
+              <AlertTriangle className="h-4 w-4 text-rose-500 shrink-0" />
+              <span>{errorMessage}</span>
             </div>
           )}
 
           {pendingNotice && (
-            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-2.5 text-xs font-semibold text-amber-700 dark:text-amber-300 flex items-center gap-2 animate-in fade-in">
-              <Clock className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+            <div className="my-2 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs font-semibold text-amber-700 dark:text-amber-300 flex items-center gap-2 animate-in fade-in">
+              <Clock className="h-4 w-4 text-amber-500 shrink-0" />
               <span>Menunggu persetujuan Super Admin.</span>
             </div>
           )}
 
           {/* Login Form */}
-          <form onSubmit={handleLogin} className="space-y-3.5 my-auto">
+          <form onSubmit={handleLogin} className="space-y-3.5 my-4 md:my-auto">
             <div className="space-y-1">
               <label className="block text-[10px] font-black uppercase tracking-wider text-slate-600 dark:text-slate-400">
                 Email Kedinasan / Petugas
@@ -298,7 +299,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="mt-1 flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-xs font-black text-white shadow-lg shadow-emerald-700/25 transition-all duration-200 hover:scale-[1.01] active:scale-95 disabled:opacity-50 cursor-pointer"
+              className="mt-2 flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-xs font-black text-white shadow-lg shadow-emerald-700/25 transition-all duration-200 hover:scale-[1.01] active:scale-95 disabled:opacity-50 cursor-pointer"
             >
               {loading ? (
                 <>
@@ -314,8 +315,19 @@ export default function LoginPage() {
             </button>
           </form>
 
+          {/* Switch to Register Button on Mobile */}
+          <div className="block md:hidden text-center my-3">
+            <button
+              type="button"
+              onClick={() => switchMode(true)}
+              className="text-xs text-emerald-600 dark:text-emerald-400 font-bold hover:underline cursor-pointer"
+            >
+              Belum punya akun? Daftar Petugas di sini
+            </button>
+          </div>
+
           {/* Footer Security Badge */}
-          <div className="pt-1 text-center">
+          <div className="pt-2 text-center border-t border-slate-100 dark:border-slate-800/60 md:border-none">
             <div className="inline-flex items-center space-x-1.5 text-[10px] text-slate-400 font-bold">
               <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
               <span>Autentikasi Terproteksi • Pondok Pesantren Condong</span>
@@ -325,25 +337,22 @@ export default function LoginPage() {
 
         {/* ================= PANEL 2: FORMULIR DAFTAR PETUGAS ================= */}
         <div
-          className={`w-full md:w-1/2 h-full flex flex-col justify-between px-6 sm:px-8 py-3.5 transition-all duration-700 ease-[cubic-bezier(0.65,0,0.35,1)] ${
+          className={`w-full md:w-1/2 flex flex-col justify-between py-2 md:py-4 px-1 sm:px-4 md:px-7 transition-all duration-500 ${
             !isRegister
-              ? "opacity-0 pointer-events-none translate-x-10 scale-95"
-              : "opacity-100 translate-x-0 scale-100"
+              ? "hidden md:flex md:opacity-0 md:pointer-events-none md:translate-x-10 md:scale-95"
+              : "flex opacity-100 translate-x-0 scale-100"
           }`}
         >
           {/* Header Brand & Theme Switcher */}
-          <div className="space-y-2">
+          <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <div className="inline-flex items-center space-x-2">
-                <div className="h-9 w-9 rounded-2xl bg-[#064e3b] text-emerald-300 flex items-center justify-center shadow-md">
-                  <ShieldCheck className="h-5 w-5 stroke-[2.3]" />
-                </div>
+              <div className="inline-flex items-center space-x-2.5">
+                <SIPSLogo className="h-10 w-10 min-w-[40px] min-h-[40px] shrink-0" />
                 <span className="text-base font-black tracking-tight text-slate-900 dark:text-white uppercase">
                   SIPS
                 </span>
               </div>
 
-              {/* Integrated Theme Switcher */}
               <button
                 type="button"
                 onClick={toggleTheme}
@@ -382,42 +391,42 @@ export default function LoginPage() {
 
           {/* Feedback Messages */}
           {errorMessage && (
-            <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-2.5 text-xs font-semibold text-rose-600 dark:text-rose-300 flex items-center gap-2 animate-in fade-in">
-              <AlertTriangle className="h-3.5 w-3.5 text-rose-500 shrink-0" />
-              <span className="truncate">{errorMessage}</span>
+            <div className="my-2 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs font-semibold text-rose-600 dark:text-rose-300 flex items-center gap-2 animate-in fade-in">
+              <AlertTriangle className="h-4 w-4 text-rose-500 shrink-0" />
+              <span>{errorMessage}</span>
             </div>
           )}
 
           {successRegister ? (
             <div className="rounded-3xl border border-emerald-500/30 bg-emerald-500/10 p-5 text-center space-y-2.5 my-auto animate-in fade-in">
               <CheckCircle2 className="h-9 w-9 text-emerald-600 mx-auto" />
-              <h3 className="font-black text-xs text-slate-900 dark:text-white">Pendaftaran Berhasil Diajukan!</h3>
+              <h3 className="font-black text-sm text-slate-900 dark:text-white">Pendaftaran Berhasil Diajukan!</h3>
               <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
                 Akun petugas Anda telah dibuat dan masuk ke antrean verifikasi Super Admin.
               </p>
               <button
                 type="button"
                 onClick={() => switchMode(false)}
-                className="mt-1 px-4 py-2 rounded-2xl bg-[#064e3b] text-white text-xs font-black hover:bg-emerald-800 transition active:scale-95 shadow-md cursor-pointer"
+                className="mt-2 px-5 py-2.5 rounded-2xl bg-[#064e3b] text-white text-xs font-black hover:bg-emerald-800 transition active:scale-95 shadow-md cursor-pointer"
               >
-                Kembali ke Masuk
+                Kembali ke Halaman Masuk
               </button>
             </div>
           ) : (
-            <form onSubmit={handleRegister} className="space-y-2.5 my-auto">
+            <form onSubmit={handleRegister} className="space-y-3 my-4 md:my-auto">
               <div className="space-y-1">
                 <label className="block text-[10px] font-black uppercase tracking-wider text-slate-600 dark:text-slate-400">
                   Nama Lengkap Petugas
                 </label>
                 <div className="relative flex items-center group">
-                  <User className="absolute left-3.5 h-3.5 w-3.5 text-slate-400 transition-colors group-focus-within:text-emerald-600" />
+                  <User className="absolute left-3.5 h-4 w-4 text-slate-400 transition-colors group-focus-within:text-emerald-600" />
                   <input
                     type="text"
                     required
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     placeholder="Contoh: Ust. Setiawan / Bpk. Jajang"
-                    className="h-9.5 w-full rounded-2xl border border-slate-300 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/70 pl-9.5 pr-3 text-xs font-semibold text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 transition-all shadow-xs"
+                    className="h-10.5 w-full rounded-2xl border border-slate-300 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/70 pl-10 pr-3 text-xs font-semibold text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 transition-all shadow-xs"
                   />
                 </div>
               </div>
@@ -429,24 +438,24 @@ export default function LoginPage() {
                 <div className="grid grid-cols-2 gap-2">
                   <div
                     onClick={() => setRole("pengasuhan")}
-                    className={`cursor-pointer rounded-2xl border p-2 flex items-center space-x-2 transition-all select-none ${
+                    className={`cursor-pointer rounded-2xl border p-2.5 flex items-center space-x-2 transition-all select-none ${
                       role === "pengasuhan"
                         ? "bg-emerald-500/15 border-emerald-600 text-emerald-800 dark:text-emerald-300 font-bold ring-1 ring-emerald-500/30 shadow-xs"
                         : "border-slate-300 dark:border-slate-800 text-slate-500 hover:border-slate-400 bg-slate-50/50 dark:bg-transparent"
                     }`}
                   >
-                    <UserCheck className="h-3.5 w-3.5 shrink-0" />
+                    <UserCheck className="h-4 w-4 shrink-0" />
                     <span className="text-xs truncate font-bold">Pengasuhan</span>
                   </div>
                   <div
                     onClick={() => setRole("security")}
-                    className={`cursor-pointer rounded-2xl border p-2 flex items-center space-x-2 transition-all select-none ${
+                    className={`cursor-pointer rounded-2xl border p-2.5 flex items-center space-x-2 transition-all select-none ${
                       role === "security"
                         ? "bg-amber-500/15 border-amber-500 text-amber-800 dark:text-amber-300 font-bold ring-1 ring-amber-500/30 shadow-xs"
                         : "border-slate-300 dark:border-slate-800 text-slate-500 hover:border-slate-400 bg-slate-50/50 dark:bg-transparent"
                     }`}
                   >
-                    <Building2 className="h-3.5 w-3.5 shrink-0" />
+                    <Building2 className="h-4 w-4 shrink-0" />
                     <span className="text-xs truncate font-bold">Pos Satpam</span>
                   </div>
                 </div>
@@ -457,14 +466,14 @@ export default function LoginPage() {
                   Email Kedinasan
                 </label>
                 <div className="relative flex items-center group">
-                  <Mail className="absolute left-3.5 h-3.5 w-3.5 text-slate-400 transition-colors group-focus-within:text-emerald-600" />
+                  <Mail className="absolute left-3.5 h-4 w-4 text-slate-400 transition-colors group-focus-within:text-emerald-600" />
                   <input
                     type="email"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="petugas@condong.id"
-                    className="h-9.5 w-full rounded-2xl border border-slate-300 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/70 pl-9.5 pr-3 text-xs font-semibold text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 transition-all shadow-xs"
+                    className="h-10.5 w-full rounded-2xl border border-slate-300 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/70 pl-10 pr-3 text-xs font-semibold text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 transition-all shadow-xs"
                   />
                 </div>
               </div>
@@ -474,21 +483,21 @@ export default function LoginPage() {
                   Kata Sandi Baru
                 </label>
                 <div className="relative flex items-center group">
-                  <Lock className="absolute left-3.5 h-3.5 w-3.5 text-slate-400 transition-colors group-focus-within:text-emerald-600" />
+                  <Lock className="absolute left-3.5 h-4 w-4 text-slate-400 transition-colors group-focus-within:text-emerald-600" />
                   <input
                     type={showPassword ? "text" : "password"}
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Min. 6 Karakter"
-                    className="h-9.5 w-full rounded-2xl border border-slate-300 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/70 pl-9.5 pr-9.5 text-xs font-semibold text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 transition-all shadow-xs"
+                    className="h-10.5 w-full rounded-2xl border border-slate-300 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/70 pl-10 pr-10 text-xs font-semibold text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 transition-all shadow-xs"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition cursor-pointer"
                   >
-                    {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
               </div>
@@ -496,12 +505,12 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="mt-1 flex h-10.5 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-xs font-black text-white shadow-lg shadow-emerald-700/25 transition-all duration-200 hover:scale-[1.01] active:scale-95 disabled:opacity-50 cursor-pointer"
+                className="mt-2 flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-xs font-black text-white shadow-lg shadow-emerald-700/25 transition-all duration-200 hover:scale-[1.01] active:scale-95 disabled:opacity-50 cursor-pointer"
               >
                 {loading ? (
                   <>
-                    <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                    <span>Mendaftarkan...</span>
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    <span>Mendaftarkan Akun...</span>
                   </>
                 ) : (
                   <>
@@ -513,16 +522,27 @@ export default function LoginPage() {
             </form>
           )}
 
+          {/* Switch to Login Button on Mobile */}
+          <div className="block md:hidden text-center my-3">
+            <button
+              type="button"
+              onClick={() => switchMode(false)}
+              className="text-xs text-emerald-600 dark:text-emerald-400 font-bold hover:underline cursor-pointer"
+            >
+              Sudah punya akun? Masuk di sini
+            </button>
+          </div>
+
           {/* Footer Security Badge */}
-          <div className="pt-1 text-center">
+          <div className="pt-2 text-center border-t border-slate-100 dark:border-slate-800/60 md:border-none">
             <div className="inline-flex items-center space-x-1.5 text-[10px] text-slate-400 font-bold">
               <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-              <span>Verifikasi Berjenjang • Biro Pengasuhan Santri</span>
+              <span>Verifikasi Berjenjang • Bagian Pengasuhan Santri</span>
             </div>
           </div>
         </div>
 
-        {/* ================= PANEL 3: ANIMATED SLIDING VISUAL BANNER ================= */}
+        {/* ================= PANEL 3: ANIMATED SLIDING VISUAL BANNER (DESKTOP ONLY) ================= */}
         <div
           style={{
             left: isRegister ? "0.75rem" : "50%",
@@ -534,33 +554,18 @@ export default function LoginPage() {
           <div className="absolute inset-0 pointer-events-none overflow-hidden -z-10">
             <div className="absolute top-1/4 right-0 w-64 h-64 rounded-full bg-emerald-400/20 blur-3xl transform translate-x-12 animate-pulse" />
             <div className="absolute bottom-0 left-0 w-64 h-64 rounded-full bg-teal-400/20 blur-3xl transform -translate-x-10 translate-y-10" />
-            
-            <svg
-              className="absolute inset-0 w-full h-full opacity-30 mix-blend-screen"
-              viewBox="0 0 400 500"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M400 100C320 120 280 260 200 240C120 220 100 380 0 420V500H400V100Z"
-                fill="url(#paint0_linear_login)"
-                fillOpacity="0.5"
-              />
-              <defs>
-                <linearGradient id="paint0_linear_login" x1="200" y1="100" x2="200" y2="500" gradientUnits="userSpaceOnUse">
-                  <stop stopColor="#34D399" stopOpacity="0.9" />
-                  <stop offset="1" stopColor="#0D9488" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-            </svg>
           </div>
 
-          {/* Top Banner Header */}
-          <div className="space-y-1.5">
-            <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-[9.5px] font-bold uppercase tracking-wider">
-              <Sparkles className="h-3 w-3 text-emerald-300" />
-              <span>Sistem Pengasuhan Santri Terpadu</span>
+          {/* Top Banner Header with Logo */}
+          <div className="space-y-2">
+            <div className="flex items-center space-x-2.5">
+              <SIPSLogo className="h-11 w-11" />
+              <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-[9.5px] font-bold uppercase tracking-wider">
+                <Sparkles className="h-3 w-3 text-emerald-300" />
+                <span>Sistem Pengasuhan Santri Terpadu</span>
+              </div>
             </div>
+
             <h3 className="text-xl font-black tracking-tight leading-snug">
               Integritas &amp; Kedisiplinan <br />
               <span className="text-emerald-300">Pondok Pesantren Condong</span>
@@ -631,7 +636,7 @@ export default function LoginPage() {
             </button>
 
             <div className="text-[10px] text-emerald-200/80 font-medium flex items-center justify-between px-1">
-              <span>© 2026 Biro Pengasuhan Santri</span>
+              <span>© 2026 Bagian Pengasuhan Santri</span>
               <span className="text-emerald-300 font-bold">Terproteksi RLS</span>
             </div>
           </div>

@@ -14,7 +14,6 @@ import {
   Trophy,
   LogOut,
   Download,
-  Sparkles,
   Search,
   SlidersHorizontal,
   ArrowUpDown,
@@ -912,7 +911,7 @@ export default function ReportsPage() {
           </button>
         </div>
 
-        {/* BARIS 1: PANCARIAN & DROPDOWN FILTER KHUSUS */}
+        {/* BARIS 1: PENCARIAN & DROPDOWN FILTER KHUSUS */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-3 text-xs">
           <div className="relative sm:col-span-2">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
@@ -1080,209 +1079,213 @@ export default function ReportsPage() {
           )}
         </div>
 
-        {/* BARIS 2: SORTING & CUSTOM CHECKBOX KOLOM */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs">
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5 text-slate-500 font-bold">
-              <ArrowUpDown className="h-4 w-4" />
-              <span>Urutan:</span>
+        {/* BARIS 2: SORTING, CHECKBOX KOLOM, & RENTANG TANGGAL (RESPONSIF) */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 text-slate-500 font-bold">
+                <ArrowUpDown className="h-4 w-4" />
+                <span>Urutan:</span>
+              </div>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="h-9 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer"
+              >
+                <option value="default">Terbaru (Default)</option>
+                <option value="name_asc">Nama Santri (A - Z)</option>
+                <option value="name_desc">Nama Santri (Z - A)</option>
+                <option value="nis_asc">NIS (Terkecil - Terbesar)</option>
+                {reportType === "violations" && (
+                  <>
+                    <option value="points_desc">Poin Terbanyak</option>
+                    <option value="points_asc">Poin Paling Sedikit</option>
+                  </>
+                )}
+                {reportType === "achievements" && (
+                  <>
+                    <option value="points_desc">Reward Tertinggi</option>
+                    <option value="points_asc">Reward Terendah</option>
+                  </>
+                )}
+              </select>
             </div>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="h-9 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer"
-            >
-              <option value="default">Terbaru (Default)</option>
-              <option value="name_asc">Nama Santri (A - Z)</option>
-              <option value="name_desc">Nama Santri (Z - A)</option>
-              <option value="nis_asc">NIS (Terkecil - Terbesar)</option>
+
+            {reportType !== "students" && (
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="h-9 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-2.5 text-[11px] font-bold text-slate-800 dark:text-slate-200 outline-none"
+                />
+                <span className="text-slate-400 font-bold">s/d</span>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="h-9 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-2.5 text-[11px] font-bold text-slate-800 dark:text-slate-200 outline-none"
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5">
+            <div className="flex flex-wrap items-center gap-2.5 text-[11px] font-bold text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800">
+              <span className="text-slate-400">Pilihan Kolom:</span>
+              <label className="inline-flex items-center gap-1.5 cursor-pointer hover:text-emerald-600 transition">
+                <input
+                  type="checkbox"
+                  checked={colSettings.classDorm}
+                  onChange={(e) => setColSettings({ ...colSettings, classDorm: e.target.checked })}
+                  className="rounded text-emerald-600"
+                />
+                <span>Kelas &amp; Asrama</span>
+              </label>
+
               {reportType === "violations" && (
                 <>
-                  <option value="points_desc">Poin Terbanyak</option>
-                  <option value="points_asc">Poin Paling Sedikit</option>
+                  <label className="inline-flex items-center gap-1.5 cursor-pointer hover:text-emerald-600 transition">
+                    <input
+                      type="checkbox"
+                      checked={colSettings.violationCategory}
+                      onChange={(e) => setColSettings({ ...colSettings, violationCategory: e.target.checked })}
+                      className="rounded text-emerald-600"
+                    />
+                    <span>Tingkat</span>
+                  </label>
+                  <label className="inline-flex items-center gap-1.5 cursor-pointer hover:text-emerald-600 transition">
+                    <input
+                      type="checkbox"
+                      checked={colSettings.violationSanction}
+                      onChange={(e) => setColSettings({ ...colSettings, violationSanction: e.target.checked })}
+                      className="rounded text-emerald-600"
+                    />
+                    <span>Sanksi</span>
+                  </label>
                 </>
               )}
+
               {reportType === "achievements" && (
                 <>
-                  <option value="points_desc">Reward Tertinggi</option>
-                  <option value="points_asc">Reward Terendah</option>
+                  <label className="inline-flex items-center gap-1.5 cursor-pointer hover:text-emerald-600 transition">
+                    <input
+                      type="checkbox"
+                      checked={colSettings.achievementLevel}
+                      onChange={(e) => setColSettings({ ...colSettings, achievementLevel: e.target.checked })}
+                      className="rounded text-emerald-600"
+                    />
+                    <span>Tingkat</span>
+                  </label>
+                  <label className="inline-flex items-center gap-1.5 cursor-pointer hover:text-emerald-600 transition">
+                    <input
+                      type="checkbox"
+                      checked={colSettings.achievementAppreciation}
+                      onChange={(e) => setColSettings({ ...colSettings, achievementAppreciation: e.target.checked })}
+                      className="rounded text-emerald-600"
+                    />
+                    <span>Apresiasi</span>
+                  </label>
                 </>
               )}
-            </select>
-          </div>
 
-          <div className="flex flex-wrap items-center gap-3 text-[11px] font-bold text-slate-600 dark:text-slate-400">
-            <span>Pilihan Kolom:</span>
-            <label className="inline-flex items-center gap-1.5 cursor-pointer hover:text-emerald-600 transition">
-              <input
-                type="checkbox"
-                checked={colSettings.classDorm}
-                onChange={(e) => setColSettings({ ...colSettings, classDorm: e.target.checked })}
-                className="rounded text-emerald-600"
-              />
-              <span>Kelas &amp; Asrama</span>
-            </label>
+              {reportType === "students" && (
+                <>
+                  <label className="inline-flex items-center gap-1.5 cursor-pointer hover:text-emerald-600 transition">
+                    <input
+                      type="checkbox"
+                      checked={colSettings.guardianName}
+                      onChange={(e) => setColSettings({ ...colSettings, guardianName: e.target.checked })}
+                      className="rounded text-emerald-600"
+                    />
+                    <span>Wali</span>
+                  </label>
+                  <label className="inline-flex items-center gap-1.5 cursor-pointer hover:text-emerald-600 transition">
+                    <input
+                      type="checkbox"
+                      checked={colSettings.guardianPhone}
+                      onChange={(e) => setColSettings({ ...colSettings, guardianPhone: e.target.checked })}
+                      className="rounded text-emerald-600"
+                    />
+                    <span>Kontak</span>
+                  </label>
+                </>
+              )}
 
-            {reportType === "violations" && (
-              <>
-                <label className="inline-flex items-center gap-1.5 cursor-pointer hover:text-emerald-600 transition">
-                  <input
-                    type="checkbox"
-                    checked={colSettings.violationCategory}
-                    onChange={(e) => setColSettings({ ...colSettings, violationCategory: e.target.checked })}
-                    className="rounded text-emerald-600"
-                  />
-                  <span>Tingkat</span>
-                </label>
-                <label className="inline-flex items-center gap-1.5 cursor-pointer hover:text-emerald-600 transition">
-                  <input
-                    type="checkbox"
-                    checked={colSettings.violationSanction}
-                    onChange={(e) => setColSettings({ ...colSettings, violationSanction: e.target.checked })}
-                    className="rounded text-emerald-600"
-                  />
-                  <span>Sanksi</span>
-                </label>
-              </>
-            )}
-
-            {reportType === "achievements" && (
-              <>
-                <label className="inline-flex items-center gap-1.5 cursor-pointer hover:text-emerald-600 transition">
-                  <input
-                    type="checkbox"
-                    checked={colSettings.achievementLevel}
-                    onChange={(e) => setColSettings({ ...colSettings, achievementLevel: e.target.checked })}
-                    className="rounded text-emerald-600"
-                  />
-                  <span>Tingkat</span>
-                </label>
-                <label className="inline-flex items-center gap-1.5 cursor-pointer hover:text-emerald-600 transition">
-                  <input
-                    type="checkbox"
-                    checked={colSettings.achievementAppreciation}
-                    onChange={(e) => setColSettings({ ...colSettings, achievementAppreciation: e.target.checked })}
-                    className="rounded text-emerald-600"
-                  />
-                  <span>Apresiasi</span>
-                </label>
-              </>
-            )}
-
-            {reportType === "students" && (
-              <>
-                <label className="inline-flex items-center gap-1.5 cursor-pointer hover:text-emerald-600 transition">
-                  <input
-                    type="checkbox"
-                    checked={colSettings.guardianName}
-                    onChange={(e) => setColSettings({ ...colSettings, guardianName: e.target.checked })}
-                    className="rounded text-emerald-600"
-                  />
-                  <span>Wali</span>
-                </label>
-                <label className="inline-flex items-center gap-1.5 cursor-pointer hover:text-emerald-600 transition">
-                  <input
-                    type="checkbox"
-                    checked={colSettings.guardianPhone}
-                    onChange={(e) => setColSettings({ ...colSettings, guardianPhone: e.target.checked })}
-                    className="rounded text-emerald-600"
-                  />
-                  <span>Kontak</span>
-                </label>
-              </>
-            )}
-
-            {reportType === "permissions" && (
-              <>
-                <label className="inline-flex items-center gap-1.5 cursor-pointer hover:text-emerald-600 transition">
-                  <input
-                    type="checkbox"
-                    checked={colSettings.permissionDeadline}
-                    onChange={(e) => setColSettings({ ...colSettings, permissionDeadline: e.target.checked })}
-                    className="rounded text-emerald-600"
-                  />
-                  <span>Tenggat</span>
-                </label>
-              </>
-            )}
-          </div>
-
-          {reportType !== "students" ? (
-            <div className="flex items-center gap-1.5">
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="h-9 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-2.5 text-[11px] font-bold text-slate-800 dark:text-slate-200 outline-none"
-              />
-              <span className="text-slate-400 font-bold">s/d</span>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="h-9 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-2.5 text-[11px] font-bold text-slate-800 dark:text-slate-200 outline-none"
-              />
+              {reportType === "permissions" && (
+                <>
+                  <label className="inline-flex items-center gap-1.5 cursor-pointer hover:text-emerald-600 transition">
+                    <input
+                      type="checkbox"
+                      checked={colSettings.permissionDeadline}
+                      onChange={(e) => setColSettings({ ...colSettings, permissionDeadline: e.target.checked })}
+                      className="rounded text-emerald-600"
+                    />
+                    <span>Tenggat</span>
+                  </label>
+                </>
+              )}
             </div>
-          ) : null}
 
-          <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-500/20 px-3.5 py-1.5 rounded-full shadow-sm">
-            {filteredData.length} Data Terpilih
-          </span>
+            <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-500/20 px-3.5 py-1.5 rounded-full shadow-sm whitespace-nowrap">
+              {filteredData.length} Data Terpilih
+            </span>
+          </div>
         </div>
       </div>
 
-      {/* ================= PRATINJAU DOKUMEN LAPORAN DI LAYAR ================= */}
-      <div className="rounded-[32px] border border-slate-200/90 dark:border-slate-800/90 bg-white shadow-2xl p-8 sm:p-12 text-black overflow-hidden relative">
-        {/* KOP SURAT RESMI PESANTREN */}
-        <div className="border-b-4 border-double border-black pb-3 mb-5 text-center space-y-1">
-          <h2 className="text-base sm:text-lg font-black uppercase tracking-wider text-black">
-            PONDOK PESANTREN RIYADLUL &apos;ULUM WADDA&apos;WAH CONDONG
-          </h2>
-          <h3 className="text-xs font-bold tracking-wide uppercase text-black">
-            BAGIAN PENGASUHAN SANTRI
-          </h3>
-          <p className="text-[10px] text-black">
-            Jl. Condong No. 01, Setianegara, Cibeureum, Kota Tasikmalaya, Jawa Barat 46196 • Website: pesantrencondong.net
-          </p>
-        </div>
-
-        {/* JUDUL LAPORAN & NOMOR DOKUMEN */}
-        <div className="flex items-center justify-between gap-2 mb-4">
-          <div>
-            <h4 className="text-xs sm:text-sm font-black uppercase text-black">
-              {reportType === "violations" && "REKAPITULASI PELANGGARAN & POIN KEDISIPLINAN SANTRI"}
-              {reportType === "achievements" && "REKAPITULASI CATATAN PRESTASI & PENGHARGAAN SANTRI"}
-              {reportType === "students" && "BUKU INDUK DAN MASTER DATA SANTRI AKTIF"}
-              {reportType === "permissions" && "REKAPITULASI PERIZINAN SANTRI"}
-            </h4>
-            {reportType !== "students" ? (
-              <p className="text-[11px] text-black font-medium mt-0.5">
-                Periode: {new Date(startDate).toLocaleDateString("id-ID", { dateStyle: "medium" })} s/d{" "}
-                {new Date(endDate).toLocaleDateString("id-ID", { dateStyle: "medium" })}
-              </p>
-            ) : (
-              <p className="text-[11px] text-black font-medium mt-0.5">
-                Rekap Data Santri Mukim Aktif ({filteredData.length} Santri)
-              </p>
-            )}
+      {/* ================= PRATINJAU DOKUMEN LAPORAN DI LAYAR (DENGAN HORIZONTAL SCROLL) ================= */}
+      <div className="overflow-x-auto rounded-[32px] border border-slate-200/90 dark:border-slate-800/90 bg-white shadow-2xl p-4 sm:p-8 lg:p-12 text-black">
+        <div className="min-w-[850px] space-y-4">
+          {/* KOP SURAT RESMI PESANTREN */}
+          <div className="border-b-4 border-double border-black pb-3 text-center space-y-1">
+            <h2 className="text-base sm:text-lg font-black uppercase tracking-wider text-black">
+              PONDOK PESANTREN RIYADLUL &apos;ULUM WADDA&apos;WAH CONDONG
+            </h2>
+            <h3 className="text-xs font-bold tracking-wide uppercase text-black">
+              BAGIAN PENGASUHAN SANTRI
+            </h3>
+            <p className="text-[10px] text-black">
+              Jl. Condong No. 01, Setianegara, Cibeureum, Kota Tasikmalaya, Jawa Barat 46196 • Website: pesantrencondong.net
+            </p>
           </div>
-          <div className="text-right text-[10px] font-mono text-black">
-            <p>No. Dok: BA/SIPS/{new Date().getFullYear()}/0994</p>
-            <p>Dicetak: {new Date().toLocaleDateString("id-ID", { dateStyle: "medium" })}</p>
-          </div>
-        </div>
 
-        {/* TABEL DOKUMEN FORMAL */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs border border-black table-fixed">
+          {/* JUDUL LAPORAN & NOMOR DOKUMEN */}
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <h4 className="text-xs sm:text-sm font-black uppercase text-black">
+                {reportType === "violations" && "REKAPITULASI PELANGGARAN & POIN KEDISIPLINAN SANTRI"}
+                {reportType === "achievements" && "REKAPITULASI CATATAN PRESTASI & PENGHARGAAN SANTRI"}
+                {reportType === "students" && "BUKU INDUK DAN MASTER DATA SANTRI AKTIF"}
+                {reportType === "permissions" && "REKAPITULASI PERIZINAN SANTRI"}
+              </h4>
+              {reportType !== "students" ? (
+                <p className="text-[11px] text-black font-medium mt-0.5">
+                  Periode: {new Date(startDate).toLocaleDateString("id-ID", { dateStyle: "medium" })} s/d{" "}
+                  {new Date(endDate).toLocaleDateString("id-ID", { dateStyle: "medium" })}
+                </p>
+              ) : (
+                <p className="text-[11px] text-black font-medium mt-0.5">
+                  Rekap Data Santri Mukim Aktif ({filteredData.length} Santri)
+                </p>
+              )}
+            </div>
+            <div className="text-right text-[10px] font-mono text-black">
+              <p>No. Dok: BA/SIPS/{new Date().getFullYear()}/0994</p>
+              <p>Dicetak: {new Date().toLocaleDateString("id-ID", { dateStyle: "medium" })}</p>
+            </div>
+          </div>
+
+          {/* TABEL DOKUMEN FORMAL */}
+          <table className="w-full text-left border-collapse text-xs border border-black">
             <thead>
               <tr className="bg-emerald-50 text-[10px] uppercase font-black tracking-wider text-[#064e3b] border-b border-black">
-                <th className="py-2.5 px-2 text-center border-r border-black w-[5%] font-black">NO</th>
-                <th className="py-2.5 px-2 text-center border-r border-black w-[11%] font-black">NIS</th>
-                <th className="py-2.5 px-3 text-center border-r border-black w-[21%] font-black">NAMA SANTRI</th>
+                <th className="py-2.5 px-2 text-center border-r border-black w-10 font-black">NO</th>
+                <th className="py-2.5 px-2 text-center border-r border-black w-24 font-black">NIS</th>
+                <th className="py-2.5 px-3 text-left border-r border-black font-black">NAMA SANTRI</th>
 
                 {colSettings.classDorm && (
-                  <th className="py-2.5 px-2.5 text-center border-r border-black w-[20%] font-black">
+                  <th className="py-2.5 px-2.5 text-left border-r border-black w-44 font-black">
                     KELAS / ASRAMA / ASAL
                   </th>
                 )}
@@ -1290,34 +1293,34 @@ export default function ReportsPage() {
                 {/* Kolom Khusus Pelanggaran */}
                 {reportType === "violations" && (
                   <>
-                    <th className="py-2.5 px-3 text-center border-r border-black w-[20%] font-black">
+                    <th className="py-2.5 px-3 text-left border-r border-black font-black">
                       BENTUK PELANGGARAN
                     </th>
                     {colSettings.violationCategory && (
-                      <th className="py-2.5 px-2 text-center border-r border-black w-[8%] font-black">TINGKAT</th>
+                      <th className="py-2.5 px-2 text-center border-r border-black w-20 font-black">TINGKAT</th>
                     )}
-                    <th className="py-2.5 px-2 text-center border-r border-black w-[6%] font-black">POIN</th>
+                    <th className="py-2.5 px-2 text-center border-r border-black w-14 font-black">POIN</th>
                     {colSettings.violationSanction && (
-                      <th className="py-2.5 px-3 text-center border-r border-black w-[19%] font-black">
+                      <th className="py-2.5 px-3 text-left border-r border-black font-black">
                         SANKSI / TAKZIR
                       </th>
                     )}
-                    <th className="py-2.5 px-2 text-center w-[8%] font-black">STATUS</th>
+                    <th className="py-2.5 px-2 text-center w-20 font-black">STATUS</th>
                   </>
                 )}
 
                 {/* Kolom Khusus Prestasi */}
                 {reportType === "achievements" && (
                   <>
-                    <th className="py-2.5 px-3 text-center border-r border-black w-[22%] font-black">
-                      NAMA KEJUARAAN / CAPAIAN
+                    <th className="py-2.5 px-3 text-left border-r border-black font-black">
+                      NAMA PRESTASI / CAPAIAN
                     </th>
                     {colSettings.achievementLevel && (
-                      <th className="py-2.5 px-2 text-center border-r border-black w-[9%] font-black">TINGKAT</th>
+                      <th className="py-2.5 px-2 text-center border-r border-black w-24 font-black">TINGKAT</th>
                     )}
-                    <th className="py-2.5 px-2 text-center border-r border-black w-[9%] font-black">REWARD</th>
+                    <th className="py-2.5 px-2 text-center border-r border-black w-20 font-black">REWARD</th>
                     {colSettings.achievementAppreciation && (
-                      <th className="py-2.5 px-3 text-center w-[23%] font-black">BENTUK APRESIASI</th>
+                      <th className="py-2.5 px-3 text-left w-48 font-black">BENTUK APRESIASI</th>
                     )}
                   </>
                 )}
@@ -1326,36 +1329,36 @@ export default function ReportsPage() {
                 {reportType === "students" && (
                   <>
                     {colSettings.guardianName && (
-                      <th className="py-2.5 px-3 text-center border-r border-black w-[18%] font-black">
+                      <th className="py-2.5 px-3 text-left border-r border-black w-40 font-black">
                         NAMA LENGKAP WALI
                       </th>
                     )}
                     {colSettings.guardianPhone && (
-                      <th className="py-2.5 px-3 text-center border-r border-black w-[14%] font-black">
+                      <th className="py-2.5 px-3 text-center border-r border-black w-32 font-black">
                         KONTAK WHATSAPP
                       </th>
                     )}
-                    <th className="py-2.5 px-2 text-center w-[10%] font-black">STATUS</th>
+                    <th className="py-2.5 px-2 text-center w-24 font-black">STATUS</th>
                   </>
                 )}
 
                 {/* Kolom Khusus Perizinan */}
                 {reportType === "permissions" && (
                   <>
-                    <th className="py-2.5 px-3 text-center border-r border-black w-[22%] font-black">
+                    <th className="py-2.5 px-3 text-left border-r border-black font-black">
                       KATEGORI &amp; ALASAN
                     </th>
                     {colSettings.permissionDeadline && (
-                      <th className="py-2.5 px-3 text-center border-r border-black w-[19%] font-black">
+                      <th className="py-2.5 px-3 text-center border-r border-black w-36 font-black">
                         TENGGAT KEMBALI
                       </th>
                     )}
-                    <th className="py-2.5 px-2 text-center w-[20%] font-black">STATUS</th>
+                    <th className="py-2.5 px-2 text-center w-24 font-black">STATUS</th>
                   </>
                 )}
               </tr>
             </thead>
-            <tbody className="text-[10px] text-black">
+            <tbody className="text-[10.5px] text-black">
               {loading ? (
                 <tr>
                   <td colSpan={11} className="py-12 text-center text-slate-400">
@@ -1377,14 +1380,14 @@ export default function ReportsPage() {
                   <tr key={item.id || index} className="border-b border-black hover:bg-emerald-50/30 transition-colors">
                     <td className="py-2 px-2 text-center font-mono border-r border-black">{index + 1}</td>
                     <td className="py-2 px-2 text-center font-mono border-r border-black">{item.nis || "-"}</td>
-                    <td className="py-2 px-3 font-bold uppercase border-r border-black break-words">
+                    <td className="py-2 px-3 font-bold uppercase border-r border-black">
                       {item.student_name || item.full_name || item.name || item.nama || "-"}
                     </td>
 
                     {colSettings.classDorm && (
-                      <td className="py-2 px-2.5 border-r border-black break-words">
+                      <td className="py-2 px-2.5 border-r border-black">
                         <p className="font-bold">{item.kelas || "-"}</p>
-                        <p className="text-[9px] text-slate-700 font-medium">
+                        <p className="text-[9.5px] text-slate-700 font-medium">
                           {item.kamar || "-"} • {item.konsulat || "-"}
                         </p>
                       </td>
@@ -1393,17 +1396,17 @@ export default function ReportsPage() {
                     {/* Pelanggaran */}
                     {reportType === "violations" && (
                       <>
-                        <td className="py-2 px-3 border-r border-black break-words">
+                        <td className="py-2 px-3 border-r border-black">
                           {item.violation_name || "-"}
                         </td>
                         {colSettings.violationCategory && (
-                          <td className="py-2 px-2 text-center border-r border-black">{item.category || "-"}</td>
+                          <td className="py-2 px-2 text-center border-r border-black font-semibold">{item.category || "-"}</td>
                         )}
-                        <td className="py-2 px-2 text-center font-bold font-mono border-r border-black">
+                        <td className="py-2 px-2 text-center font-bold font-mono border-r border-black text-rose-700">
                           +{item.points || 0}
                         </td>
                         {colSettings.violationSanction && (
-                          <td className="py-2 px-3 border-r border-black leading-snug break-words">
+                          <td className="py-2 px-3 border-r border-black leading-snug">
                             {item.sanction || "-"}
                           </td>
                         )}
@@ -1414,15 +1417,15 @@ export default function ReportsPage() {
                     {/* Prestasi */}
                     {reportType === "achievements" && (
                       <>
-                        <td className="py-2 px-3 font-bold border-r border-black break-words">{item.title || "-"}</td>
+                        <td className="py-2 px-3 font-bold border-r border-black">{item.title || "-"}</td>
                         {colSettings.achievementLevel && (
-                          <td className="py-2 px-2 text-center border-r border-black">{item.level || "-"}</td>
+                          <td className="py-2 px-2 text-center border-r border-black font-semibold">{item.level || "-"}</td>
                         )}
-                        <td className="py-2 px-2 text-center font-bold font-mono border-r border-black whitespace-nowrap">
-                          +{item.reward_points || 0} Poin
+                        <td className="py-2 px-2 text-center font-bold font-mono border-r border-black whitespace-nowrap text-emerald-700">
+                          +{item.reward_points || 0}
                         </td>
                         {colSettings.achievementAppreciation && (
-                          <td className="py-2 px-3 leading-snug break-words">{item.appreciation || "-"}</td>
+                          <td className="py-2 px-3 leading-snug">{item.appreciation || "-"}</td>
                         )}
                       </>
                     )}
@@ -1431,7 +1434,7 @@ export default function ReportsPage() {
                     {reportType === "students" && (
                       <>
                         {colSettings.guardianName && (
-                          <td className="py-2 px-3 border-r border-black break-words">
+                          <td className="py-2 px-3 border-r border-black">
                             {item.nama_lengkap_wali || "-"}
                           </td>
                         )}
@@ -1447,9 +1450,9 @@ export default function ReportsPage() {
                     {/* Perizinan */}
                     {reportType === "permissions" && (
                       <>
-                        <td className="py-2 px-3 border-r border-black break-words">
+                        <td className="py-2 px-3 border-r border-black">
                           <p className="font-bold">{item.category || "-"}</p>
-                          <p className="text-[9px] text-slate-700">{item.reason || "-"}</p>
+                          <p className="text-[9.5px] text-slate-700">{item.reason || "-"}</p>
                         </td>
                         {colSettings.permissionDeadline && (
                           <td className="py-2 px-3 font-mono text-center border-r border-black">

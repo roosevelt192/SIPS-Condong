@@ -38,7 +38,6 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  Sparkles,
   ArrowLeft,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -1113,10 +1112,180 @@ export default function StudentsMasterPage() {
         </div>
       </div>
 
-      {/* DATA TABLE DENGAN MULTI-SELECT CHECKBOX & SORTABLE HEADERS */}
+      {/* DATA CONTAINER: CARD VIEW PADA HP (MD KE BAWAH) & TABEL ELEGAN PADA DESKTOP */}
       <div className="overflow-hidden rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-900/90 shadow-xl shadow-slate-200/30 dark:shadow-black/40 backdrop-blur-xl relative">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[700px] text-left border-collapse">
+        
+        {/* TAMPILAN 1: MOBILE CARD LIST (Tampil hanya di layar HP < md) */}
+        <div className="block md:hidden divide-y divide-slate-100 dark:divide-slate-800/60">
+          <div className="p-4 bg-slate-50/90 dark:bg-slate-950/60 flex items-center justify-between border-b border-slate-200 dark:border-slate-800">
+            <button
+              type="button"
+              onClick={handleToggleSelectCurrentPage}
+              className="inline-flex items-center space-x-2 text-xs font-bold text-slate-600 dark:text-slate-300"
+            >
+              {isAllCurrentPageSelected ? (
+                <CheckSquare className="h-4 w-4 text-emerald-600" />
+              ) : (
+                <Square className="h-4 w-4" />
+              )}
+              <span>Pilih Semua di Halaman Ini</span>
+            </button>
+            <span className="text-[11px] font-mono text-slate-400">
+              Hal. {currentPage} / {totalPages}
+            </span>
+          </div>
+
+          {loading ? (
+            <div className="py-16 text-center text-slate-400">
+              <RefreshCw className="mx-auto h-7 w-7 animate-spin text-emerald-600 mb-2" />
+              <span className="text-xs font-semibold">Sinkronisasi Database Santri...</span>
+            </div>
+          ) : paginatedStudents.length === 0 ? (
+            <div className="py-16 text-center text-slate-400 text-xs px-4">
+              Tidak ada data santri yang cocok dengan kriteria pencarian.
+            </div>
+          ) : (
+            paginatedStudents.map((s) => {
+              const isChecked = selectedIds.includes(s.id);
+              return (
+                <div
+                  key={s.id}
+                  className={`p-4 transition-colors ${
+                    isChecked
+                      ? "bg-emerald-500/[0.08] dark:bg-emerald-500/[0.08]"
+                      : "hover:bg-slate-50/50 dark:hover:bg-slate-800/30"
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    {/* Checkbox & Avatar */}
+                    <div className="flex flex-col items-center gap-2.5 pt-1">
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => handleToggleStudentSelect(s.id)}
+                        className="rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer h-4 w-4"
+                      />
+                      <div
+                        onClick={() => s.photo_url && setZoomedPhoto({ url: s.photo_url, name: s.name })}
+                        className={`w-12 h-15 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-gradient-to-tr from-emerald-800 via-teal-700 to-amber-600 shadow-sm flex items-center justify-center shrink-0 ${
+                          s.photo_url ? "cursor-pointer active:scale-95 transition-transform" : ""
+                        }`}
+                      >
+                        {s.photo_url ? (
+                          <img
+                            src={s.photo_url}
+                            alt={s.name}
+                            className="h-full w-full object-cover object-top"
+                          />
+                        ) : (
+                          <span className="font-black text-white text-base">
+                            {s.name.charAt(0)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Santri Details */}
+                    <div className="flex-1 min-w-0 space-y-1.5">
+                      <div className="flex items-start justify-between gap-1">
+                        <h4 className="font-black text-sm text-slate-900 dark:text-white truncate">
+                          {s.name}
+                        </h4>
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-mono font-black shrink-0 ${
+                            s.points >= 90
+                              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20"
+                              : s.points >= 75
+                              ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+                              : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"
+                          }`}
+                        >
+                          {s.points} Poin
+                        </span>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                        <span className="font-mono font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 rounded border border-emerald-500/20 text-[11px]">
+                          NIS: {s.nis}
+                        </span>
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                          {s.gender}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300">
+                        <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md font-bold text-[11px]">
+                          {s.class}
+                        </span>
+                        <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                          {s.dorm}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400">
+                        <MapPin className="h-3 w-3 text-emerald-600 shrink-0" />
+                        <span className="truncate">{s.consulate}</span>
+                      </div>
+
+                      {/* Wali & WhatsApp Link */}
+                      <div className="pt-1 flex items-center justify-between border-t border-slate-100 dark:border-slate-800/60 text-xs">
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-[120px]">
+                          Wali: {s.guardian_name}
+                        </span>
+                        {s.guardian_phone !== "-" ? (
+                          <a
+                            href={`https://wa.me/${s.guardian_phone.replace(/^0/, "62")}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center space-x-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
+                          >
+                            <Phone className="h-3 w-3" />
+                            <span>{s.guardian_phone}</span>
+                          </a>
+                        ) : (
+                          <span className="text-[11px] text-slate-400">-</span>
+                        )}
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="pt-2 flex items-center justify-end gap-1 border-t border-slate-100 dark:border-slate-800/60">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedStudentForKTS(s)}
+                          className="inline-flex items-center space-x-1 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 px-2.5 py-1 text-xs font-bold active:scale-95"
+                        >
+                          <QrCode className="h-3.5 w-3.5" />
+                          <span>KTS</span>
+                        </button>
+
+                        <Link
+                          href={`/dashboard/students/${s.id}/edit`}
+                          className="inline-flex items-center space-x-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 px-2.5 py-1 text-xs font-bold active:scale-95"
+                        >
+                          <Edit className="h-3.5 w-3.5" />
+                          <span>Edit</span>
+                        </Link>
+
+                        <button
+                          type="button"
+                          onClick={() => setStudentToDelete(s)}
+                          className="p-1.5 text-rose-500 rounded-xl hover:bg-rose-500/10 active:scale-95"
+                          title="Hapus"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* TAMPILAN 2: DESKTOP TABLE VIEW (Tampil di tablet/desktop md ke atas) */}
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-800/80 bg-slate-50/90 dark:bg-slate-950/60 text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 select-none">
                 <th className="py-4 px-4 text-center w-12">
@@ -1356,7 +1525,7 @@ export default function StudentsMasterPage() {
         </div>
 
         {/* Pagination */}
-        <div className="flex items-center justify-between border-t border-slate-200 dark:border-slate-800/80 px-5 py-3.5 text-xs text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-slate-950/40">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-200 dark:border-slate-800/80 px-5 py-3.5 text-xs text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-slate-950/40">
           <span>
             Menampilkan{" "}
             <strong className="text-slate-900 dark:text-white font-mono">
@@ -1401,18 +1570,18 @@ export default function StudentsMasterPage() {
 
       {/* FLOATING ACTION BAR FOR BULK ACTIONS */}
       {selectedIds.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 bg-slate-900/95 text-white px-5 py-3 rounded-2xl border border-emerald-500/40 shadow-2xl backdrop-blur-xl animate-in slide-in-from-bottom-5 duration-200">
-          <div className="flex items-center space-x-2 text-xs font-bold">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 bg-slate-900/95 text-white px-5 py-3 rounded-2xl border border-emerald-500/40 shadow-2xl backdrop-blur-xl animate-in slide-in-from-bottom-5 duration-200 max-w-[90vw] overflow-x-auto">
+          <div className="flex items-center space-x-2 text-xs font-bold shrink-0">
             <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
             <span>{selectedIds.length} Santri Terpilih</span>
           </div>
 
-          <div className="h-4 w-px bg-slate-700 mx-1" />
+          <div className="h-4 w-px bg-slate-700 mx-1 shrink-0" />
 
           <button
             type="button"
             onClick={handleSelectAllFiltered}
-            className="text-xs text-emerald-400 hover:underline font-semibold cursor-pointer"
+            className="text-xs text-emerald-400 hover:underline font-semibold cursor-pointer shrink-0"
           >
             Pilih Semua ({filteredStudents.length})
           </button>
@@ -1420,7 +1589,7 @@ export default function StudentsMasterPage() {
           <button
             type="button"
             onClick={handleClearSelection}
-            className="text-xs text-slate-400 hover:text-white font-medium cursor-pointer"
+            className="text-xs text-slate-400 hover:text-white font-medium cursor-pointer shrink-0"
           >
             Batal
           </button>
@@ -1428,7 +1597,7 @@ export default function StudentsMasterPage() {
           <button
             type="button"
             onClick={() => setShowBulkDeleteModal(true)}
-            className="inline-flex items-center space-x-1.5 bg-rose-600 hover:bg-rose-500 px-3.5 py-1.5 rounded-xl text-xs font-bold text-white shadow-md shadow-rose-600/30 transition active:scale-95 cursor-pointer"
+            className="inline-flex items-center space-x-1.5 bg-rose-600 hover:bg-rose-500 px-3.5 py-1.5 rounded-xl text-xs font-bold text-white shadow-md shadow-rose-600/30 transition active:scale-95 cursor-pointer shrink-0"
           >
             <Trash2 className="h-3.5 w-3.5" />
             <span>Hapus Massal</span>

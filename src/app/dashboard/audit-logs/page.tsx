@@ -9,20 +9,19 @@ import {
   Filter,
   RefreshCw,
   Clock,
-  User,
   Activity,
   ChevronLeft,
   ChevronRight,
   Database,
-  Calendar,
-  Sparkles,
-  LogOut,
-  LogIn,
   SlidersHorizontal,
   Eye,
   X,
   FileCheck2,
-  ShieldCheck,
+  LogOut,
+  LogIn,
+  CheckCircle2,
+  AlertTriangle,
+  UserCheck,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
@@ -40,6 +39,7 @@ interface AuditLogItem {
 
 export default function AuditLogsPage() {
   const [logs, setLogs] = useState<AuditLogItem[]>([]);
+  const [profilesMap, setProfilesMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [actionFilter, setActionFilter] = useState("all");
@@ -50,9 +50,19 @@ export default function AuditLogsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
-  const fetchLogs = async () => {
+  const fetchLogsAndProfiles = async () => {
     setLoading(true);
     try {
+      // 1. Ambil data profiles untuk mapping nama lengkap petugas
+      const { data: profs } = await supabase.from("profiles").select("id, full_name, email");
+      const pMap: Record<string, string> = {};
+      (profs || []).forEach((p: any) => {
+        if (p.id) pMap[p.id] = p.full_name;
+        if (p.email) pMap[p.email.toLowerCase()] = p.full_name;
+      });
+      setProfilesMap(pMap);
+
+      // 2. Ambil data audit logs
       const { data, error } = await supabase
         .from("audit_logs")
         .select("*")
@@ -69,7 +79,7 @@ export default function AuditLogsPage() {
   };
 
   useEffect(() => {
-    fetchLogs();
+    fetchLogsAndProfiles();
 
     // Supabase Realtime Subscription
     const channel = supabase
@@ -88,6 +98,24 @@ export default function AuditLogsPage() {
     };
   }, []);
 
+  // Helper menampilkan nama petugas resmi
+  const getStaffDisplayName = (log: AuditLogItem) => {
+    if (log.user_id && profilesMap[log.user_id]) {
+      return profilesMap[log.user_id];
+    }
+    const emailKey = (log.user_name || "").toLowerCase().trim();
+    if (profilesMap[emailKey]) {
+      return profilesMap[emailKey];
+    }
+    if (log.user_name && log.user_name.includes("@")) {
+      const username = log.user_name.split("@")[0];
+      return username
+        .replace(/[._]/g, " ")
+        .replace(/\b\w/g, (char) => char.toUpperCase());
+    }
+    return log.user_name || "Petugas SIPS";
+  };
+
   const stats = useMemo(() => {
     const outCount = logs.filter((l) => l.action === "GATE_SCAN_OUT").length;
     const inCount = logs.filter((l) => l.action === "GATE_SCAN_IN").length;
@@ -99,31 +127,31 @@ export default function AuditLogsPage() {
     switch (action) {
       case "GATE_SCAN_OUT":
         return {
-          label: "Gerbang: Keluar",
+          label: "Scan Gerbang: Keluar",
           icon: LogOut,
           cls: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/25",
         };
       case "GATE_SCAN_IN":
         return {
-          label: "Gerbang: Masuk",
+          label: "Scan Gerbang: Kembali",
           icon: LogIn,
           cls: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25",
         };
       case "UPDATE_POINTS":
         return {
-          label: "Perubahan Poin",
+          label: "Pembaruan Poin Disiplin",
           icon: SlidersHorizontal,
           cls: "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/25",
         };
       case "DELETE_STUDENT":
         return {
-          label: "Hapus Santri",
+          label: "Penghapusan Data Santri",
           icon: ShieldAlert,
           cls: "bg-red-500/20 text-red-600 dark:text-red-400 border-red-500/30",
         };
       default:
         return {
-          label: action,
+          label: action.replace(/_/g, " "),
           icon: Activity,
           cls: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/25",
         };
@@ -137,8 +165,10 @@ export default function AuditLogsPage() {
 
     return logs.filter((log) => {
       const q = searchQuery.toLowerCase().trim();
+      const staffName = getStaffDisplayName(log).toLowerCase();
       const matchSearch =
         q === "" ||
+        staffName.includes(q) ||
         log.user_name.toLowerCase().includes(q) ||
         log.action.toLowerCase().includes(q) ||
         JSON.stringify(log.details || {}).toLowerCase().includes(q);
@@ -153,7 +183,7 @@ export default function AuditLogsPage() {
 
       return matchSearch && matchAction && matchTime;
     });
-  }, [logs, searchQuery, actionFilter, timeRange]);
+  }, [logs, searchQuery, actionFilter, timeRange, profilesMap]);
 
   const totalPages = Math.ceil(filteredLogs.length / itemsPerPage) || 1;
   const paginatedLogs = useMemo(() => {
@@ -231,7 +261,7 @@ export default function AuditLogsPage() {
 
           <button
             type="button"
-            onClick={fetchLogs}
+            onClick={fetchLogsAndProfiles}
             className="flex h-10.5 w-10.5 items-center justify-center rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition active:scale-95 shadow-xs cursor-pointer"
             title="Segarkan Log Realtime"
           >
@@ -286,7 +316,7 @@ export default function AuditLogsPage() {
       {/* Toolbar Filter & Search */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 shadow-sm">
         <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
           <input
             type="text"
             value={searchQuery}
@@ -310,17 +340,98 @@ export default function AuditLogsPage() {
             className="h-10.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer"
           >
             <option value="all">Semua Jenis Aksi</option>
-            <option value="GATE_SCAN_OUT">Gerbang: Keluar</option>
-            <option value="GATE_SCAN_IN">Gerbang: Masuk</option>
-            <option value="UPDATE_POINTS">Ubah Poin</option>
+            <option value="GATE_SCAN_OUT">Scan Gerbang: Keluar</option>
+            <option value="GATE_SCAN_IN">Scan Gerbang: Kembali</option>
+            <option value="UPDATE_POINTS">Ubah Poin Disiplin</option>
             <option value="DELETE_STUDENT">Hapus Santri</option>
           </select>
         </div>
       </div>
 
-      {/* Tabel Log Interaktif */}
+      {/* DATA AUDIT LOG: RESPONSIVE DUAL-VIEW */}
       <div className="overflow-hidden rounded-3xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl">
-        <div className="overflow-x-auto">
+        
+        {/* TAMPILAN 1: MOBILE CARD VIEW (Layar HP < md) */}
+        <div className="block md:hidden divide-y divide-slate-100 dark:divide-slate-800/80">
+          {loading ? (
+            <div className="py-14 text-center text-slate-400">
+              <RefreshCw className="h-7 w-7 animate-spin mx-auto text-indigo-500 mb-2" />
+              <span className="text-xs font-bold">Sinkronisasi catatan aktivitas...</span>
+            </div>
+          ) : paginatedLogs.length === 0 ? (
+            <div className="py-16 text-center text-slate-400 p-6 space-y-2">
+              <Database className="h-9 w-9 mx-auto opacity-30" />
+              <p className="font-bold text-xs">Belum ada riwayat audit log yang tercatat.</p>
+              <p className="text-[11px] text-slate-400">Aktivitas gerbang atau pengasuhan akan muncul di sini.</p>
+            </div>
+          ) : (
+            paginatedLogs.map((log) => {
+              const badge = formatActionBadge(log.action);
+              const Icon = badge.icon;
+              const staffName = getStaffDisplayName(log);
+
+              return (
+                <div key={log.id} className="p-4 space-y-3 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center space-x-2.5">
+                      <div className="h-8 w-8 rounded-xl bg-gradient-to-tr from-indigo-500/20 to-cyan-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black text-xs shrink-0">
+                        {staffName.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="font-extrabold text-sm text-slate-900 dark:text-white leading-tight">
+                          {staffName}
+                        </p>
+                        <span className="text-[10px] text-slate-400 font-mono">
+                          {new Date(log.created_at).toLocaleString("id-ID", {
+                            dateStyle: "short",
+                            timeStyle: "short",
+                          })}
+                        </span>
+                      </div>
+                    </div>
+
+                    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl border text-[10px] font-bold shrink-0 ${badge.cls}`}>
+                      <Icon className="h-3 w-3" />
+                      <span>{badge.label}</span>
+                    </span>
+                  </div>
+
+                  {log.details && (
+                    <div className="bg-slate-50 dark:bg-slate-950/60 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 text-xs space-y-1">
+                      {log.details.santri_name && (
+                        <p className="font-bold text-slate-900 dark:text-white">
+                          Santri: {log.details.santri_name}{" "}
+                          <span className="font-mono text-[10px] text-slate-400 font-normal">
+                            ({log.details.santri_nis || "-"})
+                          </span>
+                        </p>
+                      )}
+                      {log.details.kategori && (
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                          Keperluan: <span className="font-medium text-slate-700 dark:text-slate-300">{log.details.kategori}</span>
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex justify-end pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedLog(log)}
+                      className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-indigo-600 text-xs font-bold transition active:scale-95"
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                      <span>Lihat Rincian</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* TAMPILAN 2: DESKTOP TABLE VIEW (Layar md ke atas) */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/75 dark:bg-slate-950/75 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 select-none">
@@ -351,6 +462,8 @@ export default function AuditLogsPage() {
                 paginatedLogs.map((log) => {
                   const badge = formatActionBadge(log.action);
                   const Icon = badge.icon;
+                  const staffName = getStaffDisplayName(log);
+
                   return (
                     <tr
                       key={log.id}
@@ -371,10 +484,10 @@ export default function AuditLogsPage() {
                       <td className="py-3.5 px-4 whitespace-nowrap">
                         <div className="flex items-center gap-2">
                           <div className="h-7 w-7 rounded-xl bg-gradient-to-tr from-indigo-500/20 to-cyan-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black text-xs shrink-0">
-                            {log.user_name.charAt(0).toUpperCase()}
+                            {staffName.charAt(0).toUpperCase()}
                           </div>
                           <span className="font-bold text-slate-900 dark:text-white">
-                            {log.user_name}
+                            {staffName}
                           </span>
                         </div>
                       </td>
@@ -413,7 +526,7 @@ export default function AuditLogsPage() {
                           type="button"
                           onClick={() => setSelectedLog(log)}
                           className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-500/30 transition active:scale-95 shadow-xs cursor-pointer"
-                          title="Lihat Detail Payload"
+                          title="Lihat Detail Rincian Log"
                         >
                           <Eye className="h-3.5 w-3.5" />
                         </button>
@@ -452,18 +565,18 @@ export default function AuditLogsPage() {
         </div>
       </div>
 
-      {/* Modal Dialog Inspeksi Detail Log */}
+      {/* Modal Dialog Inspeksi Detail Log (Format Bersih & Rinci) */}
       {selectedLog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="relative w-full max-w-lg rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4 animate-in zoom-in-95">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-md rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 shadow-2xl space-y-4 animate-in zoom-in-95">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center space-x-2.5">
                 <div className="h-9 w-9 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold">
                   <FileCheck2 className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black text-slate-900 dark:text-white">Rincian Audit Log</h3>
-                  <p className="text-[10px] text-slate-400 font-mono">{selectedLog.id}</p>
+                  <h3 className="text-sm font-black text-slate-900 dark:text-white">Rincian Aktivitas Petugas</h3>
+                  <p className="text-[10px] text-slate-400 font-mono">{selectedLog.id.slice(0, 16)}...</p>
                 </div>
               </div>
               <button
@@ -475,25 +588,87 @@ export default function AuditLogsPage() {
               </button>
             </div>
 
+            {/* Informasi Petugas & Aksi */}
             <div className="space-y-3 text-xs">
               <div className="grid grid-cols-2 gap-2">
-                <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
-                  <span className="text-[10px] text-slate-400 block uppercase font-bold">Petugas:</span>
-                  <span className="font-bold text-slate-900 dark:text-white">{selectedLog.user_name}</span>
+                <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+                  <span className="text-[10px] text-slate-400 block uppercase font-bold">Nama Petugas</span>
+                  <span className="font-extrabold text-slate-900 dark:text-white text-xs mt-0.5 block">
+                    {getStaffDisplayName(selectedLog)}
+                  </span>
                 </div>
-                <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
-                  <span className="text-[10px] text-slate-400 block uppercase font-bold">Aksi:</span>
-                  <span className="font-bold text-indigo-600 dark:text-indigo-400">{selectedLog.action}</span>
+                <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+                  <span className="text-[10px] text-slate-400 block uppercase font-bold">Jenis Aktivitas</span>
+                  <span className="font-extrabold text-indigo-600 dark:text-indigo-400 text-xs mt-0.5 block">
+                    {formatActionBadge(selectedLog.action).label}
+                  </span>
                 </div>
               </div>
 
-              <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                  Metadata &amp; Payload JSON:
+              {/* Deskripsi Aktivitas Terstruktur */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                  Detail Rincian:
                 </span>
-                <pre className="p-3 rounded-2xl bg-slate-950 text-emerald-400 font-mono text-[11px] overflow-x-auto max-h-48 border border-slate-800">
-                  {JSON.stringify(selectedLog.details, null, 2)}
-                </pre>
+
+                {selectedLog.details ? (
+                  <div className="space-y-1.5 text-xs">
+                    {selectedLog.details.santri_name && (
+                      <div className="flex justify-between border-b border-slate-200/60 dark:border-slate-800/60 pb-1">
+                        <span className="text-slate-500">Nama Santri:</span>
+                        <span className="font-bold text-slate-900 dark:text-white text-right">
+                          {selectedLog.details.santri_name}
+                        </span>
+                      </div>
+                    )}
+                    {selectedLog.details.santri_nis && (
+                      <div className="flex justify-between border-b border-slate-200/60 dark:border-slate-800/60 pb-1">
+                        <span className="text-slate-500">Nomor Induk (NIS):</span>
+                        <span className="font-mono font-bold text-slate-900 dark:text-white">
+                          {selectedLog.details.santri_nis}
+                        </span>
+                      </div>
+                    )}
+                    {selectedLog.details.kategori && (
+                      <div className="flex justify-between border-b border-slate-200/60 dark:border-slate-800/60 pb-1">
+                        <span className="text-slate-500">Kategori Izin:</span>
+                        <span className="font-semibold text-slate-800 dark:text-slate-200 text-right">
+                          {selectedLog.details.kategori}
+                        </span>
+                      </div>
+                    )}
+                    {selectedLog.details.status_izin && (
+                      <div className="flex justify-between border-b border-slate-200/60 dark:border-slate-800/60 pb-1">
+                        <span className="text-slate-500">Status Siklus:</span>
+                        <span className="font-bold text-emerald-600 dark:text-emerald-400 capitalize">
+                          {selectedLog.details.status_izin.replace("_", " ")}
+                        </span>
+                      </div>
+                    )}
+                    {selectedLog.details.waktu_aktual && (
+                      <div className="flex justify-between border-b border-slate-200/60 dark:border-slate-800/60 pb-1">
+                        <span className="text-slate-500">Waktu Verifikasi:</span>
+                        <span className="font-mono text-slate-700 dark:text-slate-300">
+                          {new Date(selectedLog.details.waktu_aktual).toLocaleString("id-ID")}
+                        </span>
+                      </div>
+                    )}
+                    {typeof selectedLog.details.terlambat === "boolean" && (
+                      <div className="flex justify-between pt-0.5">
+                        <span className="text-slate-500">Status Ketepatan:</span>
+                        <span className={`font-bold ${selectedLog.details.terlambat ? "text-rose-500" : "text-emerald-500"}`}>
+                          {selectedLog.details.terlambat ? "⚠️ Terlambat Kembali" : "✓ Tepat Waktu"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-slate-400 text-[11px] italic">Tidak ada catatan data tambahan.</p>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between text-[11px] text-slate-400 px-1">
+                <span>Waktu Log: {new Date(selectedLog.created_at).toLocaleString("id-ID")}</span>
               </div>
             </div>
 

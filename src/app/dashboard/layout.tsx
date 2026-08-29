@@ -19,8 +19,6 @@ import {
   Settings,
   LogOut,
   ChevronRight,
-  Sparkles,
-  ShieldCheck,
   Building2,
   Bell,
   CheckCircle2,
@@ -32,6 +30,7 @@ import {
   X,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import SIPSLogo from "@/components/SIPSLogo";
 
 interface UserProfile {
   id: string;
@@ -82,6 +81,10 @@ export default function DashboardLayout({
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
 
+  // Touch Gesture Refs untuk deteksi swipe di layar mana saja
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+
   const [notifications, setNotifications] = useState([
     {
       id: 1,
@@ -108,6 +111,46 @@ export default function DashboardLayout({
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [pathname]);
+
+  // ================= GESTUR SWIPE DI MANA SAJA =================
+  useEffect(() => {
+    const handleTouchStart = (e: TouchEvent) => {
+      touchStartX.current = e.touches[0].clientX;
+      touchStartY.current = e.touches[0].clientY;
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (touchStartX.current === null || touchStartY.current === null) return;
+
+      const touchEndX = e.changedTouches[0].clientX;
+      const touchEndY = e.changedTouches[0].clientY;
+
+      const deltaX = touchEndX - touchStartX.current;
+      const deltaY = touchEndY - touchStartY.current;
+
+      // Hanya picu jika gerakan dominan horizontal (geser kiri/kanan > 60px)
+      if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 60) {
+        if (deltaX > 0 && !mobileMenuOpen) {
+          // Geser ke kanan dari mana saja -> Buka Sidebar
+          setMobileMenuOpen(true);
+        } else if (deltaX < 0 && mobileMenuOpen) {
+          // Geser ke kiri saat sidebar terbuka -> Tutup Sidebar
+          setMobileMenuOpen(false);
+        }
+      }
+
+      touchStartX.current = null;
+      touchStartY.current = null;
+    };
+
+    window.addEventListener("touchstart", handleTouchStart, { passive: true });
+    window.addEventListener("touchend", handleTouchEnd, { passive: true });
+
+    return () => {
+      window.removeEventListener("touchstart", handleTouchStart);
+      window.removeEventListener("touchend", handleTouchEnd);
+    };
+  }, [mobileMenuOpen]);
 
   // ================= 3. THEME TOGGLE & PERSISTENCE =================
   useEffect(() => {
@@ -330,7 +373,7 @@ export default function DashboardLayout({
         title: "Disiplin & Tarbiyah",
         items: [
           {
-            name: "Biro Perizinan",
+            name: "Perizinan Santri",
             href: "/dashboard/permissions",
             icon: FileCheck2,
             badge: activeGateCount > 0 ? `${activeGateCount} Luar` : undefined,
@@ -398,14 +441,14 @@ export default function DashboardLayout({
 
       {/* ================= SIDEBAR ================= */}
       <aside
-        className={`fixed top-0 left-0 z-50 h-screen bg-[#064e3b] dark:bg-[#072d24] text-white border-r border-emerald-800/40 dark:border-emerald-900/40 backdrop-blur-2xl transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] flex flex-col justify-between shadow-2xl select-none ${
+        className={`fixed top-0 left-0 z-50 h-screen h-dvh max-h-screen bg-[#064e3b] dark:bg-[#072d24] text-white border-r border-emerald-800/40 dark:border-emerald-900/40 backdrop-blur-2xl transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] flex flex-col justify-between shadow-2xl select-none overscroll-contain ${
           mobileMenuOpen ? "translate-x-0 w-72" : "-translate-x-full md:translate-x-0"
         }`}
         style={{
           width: typeof window !== "undefined" && window.innerWidth >= 768 ? (isCollapsed ? "74px" : "260px") : undefined,
         }}
       >
-        {/* Toggle Button */}
+        {/* Toggle Button Desktop */}
         <button
           type="button"
           onClick={() => setIsCollapsed(!isCollapsed)}
@@ -417,15 +460,14 @@ export default function DashboardLayout({
           <ChevronLeft className="h-4 w-4 stroke-[2.5]" />
         </button>
 
-        {/* Brand */}
+        {/* Brand Header (Fixed Top) */}
         <div className="h-18 shrink-0 px-4 border-b border-emerald-800/40 dark:border-emerald-900/40 flex items-center justify-between overflow-hidden">
           <Link
             href="/dashboard"
             className="flex items-center space-x-3 overflow-hidden w-full"
           >
-            <div className="h-10 w-10 min-w-[40px] min-h-[40px] shrink-0 rounded-2xl bg-emerald-400 text-[#064e3b] flex items-center justify-center shadow-lg font-black">
-              <ShieldCheck className="h-5 w-5 stroke-[2.5]" />
-            </div>
+            {/* Logo SIPS Emerald 3D */}
+            <SIPSLogo className="h-10 w-10 min-w-[40px] min-h-[40px] shrink-0" />
 
             <div
               className={`transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden whitespace-nowrap ${
@@ -436,14 +478,14 @@ export default function DashboardLayout({
             >
               <div className="flex items-center space-x-1.5">
                 <span className="font-black text-sm tracking-tight text-white truncate">
-                  SIPS PANEL
+                  SIPS CONNECT
                 </span>
                 <span className="text-[9.5px] font-black text-emerald-950 bg-emerald-300 px-1.5 py-0.2 rounded-full shadow-xs">
                   v2.6
                 </span>
               </div>
               <p className="text-[10px] text-emerald-200/70 font-medium truncate">
-                Pesantren Condong
+                Pengasuhan Santri
               </p>
             </div>
           </Link>
@@ -451,14 +493,14 @@ export default function DashboardLayout({
           <button
             type="button"
             onClick={() => setMobileMenuOpen(false)}
-            className="md:hidden p-1.5 rounded-xl text-emerald-200 hover:bg-emerald-800/60"
+            className="md:hidden p-1.5 rounded-xl text-emerald-200 hover:bg-emerald-800/60 cursor-pointer"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        {/* Menu Items */}
-        <div className="flex-1 overflow-y-auto px-3 py-3.5 space-y-4 custom-scrollbar overflow-x-hidden">
+        {/* Scrollable Menu Items Area */}
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 py-3.5 space-y-4 custom-scrollbar overflow-x-hidden">
           {/* Quick Search */}
           <div className="relative group flex justify-center">
             {isCollapsed ? (
@@ -569,49 +611,11 @@ export default function DashboardLayout({
               </div>
             );
           })}
-
-          {/* Scanner Card */}
-          <div
-            className={`rounded-2xl border border-emerald-700/40 dark:border-emerald-800/40 bg-emerald-950/40 dark:bg-emerald-950/60 shadow-inner transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden ${
-              isCollapsed
-                ? "md:h-11 md:w-11 md:mx-auto md:flex md:items-center md:justify-center md:p-0 md:border-transparent md:bg-transparent md:dark:bg-transparent md:shadow-none p-3 text-xs space-y-2 mt-4"
-                : "p-3 text-xs space-y-2 mt-4"
-            }`}
-          >
-            {!isCollapsed || mobileMenuOpen ? (
-              <div className="space-y-2 animate-in fade-in duration-300">
-                <div className="flex items-center space-x-2 text-emerald-200 font-bold">
-                  <div className="h-5 w-5 rounded-lg bg-emerald-400/20 flex items-center justify-center">
-                    <Sparkles className="h-3 w-3 text-emerald-300" />
-                  </div>
-                  <span className="text-[11px]">Gate Scanner KTS</span>
-                </div>
-                <p className="text-[10px] text-emerald-200/70 leading-relaxed">
-                  Verifikasi keluar masuk santri realtime via barcode KTS.
-                </p>
-                <Link
-                  href="/dashboard/security-gate"
-                  className="flex items-center justify-center space-x-1.5 w-full py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-[10.5px] shadow-md transition active:scale-95"
-                >
-                  <QrCode className="h-3.5 w-3.5" />
-                  <span>Buka Scanner Pos</span>
-                </Link>
-              </div>
-            ) : (
-              <Link
-                href="/dashboard/security-gate"
-                className="hidden md:flex h-11 w-11 rounded-2xl bg-emerald-500 text-slate-950 items-center justify-center shadow-lg hover:scale-105 transition active:scale-90"
-                title="Buka Gate Scanner"
-              >
-                <QrCode className="h-5 w-5" />
-              </Link>
-            )}
-          </div>
         </div>
 
-        {/* Profile Footer */}
+        {/* Profile Footer (Fixed Bottom - Selalu Muncul) */}
         <div
-          className="relative p-2.5 border-t border-emerald-800/40 dark:border-emerald-900/40 bg-emerald-950/60 dark:bg-[#05211a]"
+          className="shrink-0 relative p-2.5 border-t border-emerald-800/40 dark:border-emerald-900/40 bg-emerald-950/60 dark:bg-[#05211a]"
           ref={profileMenuRef}
         >
           <div
@@ -725,13 +729,13 @@ export default function DashboardLayout({
         </div>
       </aside>
 
-      {/* ================= CONTAINER UTAMA & TOPBAR (GLASSMORPHISM) ================= */}
+      {/* ================= CONTAINER UTAMA & TOPBAR ================= */}
       <div
         className={`flex flex-1 flex-col min-w-0 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${
           isCollapsed ? "md:ml-[74px]" : "md:ml-[260px]"
         } ml-0`}
       >
-        {/* TOPBAR DENGAN EFEK FROSTED GLASS TRANSPARAN */}
+        {/* TOPBAR */}
         <header className="sticky top-0 z-30 flex h-18 shrink-0 items-center justify-between border-b border-slate-200/70 dark:border-emerald-900/30 bg-white/70 dark:bg-[#0c1815]/70 px-4 sm:px-6 backdrop-blur-xl shadow-xs transition-all">
           <div className="flex items-center space-x-3">
             <button
@@ -807,7 +811,7 @@ export default function DashboardLayout({
               </Link>
             )}
 
-            {/* Notifikasi Glass */}
+            {/* Notifikasi */}
             <div className="relative" ref={notifRef}>
               <button
                 type="button"
