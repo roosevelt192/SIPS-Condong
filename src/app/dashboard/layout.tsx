@@ -112,6 +112,21 @@ export default function DashboardLayout({
     setMobileMenuOpen(false);
   }, [pathname]);
 
+  // ================= KUNCI SCROLL BODY SAAT SIDEBAR TERBUKA DI HP =================
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = "hidden";
+      document.body.style.touchAction = "none";
+    } else {
+      document.body.style.overflow = "";
+      document.body.style.touchAction = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+      document.body.style.touchAction = "";
+    };
+  }, [mobileMenuOpen]);
+
   // ================= GESTUR SWIPE DI MANA SAJA =================
   useEffect(() => {
     const handleTouchStart = (e: TouchEvent) => {
@@ -439,9 +454,9 @@ export default function DashboardLayout({
         />
       )}
 
-      {/* ================= SIDEBAR ================= */}
+      {/* ================= SIDEBAR (LOCKED TO VIEWPORT EDGES) ================= */}
       <aside
-        className={`fixed top-0 left-0 z-50 h-[100dvh] max-h-[100dvh] bg-[#064e3b] dark:bg-[#072d24] text-white border-r border-emerald-800/40 dark:border-emerald-900/40 backdrop-blur-2xl transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] flex flex-col justify-between shadow-2xl select-none overscroll-contain ${
+        className={`fixed inset-y-0 left-0 z-50 bg-[#064e3b] dark:bg-[#072d24] text-white border-r border-emerald-800/40 dark:border-emerald-900/40 backdrop-blur-2xl transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] flex flex-col justify-between shadow-2xl select-none overscroll-none touch-pan-y ${
           mobileMenuOpen ? "translate-x-0 w-72" : "-translate-x-full md:translate-x-0"
         }`}
         style={{
@@ -615,7 +630,7 @@ export default function DashboardLayout({
 
         {/* Profile Footer (Fixed Bottom - Selalu Muncul) */}
         <div
-          className="shrink-0 relative p-2.5 border-t border-emerald-800/40 dark:border-emerald-900/40 bg-emerald-950/60 dark:bg-[#05211a]"
+          className="shrink-0 relative p-2.5 border-t border-emerald-800/40 dark:border-emerald-900/40 bg-emerald-950/90 dark:bg-[#05211a] backdrop-blur-md"
           ref={profileMenuRef}
         >
           <div
