@@ -441,7 +441,7 @@ export default function DashboardLayout({
 
       {/* ================= SIDEBAR ================= */}
       <aside
-        className={`fixed top-0 left-0 z-50 h-screen h-dvh max-h-screen bg-[#064e3b] dark:bg-[#072d24] text-white border-r border-emerald-800/40 dark:border-emerald-900/40 backdrop-blur-2xl transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] flex flex-col justify-between shadow-2xl select-none overscroll-contain ${
+        className={`fixed top-0 left-0 z-50 h-[100dvh] max-h-[100dvh] bg-[#064e3b] dark:bg-[#072d24] text-white border-r border-emerald-800/40 dark:border-emerald-900/40 backdrop-blur-2xl transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] flex flex-col justify-between shadow-2xl select-none overscroll-contain ${
           mobileMenuOpen ? "translate-x-0 w-72" : "-translate-x-full md:translate-x-0"
         }`}
         style={{
@@ -499,7 +499,7 @@ export default function DashboardLayout({
           </button>
         </div>
 
-        {/* Scrollable Menu Items Area */}
+        {/* Scrollable Menu Items Area (Hanya area ini yang scroll) */}
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 py-3.5 space-y-4 custom-scrollbar overflow-x-hidden">
           {/* Quick Search */}
           <div className="relative group flex justify-center">
@@ -729,13 +729,13 @@ export default function DashboardLayout({
         </div>
       </aside>
 
-      {/* ================= CONTAINER UTAMA & TOPBAR ================= */}
+      {/* ================= CONTAINER UTAMA & TOPBAR (GLASSMORPHISM) ================= */}
       <div
         className={`flex flex-1 flex-col min-w-0 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${
           isCollapsed ? "md:ml-[74px]" : "md:ml-[260px]"
         } ml-0`}
       >
-        {/* TOPBAR */}
+        {/* TOPBAR DENGAN EFEK FROSTED GLASS TRANSPARAN */}
         <header className="sticky top-0 z-30 flex h-18 shrink-0 items-center justify-between border-b border-slate-200/70 dark:border-emerald-900/30 bg-white/70 dark:bg-[#0c1815]/70 px-4 sm:px-6 backdrop-blur-xl shadow-xs transition-all">
           <div className="flex items-center space-x-3">
             <button
@@ -811,7 +811,7 @@ export default function DashboardLayout({
               </Link>
             )}
 
-            {/* Notifikasi */}
+            {/* Notifikasi Glass */}
             <div className="relative" ref={notifRef}>
               <button
                 type="button"
