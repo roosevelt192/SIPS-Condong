@@ -40,8 +40,12 @@ import {
   ArrowLeft,
   Star,
   Save,
+  QrCode,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import QRScannerModal from "@/components/QRScannerModal";
+import { parseQRCodeText } from "@/lib/qrParser";
+import { playScanSound } from "@/lib/feedback";
 
 // =============================================================================
 // 2. INTERFACE DATA TYPES
@@ -111,6 +115,9 @@ export default function AchievementsPage() {
   const [studentsMap, setStudentsMap] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
 
+  // Scanner State
+  const [showScanner, setShowScanner] = useState(false);
+
   // Filter & Search States
   const [searchQuery, setSearchQuery] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
@@ -179,6 +186,8 @@ export default function AchievementsPage() {
       (stData || []).forEach((st: any) => {
         const nisKey = String(st.nis || "").trim();
         stLookup[nisKey] = {
+          id: st.id,
+          name: st.full_name || st.name || st.nama || "Santri",
           class: st.kelas || st.class_name || st.class || "-",
           dorm: st.kamar_asrama || st.dorm || st.room || st.asrama || "-",
           consulate: st.asal_konsulat || st.consulate || st.origin_region || "-",
@@ -205,6 +214,67 @@ export default function AchievementsPage() {
     }
   }
 
+  // ===========================================================================
+  // 5. SCANNER QR CODE HANDLER
+  // ===========================================================================
+  const handleScanSuccess = async (rawDecodedText: string) => {
+    setShowScanner(false);
+    const { searchKey, nis, id } = parseQRCodeText(rawDecodedText);
+    const targetKey = (nis || searchKey).trim();
+
+    let studentMeta = studentsMap[targetKey];
+
+    if (!studentMeta && targetKey) {
+      const { data: st } = await supabase
+        .from("students")
+        .select("*")
+        .or(`nis.eq.${targetKey},id.eq.${id || targetKey}`)
+        .maybeSingle();
+
+      if (st) {
+        studentMeta = {
+          id: st.id,
+          name: st.full_name || st.name || st.nama || "Santri",
+          class: st.kelas || st.class_name || st.class || "-",
+          dorm: st.kamar_asrama || st.dorm || st.room || st.asrama || "-",
+          consulate: st.asal_konsulat || st.consulate || st.origin_region || "-",
+          guardian_name: st.nama_lengkap_wali || st.guardian_name || st.nama_wali || "-",
+          phone: st.no_whatsapp || st.guardian_phone || st.phone || "-",
+          photo_url: st.photo_url || st.foto || null,
+        };
+      }
+    }
+
+    if (studentMeta) {
+      playScanSound("success");
+      const allStudentAchievements = achievements.filter(
+        (item) => item.nis === targetKey || item.student_id === studentMeta.id
+      );
+      const totalPts = allStudentAchievements.reduce(
+        (acc, curr) => acc + (Number(curr.reward_points) || 0),
+        0
+      );
+
+      setSelectedStudentForDossier({
+        id: studentMeta.id,
+        nis: targetKey,
+        name: studentMeta.name,
+        class: studentMeta.class,
+        dorm: studentMeta.dorm,
+        consulate: studentMeta.consulate,
+        guardian_name: studentMeta.guardian_name,
+        guardian_phone: studentMeta.phone,
+        photo_url: studentMeta.photo_url,
+        totalRewardPoints: totalPts,
+        achievementsCount: allStudentAchievements.length,
+      });
+      setDossierPeriodFilter("all");
+    } else {
+      playScanSound("error");
+      setSearchQuery(targetKey);
+    }
+  };
+
   // Auto-point sesuai level prestasi
   const handleLevelPointCalculation = (lvl: string, isEdit = false) => {
     let pts = 20;
@@ -224,7 +294,7 @@ export default function AchievementsPage() {
   };
 
   // ===========================================================================
-  // 5. FILTERING, PERIOD & SORTING LOGIC
+  // 6. FILTERING, PERIOD & SORTING LOGIC
   // ===========================================================================
   const filteredAchievements = useMemo(() => {
     const now = new Date();
@@ -307,7 +377,7 @@ export default function AchievementsPage() {
   };
 
   // ===========================================================================
-  // 6. ACTION: CREATE ACHIEVEMENT
+  // 7. ACTION: CREATE ACHIEVEMENT
   // ===========================================================================
   const handleSaveCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -355,7 +425,7 @@ export default function AchievementsPage() {
   };
 
   // ===========================================================================
-  // 7. EXPORT CSV & PRINT REPORT
+  // 8. EXPORT CSV & PRINT REPORT
   // ===========================================================================
   const handleExportCSV = () => {
     if (filteredAchievements.length === 0) {
@@ -422,7 +492,7 @@ export default function AchievementsPage() {
   };
 
   // ===========================================================================
-  // 8. INDIVIDUAL TRACKING & CETAK RAPOR PRESTASI
+  // 9. INDIVIDUAL TRACKING & CETAK RAPOR PRESTASI
   // ===========================================================================
   const handleOpenStudentDossier = (a: AchievementRecord) => {
     const meta = studentsMap[a.nis] || {};
@@ -496,7 +566,7 @@ export default function AchievementsPage() {
   };
 
   // ===========================================================================
-  // 9. DELETE & EDIT ACTION HANDLERS
+  // 10. DELETE & EDIT ACTION HANDLERS
   // ===========================================================================
   const handleConfirmDelete = async () => {
     if (!itemToDelete) return;
@@ -584,7 +654,7 @@ export default function AchievementsPage() {
   };
 
   return (
-    <div className="space-y-5 max-w-7xl mx-auto font-sans relative pb-24">
+    <div className="space-y-6 max-w-7xl mx-auto font-sans relative pb-24">
       {/* STRICT CSS PRINT ENGINE */}
       <style jsx global>{`
         @media print {
@@ -609,69 +679,87 @@ export default function AchievementsPage() {
         }
       `}</style>
 
-      {/* ================= HEADER HERO BANNER ================= */}
-      <div className="relative overflow-hidden rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-900/90 p-5 sm:p-6 shadow-sm backdrop-blur-xl print:hidden">
-        <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
-          <div className="flex items-start sm:items-center space-x-3.5 min-w-0">
+      {/* ================= HEADER HERO BANNER (RESPONSIF & RAPI) ================= */}
+      <div className="relative overflow-hidden rounded-[32px] bg-gradient-to-r from-emerald-950 via-[#064e3b] to-teal-950 p-6 sm:p-7 text-white shadow-xl border border-emerald-500/30 print:hidden">
+        <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full bg-emerald-400/20 blur-3xl pointer-events-none animate-pulse" />
+        <div className="absolute -bottom-24 -left-24 w-64 h-64 rounded-full bg-amber-400/15 blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+          {/* Sisi Kiri: Ikon & Teks Utama */}
+          <div className="flex items-start sm:items-center space-x-4 min-w-0">
             <Link
               href="/dashboard"
-              className="flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:text-emerald-500 hover:border-emerald-500/40 transition active:scale-95 shadow-xs"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/20 bg-white/10 text-white hover:bg-white/20 transition-all active:scale-90 shadow-sm backdrop-blur-md"
               title="Kembali ke Dashboard Utama"
             >
               <ArrowLeft className="h-5 w-5 stroke-[2.4]" />
             </Link>
 
-            <div className="flex h-11 w-11 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-emerald-600 text-white shadow-md shadow-emerald-500/20">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-amber-400 via-emerald-500 to-teal-400 text-slate-950 shadow-lg font-black">
               <Trophy className="h-6 w-6 stroke-[2.3]" />
             </div>
 
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-base sm:text-lg lg:text-xl font-black text-slate-900 dark:text-white tracking-tight">
-                  Pusat Apresiasi &amp; Prestasi Santri
-                </h1>
-                <span className="rounded-full bg-amber-500/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 border border-amber-500/20 whitespace-nowrap">
-                  Hall of Fame
+            <div className="min-w-0 space-y-1">
+              <div className="flex items-center space-x-2 flex-wrap">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/10 border border-white/20 text-emerald-200 text-[10px] font-black uppercase tracking-wider backdrop-blur-xl">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                  HALL OF FAME
+                </span>
+                <span className="rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold px-2 py-0.5">
+                  Apresiasi SIPS
                 </span>
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
+              <h1 className="text-xl sm:text-2xl font-black tracking-tight bg-gradient-to-r from-white via-emerald-100 to-amber-300 bg-clip-text text-transparent truncate">
+                Pusat Apresiasi &amp; Prestasi Santri
+              </h1>
+              <p className="text-xs text-emerald-100/90 font-medium truncate max-w-xl">
                 Dokumentasi capaian kejuaraan, sertifikasi tahfidz, dan tracking rekam jejak santri teladan
               </p>
             </div>
           </div>
 
-          {/* Sisi Kanan: Klaster Tombol Aksi */}
-          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap self-end xl:self-center shrink-0">
+          {/* Sisi Kanan: Klaster Tombol Aksi Tersusun Rapi */}
+          <div className="flex items-center gap-2 flex-wrap shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-white/10">
             <button
               type="button"
               onClick={fetchData}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 shadow-xs transition hover:border-emerald-500/50 hover:text-emerald-500 active:scale-95 cursor-pointer"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/20 bg-white/10 text-white shadow-sm transition hover:bg-white/20 active:scale-95 cursor-pointer backdrop-blur-md"
               title="Segarkan Data"
             >
-              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin text-emerald-500" : ""}`} />
+              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin text-amber-300" : ""}`} />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowScanner(true)}
+              className="inline-flex items-center space-x-1.5 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 px-3 py-2.5 text-xs font-bold text-white transition active:scale-95 cursor-pointer backdrop-blur-md shadow-sm"
+              title="Pindai QR KTS untuk membuka rekam prestasi santri secara instan"
+            >
+              <QrCode className="h-4 w-4" />
+              <span>Scan KTS</span>
+              <Sparkles className="h-3 w-3 opacity-60 animate-pulse" />
             </button>
 
             <button
               type="button"
               onClick={handleExportCSV}
-              className="inline-flex items-center space-x-1.5 rounded-xl border border-emerald-600/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 px-3.5 py-2 text-xs font-bold transition active:scale-95 shadow-xs whitespace-nowrap cursor-pointer"
+              className="inline-flex items-center space-x-1.5 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 px-3 py-2.5 text-xs font-bold text-white transition active:scale-95 cursor-pointer backdrop-blur-md shadow-sm"
               title="Unduh format CSV/Excel"
             >
-              <FileSpreadsheet className="h-4 w-4" />
+              <FileSpreadsheet className="h-4 w-4 text-emerald-300" />
               <span>Ekspor Excel</span>
             </button>
 
             <button
               type="button"
               onClick={handlePrintGlobalReport}
-              className="inline-flex items-center space-x-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 transition active:scale-95 shadow-xs whitespace-nowrap cursor-pointer"
+              className="inline-flex items-center space-x-1.5 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 px-3 py-2.5 text-xs font-bold text-white transition active:scale-95 cursor-pointer backdrop-blur-md shadow-sm"
               title="Cetak format Laporan"
             >
-              <Printer className="h-4 w-4" />
+              <Printer className="h-4 w-4 text-amber-300" />
               <span>Cetak Laporan</span>
             </button>
 
-            {/* TOMBOL BUKA MODAL INPUT PRESTASI LANGSUNG */}
             <button
               type="button"
               onClick={() => {
@@ -682,9 +770,9 @@ export default function AchievementsPage() {
                 setCreateTitle("");
                 setCreateDescription("");
               }}
-              className="inline-flex items-center space-x-1.5 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-500 to-amber-500 hover:from-emerald-500 hover:to-amber-400 px-4 py-2 text-xs font-black text-white shadow-md shadow-emerald-500/20 transition active:scale-95 whitespace-nowrap cursor-pointer"
+              className="inline-flex items-center space-x-1.5 rounded-2xl bg-gradient-to-r from-amber-400 via-emerald-500 to-teal-400 hover:from-amber-300 hover:to-teal-300 px-4 py-2.5 text-xs font-black text-slate-950 shadow-lg shadow-emerald-900/30 transition active:scale-95 whitespace-nowrap cursor-pointer"
             >
-              <Plus className="h-4 w-4 stroke-[2.5]" />
+              <Plus className="h-4 w-4 stroke-[2.8]" />
               <span>Catat Prestasi Baru</span>
             </button>
           </div>
@@ -693,22 +781,22 @@ export default function AchievementsPage() {
 
       {/* ================= KARTU METRIK STATISTIK ================= */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 print:hidden">
-        <div className="rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white/70 dark:bg-slate-900/60 p-4 sm:p-5 shadow-xs backdrop-blur-md">
+        <div className="rounded-3xl border border-slate-200/80 dark:border-emerald-900/40 bg-white/90 dark:bg-[#0c1815] p-4 sm:p-5 shadow-xs backdrop-blur-md transition hover:border-emerald-500/50 hover:shadow-lg">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Total Prestasi</span>
-            <div className="h-8 w-8 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
-              <Medal className="h-4 w-4" />
+            <div className="h-9 w-9 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center shadow-inner">
+              <Medal className="h-4.5 w-4.5" />
             </div>
           </div>
           <p className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white mt-2 font-mono">{stats.totalAchievements}</p>
           <p className="text-[11px] text-slate-400 mt-0.5">Rekapitulasi Capaian</p>
         </div>
 
-        <div className="rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white/70 dark:bg-slate-900/60 p-4 sm:p-5 shadow-xs backdrop-blur-md">
+        <div className="rounded-3xl border border-slate-200/80 dark:border-emerald-900/40 bg-white/90 dark:bg-[#0c1815] p-4 sm:p-5 shadow-xs backdrop-blur-md transition hover:border-emerald-500/50 hover:shadow-lg">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Poin Apresiasi</span>
-            <div className="h-8 w-8 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
-              <Award className="h-4 w-4" />
+            <div className="h-9 w-9 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center shadow-inner">
+              <Award className="h-4.5 w-4.5" />
             </div>
           </div>
           <p className="text-2xl sm:text-3xl font-black text-emerald-500 mt-2 font-mono">+{stats.totalPointsAwarded}</p>
@@ -717,22 +805,22 @@ export default function AchievementsPage() {
           </p>
         </div>
 
-        <div className="rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white/70 dark:bg-slate-900/60 p-4 sm:p-5 shadow-xs backdrop-blur-md">
+        <div className="rounded-3xl border border-slate-200/80 dark:border-emerald-900/40 bg-white/90 dark:bg-[#0c1815] p-4 sm:p-5 shadow-xs backdrop-blur-md transition hover:border-sky-500/50 hover:shadow-lg">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Nasional / Global</span>
-            <div className="h-8 w-8 rounded-xl bg-sky-500/10 text-sky-500 flex items-center justify-center">
-              <Globe2 className="h-4 w-4" />
+            <div className="h-9 w-9 rounded-2xl bg-sky-500/10 text-sky-500 flex items-center justify-center shadow-inner">
+              <Globe2 className="h-4.5 w-4.5" />
             </div>
           </div>
           <p className="text-2xl sm:text-3xl font-black text-sky-500 mt-2 font-mono">{stats.nationalGlobalCount}</p>
           <p className="text-[11px] text-slate-400 mt-0.5">Ajang Bergengsi Luar</p>
         </div>
 
-        <div className="rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white/70 dark:bg-slate-900/60 p-4 sm:p-5 shadow-xs backdrop-blur-md">
+        <div className="rounded-3xl border border-slate-200/80 dark:border-emerald-900/40 bg-white/90 dark:bg-[#0c1815] p-4 sm:p-5 shadow-xs backdrop-blur-md transition hover:border-teal-500/50 hover:shadow-lg">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Tahfidz &amp; Quran</span>
-            <div className="h-8 w-8 rounded-xl bg-teal-500/10 text-teal-500 flex items-center justify-center">
-              <Sparkles className="h-4 w-4" />
+            <div className="h-9 w-9 rounded-2xl bg-teal-500/10 text-teal-500 flex items-center justify-center shadow-inner">
+              <Sparkles className="h-4.5 w-4.5" />
             </div>
           </div>
           <p className="text-2xl sm:text-3xl font-black text-teal-500 mt-2 font-mono">{stats.tahfidzCount}</p>
@@ -750,7 +838,7 @@ export default function AchievementsPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Cari santri, NIS, atau nama kejuaraan..."
-              className="h-10 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/90 pl-10 pr-4 text-xs font-semibold text-slate-900 dark:text-white placeholder-slate-400 outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 shadow-xs"
+              className="h-10 w-full rounded-2xl border border-slate-200 dark:border-emerald-900/60 bg-white dark:bg-[#0c1815] pl-10 pr-4 text-xs font-semibold text-slate-900 dark:text-white placeholder-slate-400 outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 shadow-xs"
             />
           </div>
 
@@ -758,14 +846,14 @@ export default function AchievementsPage() {
             <select
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
-              className="h-10 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3.5 text-xs font-bold text-slate-700 dark:text-slate-300 outline-none focus:border-emerald-500 cursor-pointer shadow-xs"
+              className="h-10 w-full rounded-2xl border border-slate-200 dark:border-emerald-900/60 bg-white dark:bg-[#0c1815] px-3.5 text-xs font-bold text-slate-700 dark:text-slate-300 outline-none focus:border-emerald-500 cursor-pointer shadow-xs"
             >
-              <option value="all">Semua Kategori</option>
-              <option value="Tahfidz / Al-Qur'an">Tahfidz / Al-Qur&apos;an</option>
-              <option value="Bahasa / Pidato">Bahasa / Pidato</option>
-              <option value="Akademik & Sains">Akademik &amp; Sains</option>
-              <option value="Keorganisasian & Kepemimpinan">Keorganisasian</option>
-              <option value="Olahraga & Seni">Olahraga &amp; Seni</option>
+              <option value="all" className="dark:bg-slate-900">Semua Kategori</option>
+              <option value="Tahfidz / Al-Qur'an" className="dark:bg-slate-900">Tahfidz / Al-Qur&apos;an</option>
+              <option value="Bahasa / Pidato" className="dark:bg-slate-900">Bahasa / Pidato</option>
+              <option value="Akademik & Sains" className="dark:bg-slate-900">Akademik &amp; Sains</option>
+              <option value="Keorganisasian & Kepemimpinan" className="dark:bg-slate-900">Keorganisasian</option>
+              <option value="Olahraga & Seni" className="dark:bg-slate-900">Olahraga &amp; Seni</option>
             </select>
           </div>
 
@@ -773,14 +861,14 @@ export default function AchievementsPage() {
             <select
               value={filterLevel}
               onChange={(e) => setFilterLevel(e.target.value)}
-              className="h-10 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3.5 text-xs font-bold text-slate-700 dark:text-slate-300 outline-none focus:border-emerald-500 cursor-pointer shadow-xs"
+              className="h-10 w-full rounded-2xl border border-slate-200 dark:border-emerald-900/60 bg-white dark:bg-[#0c1815] px-3.5 text-xs font-bold text-slate-700 dark:text-slate-300 outline-none focus:border-emerald-500 cursor-pointer shadow-xs"
             >
-              <option value="all">Semua Tingkat</option>
-              <option value="Internal Pondok">Internal Pondok</option>
-              <option value="Kabupaten / Kota">Kabupaten / Kota</option>
-              <option value="Provinsi">Provinsi</option>
-              <option value="Nasional">Nasional</option>
-              <option value="Internasional">Internasional</option>
+              <option value="all" className="dark:bg-slate-900">Semua Tingkat</option>
+              <option value="Internal Pondok" className="dark:bg-slate-900">Internal Pondok</option>
+              <option value="Kabupaten / Kota" className="dark:bg-slate-900">Kabupaten / Kota</option>
+              <option value="Provinsi" className="dark:bg-slate-900">Provinsi</option>
+              <option value="Nasional" className="dark:bg-slate-900">Nasional</option>
+              <option value="Internasional" className="dark:bg-slate-900">Internasional</option>
             </select>
           </div>
 
@@ -788,19 +876,19 @@ export default function AchievementsPage() {
             <select
               value={filterPeriod}
               onChange={(e) => setFilterPeriod(e.target.value as any)}
-              className="h-10 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3.5 text-xs font-bold text-slate-700 dark:text-slate-300 outline-none focus:border-emerald-500 cursor-pointer shadow-xs"
+              className="h-10 w-full rounded-2xl border border-slate-200 dark:border-emerald-900/60 bg-white dark:bg-[#0c1815] px-3.5 text-xs font-bold text-slate-700 dark:text-slate-300 outline-none focus:border-emerald-500 cursor-pointer shadow-xs"
             >
-              <option value="all">Periode: Semua Waktu</option>
-              <option value="7days">1 Minggu Terakhir (7 Hari)</option>
-              <option value="30days">1 Bulan Terakhir (30 Hari)</option>
-              <option value="semester">1 Semester Terakhir (6 Bulan)</option>
-              <option value="custom">Rentang Tanggal Khusus...</option>
+              <option value="all" className="dark:bg-slate-900">Periode: Semua Waktu</option>
+              <option value="7days" className="dark:bg-slate-900">1 Minggu Terakhir (7 Hari)</option>
+              <option value="30days" className="dark:bg-slate-900">1 Bulan Terakhir (30 Hari)</option>
+              <option value="semester" className="dark:bg-slate-900">1 Semester Terakhir (6 Bulan)</option>
+              <option value="custom" className="dark:bg-slate-900">Rentang Tanggal Khusus...</option>
             </select>
           </div>
         </div>
 
         {filterPeriod === "custom" && (
-          <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 flex flex-wrap items-center gap-3 text-xs animate-in fade-in">
+          <div className="p-3 rounded-2xl bg-slate-50 dark:bg-[#0c1815] border border-slate-200 dark:border-emerald-900/60 flex flex-wrap items-center gap-3 text-xs animate-in fade-in">
             <span className="font-bold text-slate-700 dark:text-slate-300">Dari:</span>
             <input
               type="date"
@@ -830,11 +918,11 @@ export default function AchievementsPage() {
       </div>
 
       {/* ================= TABEL DATA PRESTASI ================= */}
-      <div className="overflow-hidden rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-900/90 shadow-xl shadow-slate-200/30 dark:shadow-black/40 backdrop-blur-xl print:hidden">
+      <div className="overflow-hidden rounded-3xl border border-slate-200/80 dark:border-emerald-900/40 bg-white/90 dark:bg-[#0c1815] shadow-xl shadow-slate-200/30 dark:shadow-black/40 backdrop-blur-xl print:hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-800/80 bg-slate-50/90 dark:bg-slate-950/60 text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 select-none">
+              <tr className="border-b border-slate-200 dark:border-emerald-900/40 bg-slate-50/90 dark:bg-emerald-950/40 text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 select-none">
                 <th className="py-4 px-3 w-10 text-center">
                   <button
                     type="button"
@@ -856,7 +944,7 @@ export default function AchievementsPage() {
                 <th className="py-4 px-4 text-right font-bold">Aksi</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
+            <tbody className="divide-y divide-slate-100 dark:divide-emerald-900/30 font-medium">
               {loading ? (
                 <tr>
                   <td colSpan={7} className="py-16 text-center text-slate-400">
@@ -885,7 +973,7 @@ export default function AchievementsPage() {
                       className={`group transition-all duration-200 ${
                         isSelected
                           ? "bg-emerald-500/[0.08] dark:bg-emerald-950/30"
-                          : "hover:bg-emerald-500/[0.03] dark:hover:bg-emerald-500/[0.02]"
+                          : "hover:bg-emerald-500/[0.03] dark:hover:bg-emerald-950/20"
                       }`}
                     >
                       <td className="py-3.5 px-3 text-center">
@@ -899,7 +987,7 @@ export default function AchievementsPage() {
 
                       <td className="py-3.5 px-4">
                         <div className="flex items-center space-x-3">
-                          <div className="relative h-9 w-9 shrink-0 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-black text-xs group-hover:scale-105 transition-transform overflow-hidden flex items-center justify-center">
+                          <div className="relative h-9 w-9 shrink-0 rounded-xl bg-slate-100 dark:bg-emerald-900/40 border border-slate-200 dark:border-emerald-800 text-slate-800 dark:text-slate-200 font-black text-xs group-hover:scale-105 transition-transform overflow-hidden flex items-center justify-center">
                             {meta.photo_url ? (
                               <img src={meta.photo_url} alt={a.student_name} className="h-full w-full object-cover" />
                             ) : (
@@ -953,7 +1041,7 @@ export default function AchievementsPage() {
                       </td>
 
                       <td className="py-3.5 px-4 text-center">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-100 dark:bg-emerald-950/40 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-emerald-900/40">
                           {a.level}
                         </span>
                       </td>
@@ -980,7 +1068,7 @@ export default function AchievementsPage() {
                           <button
                             type="button"
                             onClick={() => handleOpenStudentDossier(a)}
-                            className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-cyan-500 hover:border-cyan-500/40 hover:bg-cyan-500/10 transition active:scale-90 cursor-pointer"
+                            className="p-2 rounded-xl border border-slate-200 dark:border-emerald-900/40 text-slate-500 dark:text-slate-400 hover:text-cyan-500 hover:border-cyan-500/40 hover:bg-cyan-500/10 transition active:scale-90 cursor-pointer"
                             title="Lihat Rapor Prestasi Santri"
                           >
                             <History className="h-4 w-4" />
@@ -989,7 +1077,7 @@ export default function AchievementsPage() {
                           <button
                             type="button"
                             onClick={() => handleOpenEditModal(a)}
-                            className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-amber-500 hover:border-amber-500/40 hover:bg-amber-500/10 transition active:scale-90 cursor-pointer"
+                            className="p-2 rounded-xl border border-slate-200 dark:border-emerald-900/40 text-slate-500 dark:text-slate-400 hover:text-amber-500 hover:border-amber-500/40 hover:bg-amber-500/10 transition active:scale-90 cursor-pointer"
                             title="Edit Data Prestasi Lengkap"
                           >
                             <Edit className="h-4 w-4" />
@@ -998,7 +1086,7 @@ export default function AchievementsPage() {
                           <button
                             type="button"
                             onClick={() => setItemToDelete(a)}
-                            className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-rose-500 hover:border-rose-500/40 hover:bg-rose-500/10 transition active:scale-90 cursor-pointer"
+                            className="p-2 rounded-xl border border-slate-200 dark:border-emerald-900/40 text-slate-500 dark:text-slate-400 hover:text-rose-500 hover:border-rose-500/40 hover:bg-rose-500/10 transition active:scale-90 cursor-pointer"
                             title="Hapus Catatan Prestasi"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -1589,11 +1677,11 @@ export default function AchievementsPage() {
                     onChange={(e) => handleLevelPointCalculation(e.target.value, true)}
                     className="w-full h-10 rounded-xl border border-slate-800 bg-slate-950 px-3 font-bold text-slate-200 outline-none focus:border-amber-500 cursor-pointer"
                   >
-                    <option value="Internal Pondok">Internal Pondok (+10 Poin)</option>
-                    <option value="Kabupaten / Kota">Kabupaten / Kota (+20 Poin)</option>
-                    <option value="Provinsi">Provinsi (+35 Poin)</option>
-                    <option value="Nasional">Nasional (+50 Poin)</option>
-                    <option value="Internasional">Internasional (+100 Poin)</option>
+                    <option value="Internal Pondok">Internal Pondok</option>
+                    <option value="Kabupaten / Kota">Kabupaten / Kota</option>
+                    <option value="Provinsi">Provinsi</option>
+                    <option value="Nasional">Nasional</option>
+                    <option value="Internasional">Internasional</option>
                   </select>
                 </div>
 
@@ -1869,6 +1957,15 @@ export default function AchievementsPage() {
           </div>
         </div>
       )}
+
+      {/* ================= MODAL SCANNER KTS ================= */}
+      <QRScannerModal
+        isOpen={showScanner}
+        onClose={() => setShowScanner(false)}
+        onScanSuccess={handleScanSuccess}
+        title="Pemindai KTS Santri (Prestasi & Penghargaan)"
+        description="Arahkan kamera ke QR Code KTS santri untuk melihat daftar raihan prestasi"
+      />
     </div>
   );
 }

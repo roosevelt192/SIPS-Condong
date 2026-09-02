@@ -199,7 +199,6 @@ export default function DashboardLivePage() {
     return achievements.reduce((acc, curr) => acc + (Number(curr.reward_points) || 0), 0);
   }, [achievements]);
 
-  // Persentase Santri Mukim vs Di Luar
   const insidePondokCount = Math.max(0, totalStudents - currentlyOutList.length);
   const insidePondokPercent = totalStudents > 0 ? Math.round((insidePondokCount / totalStudents) * 100) : 100;
 
@@ -282,41 +281,44 @@ export default function DashboardLivePage() {
   if (!isAuthenticated) return null;
 
   return (
-    <div className="space-y-5 max-w-[1440px] mx-auto font-sans pb-16">
-      {/* ================= HEADER HERO DASHBOARD UTAMA ================= */}
-      <div className="relative overflow-hidden rounded-[28px] border border-slate-200/80 dark:border-emerald-900/30 bg-white/95 dark:bg-[#111f1b] p-5 sm:p-6 shadow-sm backdrop-blur-xl transition-all">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-[10.5px] font-black uppercase tracking-wider">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                PONDOK PESANTREN CONDONG
+    <div className="space-y-6 max-w-[1440px] mx-auto font-sans pb-16">
+      {/* ================= HEADER HERO DASHBOARD UTAMA (SUPER COLORFUL & INTERAKTIF) ================= */}
+      <div className="relative overflow-hidden rounded-[36px] bg-gradient-to-r from-emerald-950 via-[#064e3b] to-teal-950 p-6 sm:p-8 text-white shadow-2xl border border-emerald-500/40">
+        <div className="absolute -top-32 -right-32 w-80 h-80 rounded-full bg-emerald-400/20 blur-[80px] pointer-events-none animate-pulse" />
+        <div className="absolute -bottom-32 -left-32 w-80 h-80 rounded-full bg-amber-400/20 blur-[80px] pointer-events-none" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white/10 via-transparent to-black/30 pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2.5">
+            <div className="inline-flex items-center space-x-2.5 px-3.5 py-1.5 rounded-full bg-white/10 border border-white/20 text-emerald-200 text-xs font-extrabold backdrop-blur-xl shadow-lg">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-400" />
               </span>
-              <span className="rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 text-[10px] font-bold px-2 py-0.5">
-                Real-time Sync
-              </span>
+              <span className="tracking-wide uppercase text-[10px]">Pondok Pesantren Condong • Live Sync</span>
             </div>
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight mt-2">
+
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight bg-gradient-to-r from-white via-emerald-100 to-amber-300 bg-clip-text text-transparent drop-shadow-md">
               Dashboard Utama
             </h1>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Ringkasan operasional dan kendali pengasuhan santri secara real-time
+
+            <p className="text-xs sm:text-sm text-emerald-100/90 max-w-2xl font-semibold leading-relaxed">
+              Pusat kendali operasional harian: pantau pergerakan gerbang santri, rekapitulasi pelanggaran, dan apresiasi prestasi secara real-time.
             </p>
           </div>
 
-          {/* Mini Status Kesiapan Sistem */}
-          <div className="flex items-center gap-2.5 bg-slate-50 dark:bg-[#0c1815] border border-slate-200 dark:border-emerald-900/40 p-2 sm:px-3 sm:py-2 rounded-2xl shrink-0 self-start md:self-auto shadow-xs">
-            <div className="flex items-center space-x-2 text-xs font-bold text-slate-700 dark:text-slate-300">
-              <div className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
+          <div className="flex items-center gap-3 bg-black/50 border border-emerald-400/30 backdrop-blur-2xl p-3.5 rounded-2xl shrink-0 shadow-2xl">
+            <div className="flex items-center space-x-2.5 text-xs font-bold text-emerald-200">
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-ping" />
               <span>Sistem Aktif &amp; Terhubung</span>
             </div>
             <button
               type="button"
               onClick={fetchRealtimeData}
-              className="p-1.5 rounded-xl hover:bg-slate-200 dark:hover:bg-emerald-900/40 text-slate-500 dark:text-slate-400 transition cursor-pointer"
+              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition cursor-pointer shadow-inner"
               title="Segarkan Data Realtime"
             >
-              <RefreshCw className={`h-3.5 w-3.5 ${loadingData ? "animate-spin text-emerald-600" : ""}`} />
+              <RefreshCw className={`h-4 w-4 ${loadingData ? "animate-spin text-amber-300" : ""}`} />
             </button>
           </div>
         </div>
@@ -327,25 +329,25 @@ export default function DashboardLivePage() {
         {/* 1. Santri Aktif */}
         <Link
           href="/dashboard/students"
-          className="group relative overflow-hidden rounded-[24px] border border-slate-200/80 dark:border-emerald-900/30 bg-white/95 dark:bg-[#111f1b] p-5 shadow-xs hover:border-emerald-500/50 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer"
+          className="group relative overflow-hidden rounded-[28px] border border-slate-200/80 dark:border-emerald-900/40 bg-white/95 dark:bg-[#0c1815] p-5 shadow-sm hover:border-emerald-500/60 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer"
         >
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Santri Aktif
             </span>
-            <div className="h-9 w-9 rounded-2xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 flex items-center justify-center transition-transform group-hover:scale-110">
-              <Users className="h-4.5 w-4.5" />
+            <div className="h-10 w-10 rounded-2xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 flex items-center justify-center transition-transform group-hover:scale-110 shadow-inner">
+              <Users className="h-5 w-5" />
             </div>
           </div>
           <div className="flex items-baseline justify-between mt-3">
             <h3 className="text-3xl font-black text-slate-900 dark:text-white font-mono">
               {totalStudents}
             </h3>
-            <span className="px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-500/20">
+            <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
               Mukim
             </span>
           </div>
-          <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-emerald-900/30 flex items-center justify-between text-[10.5px]">
+          <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-emerald-900/30 flex items-center justify-between text-[11px]">
             <span className="text-slate-400 truncate">{insidePondokPercent}% di dalam pondok</span>
             <span className="text-emerald-600 dark:text-emerald-400 font-bold group-hover:underline flex items-center gap-0.5">
               Detail <ChevronRight className="h-3 w-3" />
@@ -356,29 +358,29 @@ export default function DashboardLivePage() {
         {/* 2. Izin di Luar */}
         <Link
           href="/dashboard/permissions"
-          className="group relative overflow-hidden rounded-[24px] border border-slate-200/80 dark:border-emerald-900/30 bg-white/95 dark:bg-[#111f1b] p-5 shadow-xs hover:border-amber-500/50 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer"
+          className="group relative overflow-hidden rounded-[28px] border border-slate-200/80 dark:border-emerald-900/40 bg-white/95 dark:bg-[#0c1815] p-5 shadow-sm hover:border-amber-500/60 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer"
         >
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Izin di Luar
             </span>
-            <div className="h-9 w-9 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center transition-transform group-hover:scale-110">
-              <LogOut className="h-4.5 w-4.5" />
+            <div className="h-10 w-10 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center transition-transform group-hover:scale-110 shadow-inner">
+              <LogOut className="h-5 w-5" />
             </div>
           </div>
           <div className="flex items-baseline justify-between mt-3">
             <h3 className="text-3xl font-black text-amber-600 dark:text-amber-400 font-mono">
               {currentlyOutList.length}
             </h3>
-            <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase border ${
+            <span className={`px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase border ${
               overdueList.length > 0
-                ? "bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border-rose-500/30 animate-pulse"
-                : "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border-amber-500/20"
+                ? "bg-rose-500/20 text-rose-700 dark:text-rose-300 border-rose-500/30 animate-pulse"
+                : "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/20"
             }`}>
               {overdueList.length > 0 ? `${overdueList.length} Terlambat` : "Aktif"}
             </span>
           </div>
-          <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-emerald-900/30 flex items-center justify-between text-[10.5px]">
+          <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-emerald-900/30 flex items-center justify-between text-[11px]">
             <span className="text-slate-400 truncate">
               {currentlyOutList.length === 0 ? "Semua santri di pondok" : `${currentlyOutList.length} santri di luar`}
             </span>
@@ -391,25 +393,25 @@ export default function DashboardLivePage() {
         {/* 3. Disiplin Bulan Ini */}
         <Link
           href="/dashboard/violations"
-          className="group relative overflow-hidden rounded-[24px] border border-slate-200/80 dark:border-emerald-900/30 bg-white/95 dark:bg-[#111f1b] p-5 shadow-xs hover:border-rose-500/50 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer"
+          className="group relative overflow-hidden rounded-[28px] border border-slate-200/80 dark:border-emerald-900/40 bg-white/95 dark:bg-[#0c1815] p-5 shadow-sm hover:border-rose-500/60 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer"
         >
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Disiplin Bulan Ini
             </span>
-            <div className="h-9 w-9 rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center transition-transform group-hover:scale-110">
-              <ShieldAlert className="h-4.5 w-4.5" />
+            <div className="h-10 w-10 rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center transition-transform group-hover:scale-110 shadow-inner">
+              <ShieldAlert className="h-5 w-5" />
             </div>
           </div>
           <div className="flex items-baseline justify-between mt-3">
             <h3 className="text-3xl font-black text-slate-900 dark:text-white font-mono">
               {violations.length}
             </h3>
-            <span className="px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 font-mono border border-rose-500/20">
+            <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase bg-rose-500/15 text-rose-700 dark:text-rose-300 font-mono border border-rose-500/20">
               +{totalPointsViolations} Poin
             </span>
           </div>
-          <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-emerald-900/30 flex items-center justify-between text-[10.5px]">
+          <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-emerald-900/30 flex items-center justify-between text-[11px]">
             <span className="text-slate-400 truncate">
               {violations.length === 0 ? "Kedisiplinan terjaga" : "Rekapitulasi pembinaan"}
             </span>
@@ -422,25 +424,25 @@ export default function DashboardLivePage() {
         {/* 4. Prestasi Santri */}
         <Link
           href="/dashboard/achievements"
-          className="group relative overflow-hidden rounded-[24px] border border-slate-200/80 dark:border-emerald-900/30 bg-white/95 dark:bg-[#111f1b] p-5 shadow-xs hover:border-teal-500/50 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer"
+          className="group relative overflow-hidden rounded-[28px] border border-slate-200/80 dark:border-emerald-900/40 bg-white/95 dark:bg-[#0c1815] p-5 shadow-sm hover:border-teal-500/60 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer"
         >
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Prestasi Santri
             </span>
-            <div className="h-9 w-9 rounded-2xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center transition-transform group-hover:scale-110">
-              <Trophy className="h-4.5 w-4.5" />
+            <div className="h-10 w-10 rounded-2xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center transition-transform group-hover:scale-110 shadow-inner">
+              <Trophy className="h-5 w-5" />
             </div>
           </div>
           <div className="flex items-baseline justify-between mt-3">
             <h3 className="text-3xl font-black text-emerald-700 dark:text-emerald-400 font-mono">
               {achievements.length}
             </h3>
-            <span className="px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase bg-teal-100 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300 font-mono border border-teal-500/20">
+            <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-black uppercase bg-teal-500/15 text-teal-700 dark:text-teal-300 font-mono border border-teal-500/20">
               +{totalRewardPoints} Reward
             </span>
           </div>
-          <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-emerald-900/30 flex items-center justify-between text-[10.5px]">
+          <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-emerald-900/30 flex items-center justify-between text-[11px]">
             <span className="text-slate-400 truncate">{achievements.length} capaian kejuaraan</span>
             <span className="text-teal-600 dark:text-teal-400 font-bold group-hover:underline flex items-center gap-0.5">
               Hall of Fame <ChevronRight className="h-3 w-3" />
@@ -450,7 +452,7 @@ export default function DashboardLivePage() {
       </div>
 
       {/* ================= AKSI CEPAT OPERASIONAL (1-CLICK DOCK) ================= */}
-      <div className="rounded-[28px] border border-slate-200/80 dark:border-emerald-900/30 bg-white/95 dark:bg-[#111f1b] p-5 shadow-sm space-y-3.5">
+      <div className="rounded-[28px] border border-slate-200/80 dark:border-emerald-900/40 bg-white/95 dark:bg-[#0c1815] p-5 shadow-sm space-y-3.5">
         <div className="flex items-center justify-between border-b border-slate-100 dark:border-emerald-900/30 pb-3">
           <div className="flex items-center space-x-2">
             <div className="h-7 w-7 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 flex items-center justify-center">
@@ -537,7 +539,7 @@ export default function DashboardLivePage() {
       {/* ================= MONITORING PERIZINAN & LIVE STREAM AKTIVITAS ================= */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         {/* Kolom Kiri: Status Siklus Perizinan Hari Ini */}
-        <div className="lg:col-span-7 rounded-[28px] border border-slate-200/80 dark:border-emerald-900/30 bg-white/95 dark:bg-[#111f1b] p-5 sm:p-6 shadow-sm space-y-4">
+        <div className="lg:col-span-7 rounded-[28px] border border-slate-200/80 dark:border-emerald-900/40 bg-white/95 dark:bg-[#0c1815] p-5 sm:p-6 shadow-sm space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-emerald-900/30 pb-3.5">
             <div className="flex items-center space-x-2">
               <div className="h-7 w-7 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 flex items-center justify-center">
@@ -556,9 +558,7 @@ export default function DashboardLivePage() {
             </Link>
           </div>
 
-          {/* 4 Status Box Siklus */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-            {/* Siap Keluar */}
             <div className="p-3 rounded-2xl bg-blue-50/70 dark:bg-blue-950/20 border border-blue-200/60 dark:border-blue-900/40 space-y-1 transition hover:scale-102">
               <p className="text-[10px] font-bold text-blue-700 dark:text-blue-400 uppercase">Siap Keluar</p>
               <p className="text-2xl font-black text-blue-950 dark:text-blue-200 font-mono">
@@ -569,7 +569,6 @@ export default function DashboardLivePage() {
               </span>
             </div>
 
-            {/* Di Luar */}
             <div className="p-3 rounded-2xl bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/40 space-y-1 transition hover:scale-102">
               <p className="text-[10px] font-bold text-amber-700 dark:text-amber-400 uppercase">Di Luar</p>
               <p className="text-2xl font-black text-amber-950 dark:text-amber-200 font-mono">
@@ -580,7 +579,6 @@ export default function DashboardLivePage() {
               </span>
             </div>
 
-            {/* Selesai Kembali */}
             <div className="p-3 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-900/40 space-y-1 transition hover:scale-102">
               <p className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase">Selesai</p>
               <p className="text-2xl font-black text-emerald-950 dark:text-emerald-200 font-mono">
@@ -591,7 +589,6 @@ export default function DashboardLivePage() {
               </span>
             </div>
 
-            {/* Terlambat */}
             <div className="p-3 rounded-2xl bg-rose-50/70 dark:bg-rose-950/20 border border-rose-200/60 dark:border-rose-900/40 space-y-1 transition hover:scale-102">
               <p className="text-[10px] font-bold text-rose-700 dark:text-rose-400 uppercase">Terlambat</p>
               <p className="text-2xl font-black text-rose-950 dark:text-rose-200 font-mono">
@@ -603,7 +600,6 @@ export default function DashboardLivePage() {
             </div>
           </div>
 
-          {/* Progress Bar Santri Mukim di Pondok */}
           <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#0c1815] border border-slate-200/80 dark:border-emerald-900/30 space-y-2">
             <div className="flex items-center justify-between text-xs font-bold">
               <span className="text-slate-700 dark:text-slate-300">Presensi Santri Berada di Dalam Pondok</span>
@@ -617,7 +613,6 @@ export default function DashboardLivePage() {
             </div>
           </div>
 
-          {/* Warning Banner Santri Terlambat */}
           {overdueList.length > 0 && (
             <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-between gap-3 text-xs animate-in fade-in">
               <div className="flex items-center space-x-2.5 min-w-0">
@@ -637,7 +632,7 @@ export default function DashboardLivePage() {
         </div>
 
         {/* Kolom Kanan: Aktivitas Terkini (Interactive Feed) */}
-        <div className="lg:col-span-5 rounded-[28px] border border-slate-200/80 dark:border-emerald-900/30 bg-white/95 dark:bg-[#111f1b] p-5 sm:p-6 shadow-sm space-y-3.5">
+        <div className="lg:col-span-5 rounded-[28px] border border-slate-200/80 dark:border-emerald-900/40 bg-white/95 dark:bg-[#0c1815] p-5 sm:p-6 shadow-sm space-y-3.5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 dark:border-emerald-900/30 pb-3 gap-2">
             <div className="flex items-center space-x-2">
               <span className="relative flex h-2.5 w-2.5">
@@ -649,8 +644,7 @@ export default function DashboardLivePage() {
               </h3>
             </div>
 
-            {/* Filter Pill Interaktif */}
-            <div className="flex items-center gap-1 bg-slate-100 dark:bg-[#0c1815] p-1 rounded-xl border border-slate-200 dark:border-emerald-900/30 text-[10.5px] font-bold">
+            <div className="flex items-center gap-1 bg-slate-100 dark:bg-[#06120e] p-1 rounded-xl border border-slate-200 dark:border-emerald-900/30 text-[10.5px] font-bold">
               {[
                 { id: "all", label: "Semua" },
                 { id: "gate", label: "Gerbang" },
@@ -662,7 +656,7 @@ export default function DashboardLivePage() {
                   onClick={() => setActivityFilter(btn.id as any)}
                   className={`px-2.5 py-0.5 rounded-lg transition cursor-pointer ${
                     activityFilter === btn.id
-                      ? "bg-[#064e3b] dark:bg-emerald-600 text-white shadow-xs"
+                      ? "bg-emerald-600 text-white shadow-xs"
                       : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
                   }`}
                 >
@@ -681,7 +675,7 @@ export default function DashboardLivePage() {
               liveFeed.map((act) => (
                 <div
                   key={act.id}
-                  className="flex items-center justify-between p-3 rounded-2xl border border-slate-100 dark:border-emerald-900/20 bg-slate-50/70 dark:bg-[#162924]/60 text-xs hover:border-emerald-500/40 transition hover:translate-x-1"
+                  className="flex items-center justify-between p-3 rounded-2xl border border-slate-100 dark:border-emerald-900/20 bg-slate-50/70 dark:bg-[#071310]/60 text-xs hover:border-emerald-500/40 transition hover:translate-x-1"
                 >
                   <div className="flex items-center space-x-3 min-w-0">
                     <span
@@ -709,7 +703,7 @@ export default function DashboardLivePage() {
                       </p>
                     </div>
                   </div>
-                  <span className="font-mono text-[10px] font-bold text-slate-400 bg-white dark:bg-[#111f1b] px-2 py-1 rounded-lg border border-slate-200 dark:border-emerald-900/40 shrink-0 ml-2 shadow-xs">
+                  <span className="font-mono text-[10px] font-bold text-slate-400 bg-white dark:bg-[#0c1815] px-2 py-1 rounded-lg border border-slate-200 dark:border-emerald-900/40 shrink-0 ml-2 shadow-xs">
                     {act.time}
                   </span>
                 </div>

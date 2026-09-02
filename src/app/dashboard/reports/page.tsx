@@ -36,15 +36,12 @@ type PageSize = "a4" | "legal";
 export default function ReportsPage() {
   const [reportType, setReportType] = useState<ReportType>("violations");
 
-  const [startDate, setStartDate] = useState(
-    new Date(new Date().getFullYear(), new Date().getMonth(), 1)
-      .toISOString()
-      .slice(0, 10)
-  );
+  const [startDate, setStartDate] = useState("2026-01-01");
   const [endDate, setEndDate] = useState(new Date().toISOString().slice(0, 10));
 
   const [loading, setLoading] = useState(false);
   const [rawReportData, setRawReportData] = useState<any[]>([]);
+  const [allMasterStudents, setAllMasterStudents] = useState<any[]>([]);
 
   // State Animasi Proses Ekspor
   const [isExportingExcel, setIsExportingExcel] = useState(false);
@@ -92,6 +89,10 @@ export default function ReportsPage() {
   });
 
   useEffect(() => {
+    fetchMasterStudents();
+  }, []);
+
+  useEffect(() => {
     fetchReportData();
   }, [reportType, startDate, endDate]);
 
@@ -111,44 +112,88 @@ export default function ReportsPage() {
     setPdfOrientation("landscape");
   }, [reportType]);
 
+  async function fetchMasterStudents() {
+    try {
+      const { data } = await supabase.from("students").select("*").range(0, 4999);
+      if (data) {
+        const formatted = data.map((st: any) => ({
+          ...st,
+          nis: st.nis || st.nomor_induk || "-",
+          full_name: st.full_name || st.name || st.nama || st.nama_lengkap || st.nama_santri || "Santri",
+          kelas: st.kelas || st.class_name || st.class || st.rombel || "-",
+          kamar: st.kamar_asrama || st.dorm || st.room || st.asrama || st.room_name || st.rayon || "-",
+          konsulat: st.asal_konsulat || st.consulate || st.origin_region || st.konsulat || "Pusat",
+          nama_lengkap_wali: st.nama_lengkap_wali || st.guardian_name || st.nama_wali || "-",
+          no_whatsapp: st.no_whatsapp || st.guardian_phone || st.parent_phone || st.phone || "-",
+          status_santri: st.status_santri || st.status || "Aktif Mukim",
+        }));
+        setAllMasterStudents(formatted);
+      }
+    } catch (e) {
+      console.warn("Gagal memuat master santri:", e);
+    }
+  }
+
   async function fetchReportData() {
     setLoading(true);
     try {
-      const { data: studentsRaw } = await supabase.from("students").select("*");
+      const { data: studentsRaw } = await supabase.from("students").select("*").range(0, 4999);
 
       const studentsMapByNis: Record<string, any> = {};
       const studentsMapById: Record<string, any> = {};
 
       (studentsRaw || []).forEach((st: any) => {
-        if (st.nis) studentsMapByNis[String(st.nis).trim()] = st;
-        if (st.id) studentsMapById[String(st.id).trim()] = st;
+        const normalizedSt = {
+          id: String(st.id || ""),
+          nis: String(st.nis || st.nomor_induk || "-").trim(),
+          full_name: st.full_name || st.name || st.nama || st.nama_lengkap || st.nama_santri || "Santri",
+          kelas: st.kelas || st.class_name || st.class || st.rombel || "-",
+          kamar: st.kamar_asrama || st.dorm || st.room || st.asrama || st.room_name || st.rayon || "-",
+          konsulat: st.asal_konsulat || st.consulate || st.origin_region || st.konsulat || "Pusat",
+          namaWali: st.nama_lengkap_wali || st.guardian_name || st.nama_wali || "-",
+          noWali: st.no_whatsapp || st.guardian_phone || st.parent_phone || st.phone || "-",
+          statusSantri: st.status_santri || st.status || "Aktif Mukim",
+        };
+
+        if (normalizedSt.id) studentsMapById[normalizedSt.id] = normalizedSt;
+        if (normalizedSt.nis && normalizedSt.nis !== "-") studentsMapByNis[normalizedSt.nis] = normalizedSt;
       });
 
-      const resolveStudentInfo = (item: any) => {
-        const nisKey = item.nis ? String(item.nis).trim() : "";
+      const resolveInfo = (item: any) => {
         const idKey = item.student_id ? String(item.student_id).trim() : "";
-        const st = studentsMapByNis[nisKey] || studentsMapById[idKey] || {};
+        const nisKey = item.nis ? String(item.nis).trim() : "";
+        
+        const matched = studentsMapById[idKey] || studentsMapByNis[nisKey] || {
+          kelas: item.kelas || item.class || "-",
+          kamar: item.kamar || item.dorm || "-",
+          konsulat: item.konsulat || item.consulate || "Pusat",
+          namaWali: item.nama_lengkap_wali || "-",
+          noWali: item.no_whatsapp || "-",
+          statusSantri: "Aktif Mukim",
+          full_name: item.student_name || item.full_name || item.name || "Santri",
+        };
 
         return {
-          kelas: st.kelas || st.class_name || st.class || "-",
-          kamar: st.kamar_asrama || st.dorm || st.room || st.asrama || "-",
-          konsulat: st.asal_konsulat || st.consulate || st.origin_region || "-",
-          namaWali: st.nama_lengkap_wali || st.guardian_name || "-",
-          noWali: st.no_whatsapp || st.guardian_phone || st.parent_phone || "-",
-          statusSantri: st.status_santri || st.status || "Aktif Mukim",
+          kelas: matched.kelas,
+          kamar: matched.kamar,
+          konsulat: matched.konsulat,
+          nama_lengkap_wali: matched.namaWali,
+          no_whatsapp: matched.noWali,
+          status_santri: matched.statusSantri,
+          student_name: item.student_name || item.full_name || item.name || matched.full_name || "Santri",
         };
       };
 
       if (reportType === "students") {
         const formatted = (studentsRaw || []).map((st: any) => ({
           ...st,
-          nis: st.nis || "-",
-          full_name: st.full_name || st.name || st.nama || "-",
-          kelas: st.kelas || st.class_name || st.class || "-",
-          kamar: st.kamar_asrama || st.dorm || st.room || st.asrama || "-",
-          konsulat: st.asal_konsulat || st.consulate || st.origin_region || "-",
-          nama_lengkap_wali: st.nama_lengkap_wali || st.guardian_name || "-",
-          no_whatsapp: st.no_whatsapp || st.guardian_phone || st.parent_phone || "-",
+          nis: st.nis || st.nomor_induk || "-",
+          full_name: st.full_name || st.name || st.nama || st.nama_lengkap || "-",
+          kelas: st.kelas || st.class_name || st.class || st.rombel || "-",
+          kamar: st.kamar_asrama || st.dorm || st.room || st.asrama || st.room_name || st.rayon || "-",
+          konsulat: st.asal_konsulat || st.consulate || st.origin_region || st.konsulat || "Pusat",
+          nama_lengkap_wali: st.nama_lengkap_wali || st.guardian_name || st.nama_wali || "-",
+          no_whatsapp: st.no_whatsapp || st.guardian_phone || st.parent_phone || st.phone || "-",
           status_santri: st.status_santri || st.status || "Aktif Mukim",
         }));
         setRawReportData(formatted);
@@ -163,7 +208,7 @@ export default function ReportsPage() {
 
         const enriched = (data || []).map((v: any) => ({
           ...v,
-          ...resolveStudentInfo(v),
+          ...resolveInfo(v),
         }));
         setRawReportData(enriched);
       } else if (reportType === "achievements") {
@@ -177,7 +222,7 @@ export default function ReportsPage() {
 
         const enriched = (data || []).map((a: any) => ({
           ...a,
-          ...resolveStudentInfo(a),
+          ...resolveInfo(a),
         }));
         setRawReportData(enriched);
       } else if (reportType === "permissions") {
@@ -191,7 +236,7 @@ export default function ReportsPage() {
 
         const enriched = (data || []).map((p: any) => ({
           ...p,
-          ...resolveStudentInfo(p),
+          ...resolveInfo(p),
         }));
         setRawReportData(enriched);
       }
@@ -204,30 +249,36 @@ export default function ReportsPage() {
 
   const availableClasses = useMemo(() => {
     const set = new Set<string>();
+    allMasterStudents.forEach((st) => {
+      if (st.kelas && st.kelas !== "-") set.add(st.kelas);
+    });
     rawReportData.forEach((d) => {
-      const val = d.kelas;
-      if (val && val !== "-") set.add(val);
+      if (d.kelas && d.kelas !== "-") set.add(d.kelas);
     });
     return Array.from(set).sort();
-  }, [rawReportData]);
+  }, [allMasterStudents, rawReportData]);
 
   const availableDorms = useMemo(() => {
     const set = new Set<string>();
+    allMasterStudents.forEach((st) => {
+      if (st.kamar && st.kamar !== "-") set.add(st.kamar);
+    });
     rawReportData.forEach((d) => {
-      const val = d.kamar;
-      if (val && val !== "-") set.add(val);
+      if (d.kamar && d.kamar !== "-") set.add(d.kamar);
     });
     return Array.from(set).sort();
-  }, [rawReportData]);
+  }, [allMasterStudents, rawReportData]);
 
   const availableConsulates = useMemo(() => {
     const set = new Set<string>();
+    allMasterStudents.forEach((st) => {
+      if (st.konsulat && st.konsulat !== "-") set.add(st.konsulat);
+    });
     rawReportData.forEach((d) => {
-      const val = d.konsulat;
-      if (val && val !== "-") set.add(val);
+      if (d.konsulat && d.konsulat !== "-") set.add(d.konsulat);
     });
     return Array.from(set).sort();
-  }, [rawReportData]);
+  }, [allMasterStudents, rawReportData]);
 
   const filteredData = useMemo(() => {
     let result = [...rawReportData];
@@ -246,39 +297,46 @@ export default function ReportsPage() {
       );
     }
 
-    if (filterClass !== "all") result = result.filter((d) => d.kelas === filterClass);
-    if (filterDorm !== "all") result = result.filter((d) => d.kamar === filterDorm);
-    if (filterConsulate !== "all") result = result.filter((d) => d.konsulat === filterConsulate);
+    // MULTI-CRITERIA INDEPENDENT FILTERING (IRISAN / AND CONDITION)
+    if (filterClass && filterClass !== "all" && filterClass !== "unselected") {
+      result = result.filter((d) => d.kelas === filterClass);
+    }
+    if (filterDorm && filterDorm !== "all" && filterDorm !== "unselected") {
+      result = result.filter((d) => d.kamar === filterDorm);
+    }
+    if (filterConsulate && filterConsulate !== "all" && filterConsulate !== "unselected") {
+      result = result.filter((d) => d.konsulat === filterConsulate);
+    }
 
     if (reportType === "violations") {
-      if (filterViolationCategory !== "all") {
+      if (filterViolationCategory && filterViolationCategory !== "all" && filterViolationCategory !== "unselected") {
         result = result.filter((d) => d.category === filterViolationCategory);
       }
-      if (filterViolationStatus !== "all") {
+      if (filterViolationStatus && filterViolationStatus !== "all" && filterViolationStatus !== "unselected") {
         result = result.filter((d) => d.status === filterViolationStatus);
       }
     }
 
     if (reportType === "achievements") {
-      if (filterAchievementCategory !== "all") {
+      if (filterAchievementCategory && filterAchievementCategory !== "all" && filterAchievementCategory !== "unselected") {
         result = result.filter((d) => d.category === filterAchievementCategory);
       }
-      if (filterAchievementLevel !== "all") {
+      if (filterAchievementLevel && filterAchievementLevel !== "all" && filterAchievementLevel !== "unselected") {
         result = result.filter((d) => d.level === filterAchievementLevel);
       }
     }
 
     if (reportType === "students") {
-      if (filterStudentStatus !== "all") {
+      if (filterStudentStatus && filterStudentStatus !== "all" && filterStudentStatus !== "unselected") {
         result = result.filter((d) => d.status_santri === filterStudentStatus);
       }
     }
 
     if (reportType === "permissions") {
-      if (filterPermissionCategory !== "all") {
+      if (filterPermissionCategory && filterPermissionCategory !== "all" && filterPermissionCategory !== "unselected") {
         result = result.filter((d) => d.category?.includes(filterPermissionCategory));
       }
-      if (filterPermissionStatus !== "all") {
+      if (filterPermissionStatus && filterPermissionStatus !== "all" && filterPermissionStatus !== "unselected") {
         result = result.filter((d) => d.status === filterPermissionStatus);
       }
     }
@@ -408,17 +466,16 @@ export default function ReportsPage() {
       worksheet.getCell("A3").font = { name: "Arial", size: 9, italic: true, color: { argb: "FF64748B" } };
       worksheet.getCell("A3").alignment = { horizontal: "center", vertical: "middle" };
 
+      worksheet.getRow(1).height = 24;
+      worksheet.getRow(2).height = 18;
       worksheet.addRow([]);
 
-      const headerRow = worksheet.addRow(headers);
+      worksheet.getRow(4).values = headers;
+      const headerRow = worksheet.getRow(4);
       headerRow.height = 26;
 
       headerRow.eachCell((cell) => {
-        cell.fill = {
-          type: "pattern",
-          pattern: "solid",
-          fgColor: { argb: "FF" + headerColor },
-        };
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF" + headerColor } };
         cell.font = { name: "Arial", size: 9.5, bold: true, color: { argb: "FFFFFFFF" } };
         cell.alignment = { horizontal: "center", vertical: "middle" };
         cell.border = {
@@ -731,17 +788,6 @@ export default function ReportsPage() {
     }, 150);
   };
 
-  const printDirectly = () => {
-    if (filteredData.length === 0) {
-      alert("Tidak ada data untuk dicetak.");
-      return;
-    }
-    const { doc } = createPdfInstance();
-    doc.autoPrint();
-    const pdfBlobUrl = doc.output("bloburl");
-    window.open(pdfBlobUrl, "_blank");
-  };
-
   return (
     <div className="w-full space-y-6 font-sans relative pb-20 transition-all duration-300">
       {/* Background Ambience Glow */}
@@ -751,100 +797,98 @@ export default function ReportsPage() {
       </div>
 
       {/* ================= HEADER HERO BANNER ================= */}
-      <div className="relative overflow-hidden rounded-[32px] border border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-slate-900/95 p-5 sm:p-6 shadow-xl backdrop-blur-2xl print:hidden">
-        <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-5">
-          <div className="flex items-start sm:items-center space-x-3.5 min-w-0">
+      <div className="relative overflow-hidden rounded-[36px] bg-gradient-to-r from-emerald-950 via-[#064e3b] to-teal-950 p-6 sm:p-8 text-white shadow-2xl border border-emerald-500/40 print:hidden">
+        <div className="absolute -top-32 -right-32 w-80 h-80 rounded-full bg-emerald-400/20 blur-[80px] pointer-events-none animate-pulse" />
+        <div className="absolute -bottom-32 -left-32 w-80 h-80 rounded-full bg-amber-400/20 blur-[80px] pointer-events-none" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white/10 via-transparent to-black/30 pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col xl:flex-row xl:items-center justify-between gap-6">
+          <div className="flex items-start sm:items-center space-x-4 min-w-0">
             <Link
               href="/dashboard"
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-emerald-600 hover:border-emerald-500/40 transition active:scale-95 shadow-xs"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/20 bg-white/10 text-white hover:bg-white/20 transition-all active:scale-90 shadow-sm backdrop-blur-md"
               title="Kembali ke Dashboard Utama"
             >
               <ArrowLeft className="h-5 w-5 stroke-[2.4]" />
             </Link>
 
-            <div className="relative flex h-11 w-11 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-emerald-700 via-teal-600 to-amber-500 text-white shadow-md shadow-emerald-700/20 font-black">
+            <div className="relative flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-amber-400 via-emerald-500 to-teal-400 text-slate-950 shadow-lg font-black">
               <FileSpreadsheet className="h-6 w-6 stroke-[2.3]" />
               <div className="absolute -top-1 -right-1 h-3.5 w-3.5 rounded-full bg-amber-400 border-2 border-white dark:border-slate-900 animate-ping" />
             </div>
 
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-base sm:text-lg lg:text-xl font-black text-slate-900 dark:text-white tracking-tight">
-                  Pusat Rekapitulasi &amp; Ekspor Laporan
-                </h1>
-                <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 whitespace-nowrap">
-                  Berita Acara
+            <div className="space-y-1 min-w-0">
+              <div className="flex items-center space-x-2">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-emerald-200 text-[10px] font-black uppercase tracking-wider backdrop-blur-xl">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                  BERITA ACARA
+                </span>
+                <span className="rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold px-2.5 py-0.5">
+                  Pusat Laporan
                 </span>
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed truncate">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight bg-gradient-to-r from-white via-emerald-100 to-amber-300 bg-clip-text text-transparent truncate">
+                Pusat Rekapitulasi &amp; Ekspor Laporan
+              </h1>
+              <p className="text-xs text-emerald-100/90 font-medium truncate">
                 Ekspor Buku Induk, Rekap Pelanggaran, Prestasi, dan Perizinan Santri
               </p>
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2.5 shrink-0 self-start xl:self-center">
-            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-              <button
-                type="button"
-                onClick={exportToExcel}
-                disabled={isExportingExcel}
-                className="inline-flex items-center space-x-1.5 rounded-2xl bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 px-4 py-2.5 text-xs font-black text-white shadow-md shadow-emerald-700/25 hover:scale-[1.02] active:scale-95 transition cursor-pointer disabled:opacity-50 whitespace-nowrap"
-                title="Unduh Spreadsheet Excel Asli"
-              >
-                {isExportingExcel ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Download className="h-3.5 w-3.5 stroke-[2.5]" />
-                )}
-                <span>{isExportingExcel ? "Menyiapkan..." : "Excel (.XLSX)"}</span>
-              </button>
+          <div className="flex items-center gap-2 shrink-0 self-start xl:self-center flex-wrap">
+            <button
+              type="button"
+              onClick={exportToExcel}
+              disabled={isExportingExcel}
+              className="inline-flex items-center space-x-1.5 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-300 hover:from-emerald-300 hover:to-teal-200 px-3.5 py-2.5 text-xs font-black text-slate-950 shadow-md shadow-emerald-900/20 hover:scale-[1.02] active:scale-95 transition cursor-pointer disabled:opacity-50 whitespace-nowrap"
+              title="Unduh Spreadsheet Excel Asli"
+            >
+              {isExportingExcel ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <FileSpreadsheet className="h-3.5 w-3.5 stroke-[2.5]" />
+              )}
+              <span>{isExportingExcel ? "Menyiapkan..." : "Excel"}</span>
+            </button>
 
-              <button
-                type="button"
-                onClick={downloadPDF}
-                disabled={isGeneratingPDF}
-                className="inline-flex items-center space-x-1.5 rounded-2xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 px-4 py-2.5 text-xs font-black text-white shadow-md shadow-cyan-600/25 hover:scale-[1.02] active:scale-95 transition cursor-pointer disabled:opacity-50 whitespace-nowrap"
-                title="Unduh File Dokumen PDF Vektor"
-              >
-                {isGeneratingPDF ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <FileDown className="h-3.5 w-3.5 stroke-[2.5]" />
-                )}
-                <span>{isGeneratingPDF ? "Membuat..." : "Unduh PDF"}</span>
-              </button>
+            <button
+              type="button"
+              onClick={downloadPDF}
+              disabled={isGeneratingPDF}
+              className="inline-flex items-center space-x-1.5 rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-400 hover:from-cyan-300 hover:to-blue-300 px-3.5 py-2.5 text-xs font-black text-slate-950 shadow-md shadow-cyan-900/20 hover:scale-[1.02] active:scale-95 transition cursor-pointer disabled:opacity-50 whitespace-nowrap"
+              title="Unduh File Dokumen PDF Vektor"
+            >
+              {isGeneratingPDF ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <FileDown className="h-3.5 w-3.5 stroke-[2.5]" />
+              )}
+              <span>{isGeneratingPDF ? "Membuat..." : "PDF"}</span>
+            </button>
 
-              <button
-                type="button"
-                onClick={printDirectly}
-                className="inline-flex items-center space-x-1.5 rounded-2xl bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 px-4 py-2.5 text-xs font-black text-white shadow-md hover:scale-[1.02] active:scale-95 transition cursor-pointer whitespace-nowrap"
-                title="Cetak Langsung ke Printer Kertas"
-              >
-                <Printer className="h-3.5 w-3.5 stroke-[2.5]" />
-                <span>Cetak Dokumen</span>
-              </button>
-            </div>
+            <div className="h-6 w-px bg-white/20 mx-1 hidden sm:block" />
 
-            <div className="flex items-center gap-1.5 bg-slate-100/90 dark:bg-slate-800/80 px-3 py-2 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs shadow-xs">
-              <Settings2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <div className="flex items-center gap-1.5 bg-black/40 px-3.5 py-2.5 rounded-2xl border border-white/20 text-xs shadow-inner backdrop-blur-md">
+              <Settings2 className="h-3.5 w-3.5 text-amber-300 shrink-0" />
               <select
                 value={pdfOrientation}
                 onChange={(e) => setPdfOrientation(e.target.value as PageOrientation)}
-                className="bg-transparent font-bold text-[11px] outline-none cursor-pointer text-slate-800 dark:text-white"
+                className="bg-transparent font-bold text-[11px] outline-none cursor-pointer text-white"
                 title="Pilih Orientasi Kertas PDF"
               >
-                <option value="landscape">Landscape</option>
-                <option value="portrait">Portrait</option>
+                <option value="landscape" className="bg-slate-900 text-white">Landscape</option>
+                <option value="portrait" className="bg-slate-900 text-white">Portrait</option>
               </select>
-              <span className="text-slate-300 dark:text-slate-600">|</span>
+              <span className="text-white/40">|</span>
               <select
                 value={pdfPageSize}
                 onChange={(e) => setPdfPageSize(e.target.value as PageSize)}
-                className="bg-transparent font-bold text-[11px] outline-none cursor-pointer text-slate-800 dark:text-white"
+                className="bg-transparent font-bold text-[11px] outline-none cursor-pointer text-white"
                 title="Pilih Ukuran Kertas PDF"
               >
-                <option value="a4">A4</option>
-                <option value="legal">F4 / Legal</option>
+                <option value="a4" className="bg-slate-900 text-white">A4</option>
+                <option value="legal" className="bg-slate-900 text-white">F4 / Legal</option>
               </select>
             </div>
           </div>
@@ -852,7 +896,7 @@ export default function ReportsPage() {
       </div>
 
       {/* TABS UTAMA 4 MODUL */}
-      <div className="rounded-[32px] border border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-900/90 p-3 shadow-lg backdrop-blur-xl print:hidden">
+      <div className="rounded-[32px] border border-slate-200/80 dark:border-emerald-900/40 bg-white/90 dark:bg-[#0c1815] p-3 shadow-lg backdrop-blur-xl print:hidden">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
           {[
             { key: "violations", label: "Rekap Kedisiplinan", icon: ShieldAlert, color: "text-rose-500" },
@@ -868,12 +912,12 @@ export default function ReportsPage() {
                 onClick={() => setReportType(tab.key as ReportType)}
                 className={`group flex items-center justify-between px-4 py-3 rounded-2xl text-xs font-black transition-all duration-200 cursor-pointer ${
                   isActive
-                    ? "bg-[#064e3b] text-white shadow-xl shadow-emerald-950/20 scale-[1.02]"
-                    : "bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400 border border-slate-200/80 dark:border-slate-800 hover:border-emerald-500/50 hover:bg-slate-100 dark:hover:bg-slate-900"
+                    ? "bg-emerald-600 text-white shadow-xl shadow-emerald-950/20 scale-[1.02]"
+                    : "bg-slate-50 dark:bg-emerald-950/40 text-slate-600 dark:text-slate-400 border border-slate-200/80 dark:border-emerald-900/30 hover:border-emerald-500/50 hover:bg-slate-100 dark:hover:bg-emerald-900/40"
                 }`}
               >
                 <div className="flex items-center space-x-2.5 truncate">
-                  <Icon className={`h-4 w-4 shrink-0 transition-transform group-hover:scale-110 ${isActive ? "text-emerald-300" : tab.color}`} />
+                  <Icon className={`h-4 w-4 shrink-0 transition-transform group-hover:scale-110 ${isActive ? "text-emerald-200" : tab.color}`} />
                   <span className="truncate">{tab.label}</span>
                 </div>
                 {isActive && (
@@ -888,10 +932,10 @@ export default function ReportsPage() {
       </div>
 
       {/* ================= PANEL FILTER & KUSTOMISASI MODUL ================= */}
-      <div className="rounded-[32px] border border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur-xl space-y-4 print:hidden animate-in fade-in duration-300">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3.5">
+      <div className="rounded-[32px] border border-slate-200/80 dark:border-emerald-900/40 bg-white/90 dark:bg-[#0c1815] p-5 sm:p-6 shadow-xl backdrop-blur-xl space-y-4 print:hidden animate-in fade-in duration-300">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 dark:border-emerald-900/30 pb-3.5">
           <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200 font-black text-xs uppercase tracking-wider">
-            <SlidersHorizontal className="h-4 w-4 text-emerald-600" />
+            <SlidersHorizontal className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             <span>
               Kustomisasi Filter Laporan:{" "}
               {reportType === "violations" && "Kedisiplinan & Pelanggaran"}
@@ -920,7 +964,7 @@ export default function ReportsPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Cari kata kunci data..."
-              className="h-11 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 pl-10 pr-3 text-xs font-semibold outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+              className="h-11 w-full rounded-2xl border border-slate-200 dark:border-emerald-900/60 bg-slate-50 dark:bg-emerald-950/30 pl-10 pr-3 text-xs font-semibold outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all text-slate-900 dark:text-white"
             />
           </div>
 
@@ -928,11 +972,12 @@ export default function ReportsPage() {
             <select
               value={filterClass}
               onChange={(e) => setFilterClass(e.target.value)}
-              className="h-11 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer hover:border-slate-400 transition"
+              className="h-11 w-full rounded-2xl border border-slate-200 dark:border-emerald-900/60 bg-slate-50 dark:bg-emerald-950/30 px-3 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer hover:border-slate-400 transition"
             >
-              <option value="all">Semua Kelas</option>
+              <option value="all" className="dark:bg-slate-900">-- Pilih Semua Kelas --</option>
+              <option value="unselected" className="dark:bg-slate-900">-- Belum Dipilih --</option>
               {availableClasses.map((cls) => (
-                <option key={cls} value={cls}>
+                <option key={cls} value={cls} className="dark:bg-slate-900">
                   Kelas: {cls}
                 </option>
               ))}
@@ -943,11 +988,12 @@ export default function ReportsPage() {
             <select
               value={filterDorm}
               onChange={(e) => setFilterDorm(e.target.value)}
-              className="h-11 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer hover:border-slate-400 transition"
+              className="h-11 w-full rounded-2xl border border-slate-200 dark:border-emerald-900/60 bg-slate-50 dark:bg-emerald-950/30 px-3 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer hover:border-slate-400 transition"
             >
-              <option value="all">Semua Asrama</option>
+              <option value="all" className="dark:bg-slate-900">-- Pilih Semua Asrama --</option>
+              <option value="unselected" className="dark:bg-slate-900">-- Belum Dipilih --</option>
               {availableDorms.map((dorm) => (
-                <option key={dorm} value={dorm}>
+                <option key={dorm} value={dorm} className="dark:bg-slate-900">
                   {dorm}
                 </option>
               ))}
@@ -960,24 +1006,26 @@ export default function ReportsPage() {
                 <select
                   value={filterViolationCategory}
                   onChange={(e) => setFilterViolationCategory(e.target.value)}
-                  className="h-11 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer hover:border-slate-400 transition"
+                  className="h-11 w-full rounded-2xl border border-slate-200 dark:border-emerald-900/60 bg-slate-50 dark:bg-emerald-950/30 px-3 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer hover:border-slate-400 transition"
                 >
-                  <option value="all">Semua Kategori</option>
-                  <option value="Ringan">Ringan (5-15)</option>
-                  <option value="Sedang">Sedang (20-40)</option>
-                  <option value="Berat">Berat (≥50 Poin)</option>
+                  <option value="all" className="dark:bg-slate-900">-- Pilih Semua Kategori --</option>
+                  <option value="unselected" className="dark:bg-slate-900">-- Belum Dipilih --</option>
+                  <option value="Ringan" className="dark:bg-slate-900">Ringan (5-15)</option>
+                  <option value="Sedang" className="dark:bg-slate-900">Sedang (20-40)</option>
+                  <option value="Berat" className="dark:bg-slate-900">Berat (≥50 Poin)</option>
                 </select>
               </div>
               <div>
                 <select
                   value={filterViolationStatus}
                   onChange={(e) => setFilterViolationStatus(e.target.value)}
-                  className="h-11 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer hover:border-slate-400 transition"
+                  className="h-11 w-full rounded-2xl border border-slate-200 dark:border-emerald-900/60 bg-slate-50 dark:bg-emerald-950/30 px-3 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer hover:border-slate-400 transition"
                 >
-                  <option value="all">Semua Status</option>
-                  <option value="Proses">Dalam Proses</option>
-                  <option value="Ditindak">Sudah Ditindak</option>
-                  <option value="Selesai">Selesai Dibina</option>
+                  <option value="all" className="dark:bg-slate-900">-- Pilih Semua Status --</option>
+                  <option value="unselected" className="dark:bg-slate-900">-- Belum Dipilih --</option>
+                  <option value="Proses" className="dark:bg-slate-900">Dalam Proses</option>
+                  <option value="Ditindak" className="dark:bg-slate-900">Sudah Ditindak</option>
+                  <option value="Selesai" className="dark:bg-slate-900">Selesai Dibina</option>
                 </select>
               </div>
             </>
@@ -989,28 +1037,30 @@ export default function ReportsPage() {
                 <select
                   value={filterAchievementCategory}
                   onChange={(e) => setFilterAchievementCategory(e.target.value)}
-                  className="h-11 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer hover:border-slate-400 transition"
+                  className="h-11 w-full rounded-2xl border border-slate-200 dark:border-emerald-900/60 bg-slate-50 dark:bg-emerald-950/30 px-3 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer hover:border-slate-400 transition"
                 >
-                  <option value="all">Semua Bidang</option>
-                  <option value="Tahfidz / Al-Quran">Tahfidz / Al-Qur&apos;an</option>
-                  <option value="Bahasa / Pidato">Bahasa / Pidato</option>
-                  <option value="Akademik & Sains">Akademik &amp; Sains</option>
-                  <option value="Keorganisasian & Kepemimpinan">Keorganisasian</option>
-                  <option value="Olahraga & Seni">Olahraga &amp; Seni</option>
+                  <option value="all" className="dark:bg-slate-900">-- Pilih Semua Bidang --</option>
+                  <option value="unselected" className="dark:bg-slate-900">-- Belum Dipilih --</option>
+                  <option value="Tahfidz / Al-Quran" className="dark:bg-slate-900">Tahfidz / Al-Qur&apos;an</option>
+                  <option value="Bahasa / Pidato" className="dark:bg-slate-900">Bahasa / Pidato</option>
+                  <option value="Akademik & Sains" className="dark:bg-slate-900">Akademik &amp; Sains</option>
+                  <option value="Keorganisasian & Kepemimpinan" className="dark:bg-slate-900">Keorganisasian</option>
+                  <option value="Olahraga & Seni" className="dark:bg-slate-900">Olahraga &amp; Seni</option>
                 </select>
               </div>
               <div>
                 <select
                   value={filterAchievementLevel}
                   onChange={(e) => setFilterAchievementLevel(e.target.value)}
-                  className="h-11 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer hover:border-slate-400 transition"
+                  className="h-11 w-full rounded-2xl border border-slate-200 dark:border-emerald-900/60 bg-slate-50 dark:bg-emerald-950/30 px-3 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer hover:border-slate-400 transition"
                 >
-                  <option value="all">Semua Tingkat</option>
-                  <option value="Internal Pondok">Internal Pondok</option>
-                  <option value="Kabupaten / Kota">Kabupaten / Kota</option>
-                  <option value="Provinsi">Provinsi</option>
-                  <option value="Nasional">Nasional</option>
-                  <option value="Internasional">Internasional</option>
+                  <option value="all" className="dark:bg-slate-900">-- Pilih Semua Tingkat --</option>
+                  <option value="unselected" className="dark:bg-slate-900">-- Belum Dipilih --</option>
+                  <option value="Internal Pondok" className="dark:bg-slate-900">Internal Pondok</option>
+                  <option value="Kabupaten / Kota" className="dark:bg-slate-900">Kabupaten / Kota</option>
+                  <option value="Provinsi" className="dark:bg-slate-900">Provinsi</option>
+                  <option value="Nasional" className="dark:bg-slate-900">Nasional</option>
+                  <option value="Internasional" className="dark:bg-slate-900">Internasional</option>
                 </select>
               </div>
             </>
@@ -1022,11 +1072,12 @@ export default function ReportsPage() {
                 <select
                   value={filterConsulate}
                   onChange={(e) => setFilterConsulate(e.target.value)}
-                  className="h-11 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer hover:border-slate-400 transition"
+                  className="h-11 w-full rounded-2xl border border-slate-200 dark:border-emerald-900/60 bg-slate-50 dark:bg-emerald-950/30 px-3 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer hover:border-slate-400 transition"
                 >
-                  <option value="all">Semua Konsulat</option>
+                  <option value="all" className="dark:bg-slate-900">-- Pilih Semua Konsulat --</option>
+                  <option value="unselected" className="dark:bg-slate-900">-- Belum Dipilih --</option>
                   {availableConsulates.map((con) => (
-                    <option key={con} value={con}>
+                    <option key={con} value={con} className="dark:bg-slate-900">
                       {con}
                     </option>
                   ))}
@@ -1036,12 +1087,13 @@ export default function ReportsPage() {
                 <select
                   value={filterStudentStatus}
                   onChange={(e) => setFilterStudentStatus(e.target.value)}
-                  className="h-11 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer hover:border-slate-400 transition"
+                  className="h-11 w-full rounded-2xl border border-slate-200 dark:border-emerald-900/60 bg-slate-50 dark:bg-emerald-950/30 px-3 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer hover:border-slate-400 transition"
                 >
-                  <option value="all">Semua Status</option>
-                  <option value="Aktif Mukim">Aktif Mukim</option>
-                  <option value="Skorsing">Skorsing</option>
-                  <option value="Alumni / Lulus">Alumni / Lulus</option>
+                  <option value="all" className="dark:bg-slate-900">-- Pilih Semua Status --</option>
+                  <option value="unselected" className="dark:bg-slate-900">-- Belum Dipilih --</option>
+                  <option value="Aktif Mukim" className="dark:bg-slate-900">Aktif Mukim</option>
+                  <option value="Skorsing" className="dark:bg-slate-900">Skorsing</option>
+                  <option value="Alumni / Lulus" className="dark:bg-slate-900">Alumni / Lulus</option>
                 </select>
               </div>
             </>
@@ -1053,34 +1105,36 @@ export default function ReportsPage() {
                 <select
                   value={filterPermissionCategory}
                   onChange={(e) => setFilterPermissionCategory(e.target.value)}
-                  className="h-11 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer hover:border-slate-400 transition"
+                  className="h-11 w-full rounded-2xl border border-slate-200 dark:border-emerald-900/60 bg-slate-50 dark:bg-emerald-950/30 px-3 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer hover:border-slate-400 transition"
                 >
-                  <option value="all">Semua Jenis Izin</option>
-                  <option value="Dekat">Izin Dekat / Komplek</option>
-                  <option value="Pulang">Izin Pulang / Jauh</option>
-                  <option value="Berobat">Izin Berobat / Medis</option>
-                  <option value="Tugas">Izin Tugas Pondok</option>
+                  <option value="all" className="dark:bg-slate-900">-- Pilih Semua Jenis Izin --</option>
+                  <option value="unselected" className="dark:bg-slate-900">-- Belum Dipilih --</option>
+                  <option value="Dekat" className="dark:bg-slate-900">Izin Dekat / Komplek</option>
+                  <option value="Pulang" className="dark:bg-slate-900">Izin Pulang / Jauh</option>
+                  <option value="Berobat" className="dark:bg-slate-900">Izin Berobat / Medis</option>
+                  <option value="Tugas" className="dark:bg-slate-900">Izin Tugas Pondok</option>
                 </select>
               </div>
               <div>
                 <select
                   value={filterPermissionStatus}
                   onChange={(e) => setFilterPermissionStatus(e.target.value)}
-                  className="h-11 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer hover:border-slate-400 transition"
+                  className="h-11 w-full rounded-2xl border border-slate-200 dark:border-emerald-900/60 bg-slate-50 dark:bg-emerald-950/30 px-3 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer hover:border-slate-400 transition"
                 >
-                  <option value="all">Semua Status</option>
-                  <option value="approved">Approved (Disetujui)</option>
-                  <option value="out_pondok">Out Pondok (Di Luar)</option>
-                  <option value="back_pondok">Back Pondok (Kembali)</option>
-                  <option value="completed">Completed (Selesai)</option>
+                  <option value="all" className="dark:bg-slate-900">-- Pilih Semua Status --</option>
+                  <option value="unselected" className="dark:bg-slate-900">-- Belum Dipilih --</option>
+                  <option value="approved" className="dark:bg-slate-900">Approved (Disetujui)</option>
+                  <option value="out_pondok" className="dark:bg-slate-900">Out Pondok (Di Luar)</option>
+                  <option value="back_pondok" className="dark:bg-slate-900">Back Pondok (Kembali)</option>
+                  <option value="completed" className="dark:bg-slate-900">Completed (Selesai)</option>
                 </select>
               </div>
             </>
           )}
         </div>
 
-        {/* BARIS 2: SORTING, CHECKBOX KOLOM, & RENTANG TANGGAL (RESPONSIF) */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs">
+        {/* BARIS 2: SORTING, CHECKBOX KOLOM, & RENTANG TANGGAL */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-emerald-900/30 text-xs">
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1.5 text-slate-500 font-bold">
@@ -1090,22 +1144,22 @@ export default function ReportsPage() {
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="h-9 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer"
+                className="h-9 rounded-xl border border-slate-200 dark:border-emerald-900/60 bg-slate-50 dark:bg-emerald-950/30 px-3 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer"
               >
-                <option value="default">Terbaru (Default)</option>
-                <option value="name_asc">Nama Santri (A - Z)</option>
-                <option value="name_desc">Nama Santri (Z - A)</option>
-                <option value="nis_asc">NIS (Terkecil - Terbesar)</option>
+                <option value="default" className="dark:bg-slate-900">Terbaru (Default)</option>
+                <option value="name_asc" className="dark:bg-slate-900">Nama Santri (A - Z)</option>
+                <option value="name_desc" className="dark:bg-slate-900">Nama Santri (Z - A)</option>
+                <option value="nis_asc" className="dark:bg-slate-900">NIS (Terkecil - Terbesar)</option>
                 {reportType === "violations" && (
                   <>
-                    <option value="points_desc">Poin Terbanyak</option>
-                    <option value="points_asc">Poin Paling Sedikit</option>
+                    <option value="points_desc" className="dark:bg-slate-900">Poin Terbanyak</option>
+                    <option value="points_asc" className="dark:bg-slate-900">Poin Paling Sedikit</option>
                   </>
                 )}
                 {reportType === "achievements" && (
                   <>
-                    <option value="points_desc">Reward Tertinggi</option>
-                    <option value="points_asc">Reward Terendah</option>
+                    <option value="points_desc" className="dark:bg-slate-900">Reward Tertinggi</option>
+                    <option value="points_asc" className="dark:bg-slate-900">Reward Terendah</option>
                   </>
                 )}
               </select>
@@ -1117,21 +1171,21 @@ export default function ReportsPage() {
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="h-9 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-2.5 text-[11px] font-bold text-slate-800 dark:text-slate-200 outline-none"
+                  className="h-9 rounded-xl border border-slate-200 dark:border-emerald-900/60 bg-slate-50 dark:bg-emerald-950/30 px-2.5 text-[11px] font-bold text-slate-800 dark:text-slate-200 outline-none"
                 />
                 <span className="text-slate-400 font-bold">s/d</span>
                 <input
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="h-9 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-2.5 text-[11px] font-bold text-slate-800 dark:text-slate-200 outline-none"
+                  className="h-9 rounded-xl border border-slate-200 dark:border-emerald-900/60 bg-slate-50 dark:bg-emerald-950/30 px-2.5 text-[11px] font-bold text-slate-800 dark:text-slate-200 outline-none"
                 />
               </div>
             )}
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
-            <div className="flex flex-wrap items-center gap-2.5 text-[11px] font-bold text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800">
+            <div className="flex flex-wrap items-center gap-2.5 text-[11px] font-bold text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-emerald-950/30 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-emerald-900/40">
               <span className="text-slate-400">Pilihan Kolom:</span>
               <label className="inline-flex items-center gap-1.5 cursor-pointer hover:text-emerald-600 transition">
                 <input
@@ -1235,7 +1289,7 @@ export default function ReportsPage() {
       </div>
 
       {/* ================= PRATINJAU DOKUMEN LAPORAN DI LAYAR (DENGAN HORIZONTAL SCROLL) ================= */}
-      <div className="overflow-x-auto rounded-[32px] border border-slate-200/90 dark:border-slate-800/90 bg-white shadow-2xl p-4 sm:p-8 lg:p-12 text-black">
+      <div className="overflow-x-auto rounded-[32px] border border-slate-200/90 dark:border-emerald-900/40 bg-white shadow-2xl p-4 sm:p-8 lg:p-12 text-black">
         <div className="min-w-[850px] space-y-4">
           {/* KOP SURAT RESMI PESANTREN */}
           <div className="border-b-4 border-double border-black pb-3 text-center space-y-1">
@@ -1372,7 +1426,7 @@ export default function ReportsPage() {
                 <tr>
                   <td colSpan={11} className="py-10 text-center text-slate-400">
                     <FileSpreadsheet className="h-8 w-8 mx-auto mb-2 opacity-40 text-emerald-600" />
-                    <p className="font-bold">Tidak ada catatan data yang sesuai filter.</p>
+                    <p className="font-bold">Tidak ada catatan data yang sesuai filter (Atau silakan pilih kriteria filter di atas).</p>
                   </td>
                 </tr>
               ) : (

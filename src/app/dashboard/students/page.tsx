@@ -39,6 +39,7 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowLeft,
+  Sparkles,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { generateStandardQRPayload } from "@/lib/qrParser";
@@ -888,88 +889,98 @@ export default function StudentsMasterPage() {
       <div className="pointer-events-none absolute -top-10 -right-10 h-72 w-72 rounded-full bg-emerald-500/10 blur-[100px]" />
       <div className="pointer-events-none absolute top-40 -left-10 h-72 w-72 rounded-full bg-teal-500/10 blur-[100px]" />
 
-      {/* Header Section */}
-      <div className="relative overflow-hidden rounded-[32px] border border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-slate-900/95 p-5 sm:p-6 shadow-xl backdrop-blur-xl">
-        <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 relative z-10">
-          <div className="flex items-center space-x-3.5 min-w-0">
+      {/* HEADER HERO BANNER (SUPER COLORFUL & INTERAKTIF) */}
+      <div className="relative overflow-hidden rounded-[36px] bg-gradient-to-r from-emerald-950 via-[#064e3b] to-teal-950 p-6 sm:p-8 text-white shadow-2xl border border-emerald-500/40">
+        <div className="absolute -top-32 -right-32 w-80 h-80 rounded-full bg-emerald-400/20 blur-[80px] pointer-events-none animate-pulse" />
+        <div className="absolute -bottom-32 -left-32 w-80 h-80 rounded-full bg-amber-400/20 blur-[80px] pointer-events-none" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white/10 via-transparent to-black/30 pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col xl:flex-row xl:items-center justify-between gap-6">
+          <div className="flex items-start sm:items-center space-x-4 min-w-0">
             <Link
               href="/dashboard"
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:text-emerald-600 hover:border-emerald-500/40 transition active:scale-95 shadow-xs"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/20 bg-white/10 text-white hover:bg-white/20 transition-all active:scale-90 shadow-sm backdrop-blur-md"
               title="Kembali ke Dashboard Utama"
             >
               <ArrowLeft className="h-5 w-5 stroke-[2.4]" />
             </Link>
 
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-700 via-teal-600 to-amber-500 text-white shadow-md shadow-emerald-700/20 font-black">
-              <GraduationCap className="h-6 w-6 stroke-[2.3]" />
+            <div className="flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-amber-400 via-emerald-500 to-teal-400 text-slate-950 shadow-lg font-black">
+              <GraduationCap className="h-6 w-6 stroke-[2.4]" />
             </div>
+
             <div className="min-w-0">
-              <div className="flex items-center space-x-2">
-                <h1 className="text-lg sm:text-xl font-black tracking-tight text-slate-900 dark:text-white truncate">
-                  Database Master Santri
-                </h1>
-                <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
-                  Data Induk
+              <div className="flex items-center space-x-2.5">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-emerald-200 text-[10.5px] font-black uppercase tracking-wider backdrop-blur-xl">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                  DATA INDUK
+                </span>
+                <span className="rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold px-2.5 py-0.5">
+                  Master SIPS
                 </span>
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight bg-gradient-to-r from-white via-emerald-100 to-amber-300 bg-clip-text text-transparent mt-1 truncate">
+                Database Master Santri
+              </h1>
+              <p className="text-xs text-emerald-100/90 mt-0.5 truncate font-medium">
                 Pusat data induk terpadu santri, identitas digital KTS, asrama, konsulat, dan kedisiplinan
               </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 xl:justify-end">
+          {/* Tombol-tombol Aksi di Header */}
+          <div className="flex flex-wrap items-center gap-2.5 xl:justify-end shrink-0">
             <button
               type="button"
               onClick={fetchStudents}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-300 shadow-sm transition hover:border-emerald-500/50 hover:text-emerald-600 active:scale-95 cursor-pointer"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/20 bg-white/10 text-white shadow-sm transition hover:bg-white/20 active:scale-95 cursor-pointer backdrop-blur-md"
               title="Segarkan Data"
             >
               <RefreshCw
                 className={`h-4 w-4 transition-transform duration-500 ${
-                  loading ? "animate-spin text-emerald-600" : ""
+                  loading ? "animate-spin text-amber-300" : ""
                 }`}
               />
             </button>
 
-            <div className="inline-flex items-center rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-100/90 dark:bg-slate-950/70 p-1 shadow-sm">
+            <div className="inline-flex items-center rounded-2xl border border-white/20 bg-black/40 p-1 shadow-inner backdrop-blur-md">
               <button
                 type="button"
                 onClick={() => setShowImportModal(true)}
-                className="inline-flex items-center space-x-1.5 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 transition hover:bg-white dark:hover:bg-slate-800 hover:text-emerald-600 dark:hover:text-emerald-400 active:scale-95 cursor-pointer"
+                className="inline-flex items-center space-x-1.5 rounded-xl px-3 py-2 text-xs font-bold text-emerald-100 transition hover:bg-white/20 hover:text-white active:scale-95 cursor-pointer"
               >
-                <UploadCloud className="h-3.5 w-3.5 text-emerald-600" />
+                <UploadCloud className="h-3.5 w-3.5 text-emerald-300" />
                 <span className="whitespace-nowrap">Import Excel</span>
               </button>
 
-              <span className="h-3.5 w-px bg-slate-300 dark:bg-slate-800 mx-0.5" />
+              <span className="h-3.5 w-px bg-white/20 mx-0.5" />
 
               <button
                 type="button"
                 onClick={() => setShowBulkPhotoModal(true)}
-                className="inline-flex items-center space-x-1.5 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 transition hover:bg-white dark:hover:bg-slate-800 hover:text-emerald-600 dark:hover:text-emerald-400 active:scale-95 cursor-pointer"
+                className="inline-flex items-center space-x-1.5 rounded-xl px-3 py-2 text-xs font-bold text-emerald-100 transition hover:bg-white/20 hover:text-white active:scale-95 cursor-pointer"
               >
-                <ImagePlus className="h-3.5 w-3.5 text-emerald-600" />
-                <span className="whitespace-nowrap">Upload Foto Massal</span>
+                <ImagePlus className="h-3.5 w-3.5 text-teal-300" />
+                <span className="whitespace-nowrap">Upload Foto</span>
               </button>
 
-              <span className="h-3.5 w-px bg-slate-300 dark:bg-slate-800 mx-0.5" />
+              <span className="h-3.5 w-px bg-white/20 mx-0.5" />
 
               <button
                 type="button"
                 onClick={() => setShowExportModal(true)}
-                className="inline-flex items-center space-x-1.5 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 transition hover:bg-white dark:hover:bg-slate-800 hover:text-emerald-600 dark:hover:text-emerald-400 active:scale-95 cursor-pointer"
+                className="inline-flex items-center space-x-1.5 rounded-xl px-3 py-2 text-xs font-bold text-emerald-100 transition hover:bg-white/20 hover:text-white active:scale-95 cursor-pointer"
               >
-                <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-600" />
+                <FileSpreadsheet className="h-3.5 w-3.5 text-amber-300" />
                 <span className="whitespace-nowrap">Eksport Data</span>
               </button>
             </div>
 
             <Link
               href="/dashboard/students/new"
-              className="inline-flex items-center space-x-1.5 rounded-2xl bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 px-4 py-2.5 text-xs font-black text-white shadow-md shadow-emerald-700/20 transition active:scale-95 shrink-0"
+              className="inline-flex items-center space-x-1.5 rounded-2xl bg-gradient-to-r from-amber-400 via-emerald-500 to-teal-400 hover:from-amber-300 hover:to-teal-300 px-4 py-2.5 text-xs font-black text-slate-950 shadow-lg shadow-emerald-900/30 transition active:scale-95 shrink-0"
             >
-              <Plus className="h-4 w-4 stroke-[2.5]" />
+              <Plus className="h-4 w-4 stroke-[2.8]" />
               <span className="whitespace-nowrap">Tambah Santri</span>
             </Link>
           </div>
@@ -978,11 +989,11 @@ export default function StudentsMasterPage() {
 
       {/* Metric Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-        <div className="rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-900/90 p-5 shadow-xs backdrop-blur-md transition hover:border-emerald-500/40">
+        <div className="rounded-3xl border border-slate-200/80 dark:border-emerald-900/40 bg-white/90 dark:bg-[#0c1815] p-5 shadow-xs backdrop-blur-md transition hover:border-emerald-500/50 hover:shadow-lg">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total Santri</span>
-            <div className="h-8 w-8 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
-              <Users className="h-4 w-4" />
+            <div className="h-9 w-9 rounded-2xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 flex items-center justify-center shadow-inner">
+              <Users className="h-4.5 w-4.5" />
             </div>
           </div>
           <p className="text-3xl font-black text-slate-900 dark:text-white mt-2 font-mono">
@@ -993,11 +1004,11 @@ export default function StudentsMasterPage() {
           </p>
         </div>
 
-        <div className="rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-900/90 p-5 shadow-xs backdrop-blur-md transition hover:border-emerald-500/40">
+        <div className="rounded-3xl border border-slate-200/80 dark:border-emerald-900/40 bg-white/90 dark:bg-[#0c1815] p-5 shadow-xs backdrop-blur-md transition hover:border-emerald-500/50 hover:shadow-lg">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Santri Aktif</span>
-            <div className="h-8 w-8 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
-              <UserCheck className="h-4 w-4" />
+            <div className="h-9 w-9 rounded-2xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 flex items-center justify-center shadow-inner">
+              <UserCheck className="h-4.5 w-4.5" />
             </div>
           </div>
           <p className="text-3xl font-black text-slate-900 dark:text-white mt-2 font-mono">
@@ -1009,11 +1020,11 @@ export default function StudentsMasterPage() {
           </p>
         </div>
 
-        <div className="rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-900/90 p-5 shadow-xs backdrop-blur-md transition hover:border-amber-500/40">
+        <div className="rounded-3xl border border-slate-200/80 dark:border-emerald-900/40 bg-white/90 dark:bg-[#0c1815] p-5 shadow-xs backdrop-blur-md transition hover:border-amber-500/50 hover:shadow-lg">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Poin &lt; 80</span>
-            <div className="h-8 w-8 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center">
-              <Activity className="h-4 w-4" />
+            <div className="h-9 w-9 rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center shadow-inner">
+              <Activity className="h-4.5 w-4.5" />
             </div>
           </div>
           <p className="text-3xl font-black text-rose-600 dark:text-rose-400 mt-2 font-mono">
@@ -1022,11 +1033,11 @@ export default function StudentsMasterPage() {
           <p className="text-[10px] text-slate-400 mt-1 font-medium">Perlu perhatian pengasuhan</p>
         </div>
 
-        <div className="rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-900/90 p-5 shadow-xs backdrop-blur-md transition hover:border-purple-500/40">
+        <div className="rounded-3xl border border-slate-200/80 dark:border-emerald-900/40 bg-white/90 dark:bg-[#0c1815] p-5 shadow-xs backdrop-blur-md transition hover:border-purple-500/50 hover:shadow-lg">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Konsulat</span>
-            <div className="h-8 w-8 rounded-xl bg-purple-500/10 text-purple-500 flex items-center justify-center">
-              <Compass className="h-4 w-4" />
+            <div className="h-9 w-9 rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shadow-inner">
+              <Compass className="h-4.5 w-4.5" />
             </div>
           </div>
           <p className="text-3xl font-black text-slate-900 dark:text-white mt-2 font-mono">
@@ -1037,7 +1048,7 @@ export default function StudentsMasterPage() {
       </div>
 
       {/* Toolbar: Search, Filter, & Sorting */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-900/90 p-4 shadow-sm backdrop-blur-md">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 rounded-3xl border border-slate-200/80 dark:border-emerald-900/40 bg-white/90 dark:bg-[#0c1815] p-4 shadow-sm backdrop-blur-md">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 pointer-events-none" />
           <input
@@ -1048,12 +1059,12 @@ export default function StudentsMasterPage() {
               setCurrentPage(1);
             }}
             placeholder="Cari nama santri, NIS, NISN, konsulat, asrama..."
-            className="h-10 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/60 pl-10 pr-4 text-xs font-semibold text-slate-900 dark:text-white placeholder-slate-400 outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+            className="h-10 w-full rounded-2xl border border-slate-200 dark:border-emerald-900/60 bg-slate-50/80 dark:bg-emerald-950/30 pl-10 pr-4 text-xs font-semibold text-slate-900 dark:text-white placeholder-slate-400 outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
           />
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center space-x-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/60 px-3 py-1.5 text-xs">
+          <div className="flex items-center space-x-1.5 rounded-2xl border border-slate-200 dark:border-emerald-900/60 bg-slate-50/80 dark:bg-emerald-950/30 px-3 py-1.5 text-xs">
             <ArrowUpDown className="h-3.5 w-3.5 text-slate-400" />
             <span className="text-[11px] font-bold text-slate-500">Urut:</span>
             <select
@@ -1066,13 +1077,13 @@ export default function StudentsMasterPage() {
               }}
               className="bg-transparent font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer text-xs"
             >
-              <option value="name-asc">Nama (A - Z)</option>
-              <option value="name-desc">Nama (Z - A)</option>
-              <option value="nis-asc">NIS (Terkecil)</option>
-              <option value="nis-desc">NIS (Terbesar)</option>
-              <option value="class-asc">Kelas</option>
-              <option value="points-desc">Poin (Tertinggi)</option>
-              <option value="points-asc">Poin (Terendah)</option>
+              <option value="name-asc" className="dark:bg-slate-900">Nama (A - Z)</option>
+              <option value="name-desc" className="dark:bg-slate-900">Nama (Z - A)</option>
+              <option value="nis-asc" className="dark:bg-slate-900">NIS (Terkecil)</option>
+              <option value="nis-desc" className="dark:bg-slate-900">NIS (Terbesar)</option>
+              <option value="class-asc" className="dark:bg-slate-900">Kelas</option>
+              <option value="points-desc" className="dark:bg-slate-900">Poin (Tertinggi)</option>
+              <option value="points-asc" className="dark:bg-slate-900">Poin (Terendah)</option>
             </select>
           </div>
 
@@ -1087,11 +1098,11 @@ export default function StudentsMasterPage() {
               setFilterClass(e.target.value);
               setCurrentPage(1);
             }}
-            className="h-10 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/60 px-3.5 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none transition focus:border-emerald-500 cursor-pointer"
+            className="h-10 rounded-2xl border border-slate-200 dark:border-emerald-900/60 bg-slate-50/80 dark:bg-emerald-950/30 px-3.5 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none transition focus:border-emerald-500 cursor-pointer"
           >
-            <option value="all">Semua Kelas</option>
+            <option value="all" className="dark:bg-slate-900">Semua Kelas</option>
             {availableClasses.map((cls) => (
-              <option key={cls} value={cls}>
+              <option key={cls} value={cls} className="dark:bg-slate-900">
                 {cls}
               </option>
             ))}
@@ -1103,21 +1114,21 @@ export default function StudentsMasterPage() {
               setFilterStatus(e.target.value);
               setCurrentPage(1);
             }}
-            className="h-10 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/60 px-3.5 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none transition focus:border-emerald-500 cursor-pointer"
+            className="h-10 rounded-2xl border border-slate-200 dark:border-emerald-900/60 bg-slate-50/80 dark:bg-emerald-950/30 px-3.5 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none transition focus:border-emerald-500 cursor-pointer"
           >
-            <option value="all">Semua Status</option>
-            <option value="active">Aktif</option>
-            <option value="inactive">Non-Aktif</option>
+            <option value="all" className="dark:bg-slate-900">Semua Status</option>
+            <option value="active" className="dark:bg-slate-900">Aktif</option>
+            <option value="inactive" className="dark:bg-slate-900">Non-Aktif</option>
           </select>
         </div>
       </div>
 
-      {/* DATA CONTAINER: CARD VIEW PADA HP (MD KE BAWAH) & TABEL ELEGAN PADA DESKTOP */}
-      <div className="overflow-hidden rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-900/90 shadow-xl shadow-slate-200/30 dark:shadow-black/40 backdrop-blur-xl relative">
+      {/* DATA CONTAINER: CARD VIEW PADA HP & TABEL ELEGAN PADA DESKTOP */}
+      <div className="overflow-hidden rounded-3xl border border-slate-200/80 dark:border-emerald-900/40 bg-white/90 dark:bg-[#0c1815] shadow-xl shadow-slate-200/30 dark:shadow-black/40 backdrop-blur-xl relative">
         
-        {/* TAMPILAN 1: MOBILE CARD LIST (Tampil hanya di layar HP < md) */}
-        <div className="block md:hidden divide-y divide-slate-100 dark:divide-slate-800/60">
-          <div className="p-4 bg-slate-50/90 dark:bg-slate-950/60 flex items-center justify-between border-b border-slate-200 dark:border-slate-800">
+        {/* TAMPILAN 1: MOBILE CARD LIST */}
+        <div className="block md:hidden divide-y divide-slate-100 dark:divide-emerald-900/30">
+          <div className="p-4 bg-slate-50/90 dark:bg-emerald-950/40 flex items-center justify-between border-b border-slate-200 dark:border-emerald-900/40">
             <button
               type="button"
               onClick={handleToggleSelectCurrentPage}
@@ -1153,11 +1164,10 @@ export default function StudentsMasterPage() {
                   className={`p-4 transition-colors ${
                     isChecked
                       ? "bg-emerald-500/[0.08] dark:bg-emerald-500/[0.08]"
-                      : "hover:bg-slate-50/50 dark:hover:bg-slate-800/30"
+                      : "hover:bg-slate-50/50 dark:hover:bg-emerald-950/20"
                   }`}
                 >
                   <div className="flex items-start gap-3">
-                    {/* Checkbox & Avatar */}
                     <div className="flex flex-col items-center gap-2.5 pt-1">
                       <input
                         type="checkbox"
@@ -1167,7 +1177,7 @@ export default function StudentsMasterPage() {
                       />
                       <div
                         onClick={() => s.photo_url && setZoomedPhoto({ url: s.photo_url, name: s.name })}
-                        className={`w-12 h-15 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-gradient-to-tr from-emerald-800 via-teal-700 to-amber-600 shadow-sm flex items-center justify-center shrink-0 ${
+                        className={`w-12 h-15 rounded-2xl overflow-hidden border border-slate-200 dark:border-emerald-900/60 bg-gradient-to-tr from-emerald-800 via-teal-700 to-amber-600 shadow-sm flex items-center justify-center shrink-0 ${
                           s.photo_url ? "cursor-pointer active:scale-95 transition-transform" : ""
                         }`}
                       >
@@ -1185,7 +1195,6 @@ export default function StudentsMasterPage() {
                       </div>
                     </div>
 
-                    {/* Santri Details */}
                     <div className="flex-1 min-w-0 space-y-1.5">
                       <div className="flex items-start justify-between gap-1">
                         <h4 className="font-black text-sm text-slate-900 dark:text-white truncate">
@@ -1214,7 +1223,7 @@ export default function StudentsMasterPage() {
                       </div>
 
                       <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300">
-                        <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md font-bold text-[11px]">
+                        <span className="bg-slate-100 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md font-bold text-[11px] border border-emerald-900/20">
                           {s.class}
                         </span>
                         <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
@@ -1227,8 +1236,7 @@ export default function StudentsMasterPage() {
                         <span className="truncate">{s.consulate}</span>
                       </div>
 
-                      {/* Wali & WhatsApp Link */}
-                      <div className="pt-1 flex items-center justify-between border-t border-slate-100 dark:border-slate-800/60 text-xs">
+                      <div className="pt-1 flex items-center justify-between border-t border-slate-100 dark:border-emerald-900/30 text-xs">
                         <span className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-[120px]">
                           Wali: {s.guardian_name}
                         </span>
@@ -1247,12 +1255,11 @@ export default function StudentsMasterPage() {
                         )}
                       </div>
 
-                      {/* Action Buttons */}
-                      <div className="pt-2 flex items-center justify-end gap-1 border-t border-slate-100 dark:border-slate-800/60">
+                      <div className="pt-2 flex items-center justify-end gap-1 border-t border-slate-100 dark:border-emerald-900/30">
                         <button
                           type="button"
                           onClick={() => setSelectedStudentForKTS(s)}
-                          className="inline-flex items-center space-x-1 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 px-2.5 py-1 text-xs font-bold active:scale-95"
+                          className="inline-flex items-center space-x-1 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 px-2.5 py-1 text-xs font-bold active:scale-95 cursor-pointer"
                         >
                           <QrCode className="h-3.5 w-3.5" />
                           <span>KTS</span>
@@ -1260,7 +1267,7 @@ export default function StudentsMasterPage() {
 
                         <Link
                           href={`/dashboard/students/${s.id}/edit`}
-                          className="inline-flex items-center space-x-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 px-2.5 py-1 text-xs font-bold active:scale-95"
+                          className="inline-flex items-center space-x-1 rounded-xl bg-slate-100 dark:bg-emerald-950/40 text-slate-700 dark:text-slate-200 px-2.5 py-1 text-xs font-bold active:scale-95 border border-emerald-900/20"
                         >
                           <Edit className="h-3.5 w-3.5" />
                           <span>Edit</span>
@@ -1269,7 +1276,7 @@ export default function StudentsMasterPage() {
                         <button
                           type="button"
                           onClick={() => setStudentToDelete(s)}
-                          className="p-1.5 text-rose-500 rounded-xl hover:bg-rose-500/10 active:scale-95"
+                          className="p-1.5 text-rose-500 rounded-xl hover:bg-rose-500/10 active:scale-95 cursor-pointer"
                           title="Hapus"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -1283,11 +1290,11 @@ export default function StudentsMasterPage() {
           )}
         </div>
 
-        {/* TAMPILAN 2: DESKTOP TABLE VIEW (Tampil di tablet/desktop md ke atas) */}
+        {/* TAMPILAN 2: DESKTOP TABLE VIEW */}
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-800/80 bg-slate-50/90 dark:bg-slate-950/60 text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 select-none">
+              <tr className="border-b border-slate-200 dark:border-emerald-900/40 bg-slate-50/90 dark:bg-emerald-950/40 text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 select-none">
                 <th className="py-4 px-4 text-center w-12">
                   <button
                     type="button"
@@ -1347,7 +1354,7 @@ export default function StudentsMasterPage() {
                 <th className="py-4 px-4 text-center font-bold">Aksi</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-xs font-medium">
+            <tbody className="divide-y divide-slate-100 dark:divide-emerald-900/30 text-xs font-medium">
               {loading ? (
                 <tr>
                   <td colSpan={8} className="py-16 text-center text-slate-400">
@@ -1370,7 +1377,7 @@ export default function StudentsMasterPage() {
                       className={`transition-colors group ${
                         isChecked
                           ? "bg-emerald-500/[0.08] dark:bg-emerald-500/[0.08]"
-                          : "hover:bg-emerald-500/[0.03] dark:hover:bg-emerald-500/[0.02]"
+                          : "hover:bg-emerald-500/[0.03] dark:hover:bg-emerald-950/20"
                       }`}
                     >
                       <td className="py-3.5 px-4 text-center">
@@ -1386,7 +1393,7 @@ export default function StudentsMasterPage() {
                         <div className="relative inline-block group/avatar">
                           <div
                             onClick={() => s.photo_url && setZoomedPhoto({ url: s.photo_url, name: s.name })}
-                            className={`w-11 h-14 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-gradient-to-tr from-emerald-800 via-teal-700 to-amber-600 shadow-sm flex items-center justify-center ${
+                            className={`w-11 h-14 rounded-2xl overflow-hidden border border-slate-200 dark:border-emerald-900/60 bg-gradient-to-tr from-emerald-800 via-teal-700 to-amber-600 shadow-sm flex items-center justify-center ${
                               s.photo_url ? "cursor-pointer hover:ring-2 hover:ring-emerald-500 hover:shadow-md transition-all" : ""
                             }`}
                           >
@@ -1426,7 +1433,7 @@ export default function StudentsMasterPage() {
                       </td>
 
                       <td className="py-3.5 px-4">
-                        <span className="inline-block rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 px-2.5 py-0.5 text-xs font-bold text-slate-800 dark:text-slate-200">
+                        <span className="inline-block rounded-xl bg-slate-100 dark:bg-emerald-950/40 border border-slate-200 dark:border-emerald-900/40 px-2.5 py-0.5 text-xs font-bold text-slate-800 dark:text-slate-200">
                           {s.class}
                         </span>
                         <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 font-semibold">
@@ -1500,7 +1507,7 @@ export default function StudentsMasterPage() {
 
                           <Link
                             href={`/dashboard/students/${s.id}/edit`}
-                            className="rounded-xl p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition active:scale-90"
+                            className="rounded-xl p-2 text-slate-500 dark:text-slate-400 hover:bg-emerald-500/10 hover:text-emerald-600 transition active:scale-90"
                             title="Edit Data"
                           >
                             <Edit className="h-4 w-4" />
@@ -1525,7 +1532,7 @@ export default function StudentsMasterPage() {
         </div>
 
         {/* Pagination */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-200 dark:border-slate-800/80 px-5 py-3.5 text-xs text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-slate-950/40">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-200 dark:border-emerald-900/40 px-5 py-3.5 text-xs text-slate-500 dark:text-slate-400 bg-slate-50/50 dark:bg-emerald-950/40">
           <span>
             Menampilkan{" "}
             <strong className="text-slate-900 dark:text-white font-mono">
@@ -1547,7 +1554,7 @@ export default function StudentsMasterPage() {
               type="button"
               disabled={currentPage === 1}
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              className="rounded-xl border border-slate-200 dark:border-slate-800 p-1.5 hover:bg-white dark:hover:bg-slate-800 disabled:opacity-40 transition text-slate-700 dark:text-slate-300 cursor-pointer"
+              className="rounded-xl border border-slate-200 dark:border-emerald-900/60 p-1.5 hover:bg-white dark:hover:bg-emerald-900/40 disabled:opacity-40 transition text-slate-700 dark:text-slate-300 cursor-pointer"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
@@ -1560,7 +1567,7 @@ export default function StudentsMasterPage() {
               type="button"
               disabled={currentPage === totalPages}
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              className="rounded-xl border border-slate-200 dark:border-slate-800 p-1.5 hover:bg-white dark:hover:bg-slate-800 disabled:opacity-40 transition text-slate-700 dark:text-slate-300 cursor-pointer"
+              className="rounded-xl border border-slate-200 dark:border-emerald-900/60 p-1.5 hover:bg-white dark:hover:bg-emerald-900/40 disabled:opacity-40 transition text-slate-700 dark:text-slate-300 cursor-pointer"
             >
               <ChevronRight className="h-4 w-4" />
             </button>

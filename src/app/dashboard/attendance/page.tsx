@@ -889,51 +889,72 @@ export default function AttendanceDashboardPage() {
         </div>
       </div>
 
-      {/* BANNER UTAMA */}
-      <div className="no-print bg-gradient-to-br from-[#064e3b] via-[#043d2e] to-[#022c22] p-6 sm:p-7 rounded-[32px] text-white shadow-xl border border-emerald-700/40 relative overflow-hidden">
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5">
-          <div className="space-y-1.5">
-            <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-emerald-400/15 border border-emerald-400/30 text-emerald-300 text-xs font-semibold backdrop-blur-md">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Sistem Manajemen Kedisiplinan Terpadu</span>
+      {/* BANNER UTAMA SUPER COLORFUL & INTERAKTIF */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.98 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.35, ease: "easeOut" }}
+        className="no-print relative overflow-hidden rounded-[36px] bg-gradient-to-r from-emerald-950 via-[#064e3b] to-teal-950 p-6 sm:p-8 text-white shadow-2xl border border-emerald-500/40"
+      >
+        {/* Lingkaran Glow Berjalan & Animasi Dinamis */}
+        <div className="absolute -top-32 -right-32 w-80 h-80 rounded-full bg-emerald-400/20 blur-[80px] pointer-events-none animate-pulse" />
+        <div className="absolute -bottom-32 -left-32 w-80 h-80 rounded-full bg-amber-400/20 blur-[80px] pointer-events-none" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white/10 via-transparent to-black/30 pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col xl:flex-row xl:items-center justify-between gap-6">
+          <div className="space-y-2.5">
+            <div className="inline-flex items-center space-x-2.5 px-3.5 py-1.5 rounded-full bg-white/10 border border-white/20 text-emerald-200 text-xs font-extrabold backdrop-blur-xl shadow-lg">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-400" />
+              </span>
+              <span className="tracking-wide uppercase text-[10px]">Live • SIPS Executive Control</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight">Presensi & Pengasuhan Santri</h1>
-            <p className="text-xs sm:text-sm text-emerald-100/80 max-w-xl">
-              Pencatatan cepat di lapangan, audit kepatuhan kalender per kamar, dan analitik kedisiplinan global santri.
+
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight bg-gradient-to-r from-white via-emerald-100 to-amber-300 bg-clip-text text-transparent drop-shadow-md">
+              Presensi &amp; Pengasuhan Santri
+            </h1>
+
+            <p className="text-xs sm:text-sm text-emerald-100/90 max-w-2xl font-semibold leading-relaxed">
+              Pusat kendali operasional harian: input cepat di lapangan, audit kepatuhan kalender kamar secara visual, dan analitik kedisiplinan global.
             </p>
           </div>
 
-          <div className="flex p-1.5 rounded-2xl bg-black/35 border border-emerald-500/30 backdrop-blur-xl shrink-0">
-            <button
-              onClick={() => setActiveModule("input")}
-              className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-black transition cursor-pointer ${
-                activeModule === "input" ? "bg-emerald-400 text-emerald-950 shadow-md" : "text-emerald-100/70 hover:text-white"
-              }`}
-            >
-              <CalendarCheck2 className="w-4 h-4 stroke-[2.2]" />
-              <span>Input Cepat</span>
-            </button>
-            <button
-              onClick={() => setActiveModule("calendar")}
-              className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-black transition cursor-pointer ${
-                activeModule === "calendar" ? "bg-emerald-400 text-emerald-950 shadow-md" : "text-emerald-100/70 hover:text-white"
-              }`}
-            >
-              <CalendarIcon className="w-4 h-4 stroke-[2.2]" />
-              <span>Kalender Kamar</span>
-            </button>
-            <button
-              onClick={() => setActiveModule("analytics")}
-              className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-black transition cursor-pointer ${
-                activeModule === "analytics" ? "bg-emerald-400 text-emerald-950 shadow-md" : "text-emerald-100/70 hover:text-white"
-              }`}
-            >
-              <BarChart3 className="w-4 h-4 stroke-[2.2]" />
-              <span>Rekap & Analitik</span>
-            </button>
+          {/* Tab Switcher Interaktif */}
+          <div className="flex p-1.5 rounded-2xl bg-black/50 border border-emerald-400/30 backdrop-blur-2xl shrink-0 shadow-2xl">
+            {[
+              { id: "input", label: "Input Cepat", icon: CalendarCheck2 },
+              { id: "calendar", label: "Kalender Kamar", icon: CalendarIcon },
+              { id: "analytics", label: "Rekap & Analitik", icon: BarChart3 },
+            ].map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeModule === tab.id;
+
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveModule(tab.id as any)}
+                  className={`relative flex items-center space-x-2 px-4 py-3 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                    isActive ? "text-emerald-950" : "text-emerald-100/70 hover:text-white hover:bg-white/10"
+                  }`}
+                >
+                  {isActive && (
+                    <motion.div
+                      layoutId="activeTabIndicator"
+                      className="absolute inset-0 bg-gradient-to-r from-emerald-300 via-teal-300 to-amber-300 rounded-xl shadow-lg shadow-emerald-400/40"
+                      transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                    />
+                  )}
+                  <span className="relative z-10 flex items-center space-x-2">
+                    <Icon className={`w-4 h-4 stroke-[2.5] ${isActive ? "text-emerald-950" : "text-emerald-300"}`} />
+                    <span>{tab.label}</span>
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* MODUL 1: INPUT PRESENSI CEPAT */}
       {activeModule === "input" && (
@@ -1315,41 +1336,41 @@ export default function AttendanceDashboardPage() {
               ))}
             </div>
 
-            <div className="grid grid-cols-7 gap-2">
+            <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
               {calendarDaysMatrix.map((dateStr, idx) => {
-                if (!dateStr) return <div key={idx} className="h-24 bg-slate-50/50 dark:bg-emerald-950/10 rounded-2xl" />;
+                if (!dateStr) return <div key={idx} className="min-h-[88px] sm:h-24 bg-slate-50/50 dark:bg-emerald-950/10 rounded-2xl" />;
 
                 const compliance = getRoomComplianceForDate(dateStr);
                 const dayNum = parseInt(dateStr.split("-")[2], 10);
                 const isToday = dateStr === getTodayDateStr();
 
-                let badgeStyle = "bg-slate-100 text-slate-600";
-                if (compliance.badgeType === "complete") badgeStyle = "bg-emerald-500/15 text-emerald-700 border-emerald-500/30";
-                if (compliance.badgeType === "partial") badgeStyle = "bg-amber-500/15 text-amber-700 border-amber-500/30";
-                if (compliance.badgeType === "empty") badgeStyle = "bg-rose-500/15 text-rose-700 border-rose-500/30";
+                let badgeStyle = "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700";
+                if (compliance.badgeType === "complete") badgeStyle = "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30";
+                if (compliance.badgeType === "partial") badgeStyle = "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30";
+                if (compliance.badgeType === "empty") badgeStyle = "bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30";
 
                 return (
                   <div
                     key={dateStr}
                     onClick={() => setSelectedDrawerDate(dateStr)}
-                    className={`h-24 p-2 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between hover:border-emerald-500 ${
-                      isToday ? "border-emerald-600 bg-emerald-50/20" : "border-slate-200 dark:border-emerald-900/30"
+                    className={`min-h-[88px] sm:h-24 p-1.5 sm:p-2.5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between hover:border-emerald-500 shadow-2xs ${
+                      isToday ? "border-emerald-600 bg-emerald-50/30 dark:bg-emerald-950/20 ring-1 ring-emerald-500/50" : "border-slate-200/80 dark:border-emerald-900/40 bg-white dark:bg-[#071310]"
                     }`}
                   >
                     <div className="flex justify-between items-center">
-                      <span className={`text-xs font-black ${isToday ? "text-emerald-600" : "text-slate-700 dark:text-slate-200"}`}>
+                      <span className={`text-xs sm:text-sm font-black ${isToday ? "text-emerald-600 dark:text-emerald-400" : "text-slate-800 dark:text-slate-200"}`}>
                         {dayNum}
                       </span>
                       {compliance.specialCount > 0 && (
-                        <span className="h-2 w-2 rounded-full bg-purple-500 ring-2 ring-purple-300" title="Ada Presensi Khusus" />
+                        <span className="h-2 w-2 rounded-full bg-purple-500 ring-2 ring-purple-300 dark:ring-purple-900" title="Ada Presensi Khusus" />
                       )}
                     </div>
 
-                    <div className={`px-2 py-1 rounded-xl text-[10px] font-black border text-center ${badgeStyle}`}>
+                    <div className={`px-1 sm:px-2 py-1 rounded-xl text-[9px] sm:text-[10px] font-black border text-center truncate ${badgeStyle}`}>
                       {compliance.badgeType === "complete" && "6/6 Lengkap"}
                       {compliance.badgeType === "partial" && `${compliance.count}/6 Sesi`}
                       {compliance.badgeType === "empty" && "Kosong"}
-                      {compliance.badgeType === "future" && "-"}
+                      {compliance.badgeType === "future" && "·"}
                     </div>
                   </div>
                 );

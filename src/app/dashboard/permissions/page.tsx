@@ -550,45 +550,53 @@ export default function PermissionsPage() {
       <div className="pointer-events-none absolute -top-10 -right-10 h-72 w-72 rounded-full bg-emerald-500/10 blur-[100px]" />
       <div className="pointer-events-none absolute top-48 -left-10 h-72 w-72 rounded-full bg-teal-500/10 blur-[100px]" />
 
-      {/* ================= HEADER UTAMA EMERALD ================= */}
-      <div className="relative overflow-hidden rounded-[32px] border border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-slate-900/95 p-5 sm:p-6 shadow-xl backdrop-blur-xl">
-        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex items-center space-x-3.5">
+      {/* ================= HEADER HERO BANNER (SUPER COLORFUL & INTERAKTIF) ================= */}
+      <div className="relative overflow-hidden rounded-[36px] bg-gradient-to-r from-emerald-950 via-[#064e3b] to-teal-950 p-6 sm:p-8 text-white shadow-2xl border border-emerald-500/40">
+        <div className="absolute -top-32 -right-32 w-80 h-80 rounded-full bg-emerald-400/20 blur-[80px] pointer-events-none animate-pulse" />
+        <div className="absolute -bottom-32 -left-32 w-80 h-80 rounded-full bg-amber-400/20 blur-[80px] pointer-events-none" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white/10 via-transparent to-black/30 pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col xl:flex-row xl:items-center justify-between gap-6">
+          <div className="flex items-start sm:items-center space-x-4 min-w-0">
             <Link
               href="/dashboard"
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:text-emerald-600 hover:border-emerald-500/40 transition active:scale-95 shadow-xs"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/20 bg-white/10 text-white hover:bg-white/20 transition-all active:scale-90 shadow-sm backdrop-blur-md"
               title="Kembali ke Dashboard Utama"
             >
               <ArrowLeft className="h-5 w-5 stroke-[2.4]" />
             </Link>
 
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-700 via-teal-600 to-amber-500 text-white shadow-md shadow-emerald-700/20 font-black">
+            <div className="relative flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-amber-400 via-emerald-500 to-teal-400 text-slate-950 shadow-lg font-black">
               <FileCheck2 className="h-6 w-6 stroke-[2.3]" />
             </div>
 
-            <div>
+            <div className="space-y-1 min-w-0">
               <div className="flex items-center space-x-2">
-                <h1 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight">
-                  Input Perizinan Santri
-                </h1>
-                <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
-                  Gate Control
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-emerald-200 text-[10px] font-black uppercase tracking-wider backdrop-blur-xl">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                  GATE CONTROL
+                </span>
+                <span className="rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold px-2.5 py-0.5">
+                  Perizinan SIPS
                 </span>
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight bg-gradient-to-r from-white via-emerald-100 to-amber-300 bg-clip-text text-transparent truncate">
+                Input Perizinan Santri
+              </h1>
+              <p className="text-xs text-emerald-100/90 font-medium truncate">
                 Monitoring perizinan keluar/pulang santri dan verifikasi barcode gerbang terintegrasi
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2.5 xl:justify-end shrink-0">
             <button
               type="button"
               onClick={fetchPermissions}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-300 shadow-xs transition hover:border-emerald-500/50 hover:text-emerald-600 active:scale-95 cursor-pointer"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/20 bg-white/10 text-white shadow-sm transition hover:bg-white/20 active:scale-95 cursor-pointer backdrop-blur-md"
               title="Segarkan Data"
             >
-              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin text-emerald-600" : ""}`} />
+              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin text-amber-300" : ""}`} />
             </button>
 
             <button
@@ -598,7 +606,7 @@ export default function PermissionsPage() {
                 setFormError("");
                 setShowCreateModal(true);
               }}
-              className="inline-flex items-center space-x-1.5 rounded-2xl border border-slate-300 dark:border-slate-700 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700/80 px-3.5 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 transition active:scale-95 cursor-pointer"
+              className="inline-flex items-center space-x-1.5 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 px-4 py-2.5 text-xs font-bold text-white transition active:scale-95 cursor-pointer backdrop-blur-md"
             >
               <Plus className="h-4 w-4 stroke-[2.5]" />
               <span className="whitespace-nowrap">Input Manual</span>
@@ -607,9 +615,9 @@ export default function PermissionsPage() {
             <button
               type="button"
               onClick={() => setShowScanner(true)}
-              className="group/scan relative inline-flex items-center space-x-1.5 rounded-2xl bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 px-4 py-2.5 text-xs font-black text-white shadow-md shadow-emerald-700/25 transition active:scale-95 cursor-pointer"
+              className="inline-flex items-center space-x-1.5 rounded-2xl bg-gradient-to-r from-amber-400 via-emerald-500 to-teal-400 hover:from-amber-300 hover:to-teal-300 px-4 py-2.5 text-xs font-black text-slate-950 shadow-lg shadow-emerald-900/30 transition active:scale-95 cursor-pointer"
             >
-              <QrCode className="h-4 w-4 transition-transform duration-300 group-hover/scan:rotate-12 stroke-[2.5]" />
+              <QrCode className="h-4 w-4 stroke-[2.5]" />
               <span className="whitespace-nowrap">Scan KTS</span>
               <Sparkles className="h-3.5 w-3.5 opacity-70 animate-pulse" />
             </button>
@@ -667,10 +675,10 @@ export default function PermissionsPage() {
             <div
               key={c.tab}
               onClick={() => setActiveTab(c.tab as any)}
-              className={`group relative cursor-pointer overflow-hidden rounded-3xl border bg-white/90 dark:bg-slate-900/90 p-4 sm:p-5 shadow-xs transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 ${
+              className={`group relative cursor-pointer overflow-hidden rounded-3xl border bg-white/90 dark:bg-[#0c1815] p-4 sm:p-5 shadow-xs transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 ${
                 isSelected
                   ? `${c.borderColor} ring-2 ring-emerald-500/30 shadow-emerald-500/10`
-                  : "border-slate-200/80 dark:border-slate-800/80 hover:border-emerald-500/40"
+                  : "border-slate-200/80 dark:border-emerald-900/40 hover:border-emerald-500/40"
               }`}
             >
               <div className={`absolute inset-0 bg-gradient-to-br ${c.accentBg} opacity-60 pointer-events-none`} />
@@ -691,7 +699,7 @@ export default function PermissionsPage() {
                 <p className="text-[11px] font-medium text-slate-400 mt-0.5 truncate">{c.sub}</p>
               </div>
 
-              <div className="relative mt-3 flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+              <div className="relative mt-3 flex items-center justify-between pt-2 border-t border-slate-100 dark:border-emerald-900/30 text-[10px] font-bold text-slate-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
                 <span>Klik untuk menyaring</span>
                 <ChevronRight className="h-3 w-3 transition-transform group-hover:translate-x-1" />
               </div>
@@ -710,7 +718,7 @@ export default function PermissionsPage() {
               value={searchQuery}
               onChange={(e) => handleQuickSearchChange(e.target.value)}
               placeholder="Cari santri / terbitkan izin instan..."
-              className="h-10 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/90 pl-10 pr-4 text-xs font-semibold text-slate-900 dark:text-white placeholder-slate-400 outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 shadow-xs"
+              className="h-10 w-full rounded-2xl border border-slate-200 dark:border-emerald-900/60 bg-white dark:bg-[#0c1815] pl-10 pr-4 text-xs font-semibold text-slate-900 dark:text-white placeholder-slate-400 outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 shadow-xs"
             />
             {isQuickSearching && (
               <RefreshCw className="absolute right-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-emerald-600" />
@@ -718,7 +726,7 @@ export default function PermissionsPage() {
           </div>
 
           {showQuickDropdown && quickStudentResults.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2 shadow-2xl z-40 space-y-1 animate-in fade-in zoom-in-95">
+            <div className="absolute top-full left-0 right-0 mt-1.5 rounded-2xl border border-slate-200 dark:border-emerald-900/40 bg-white dark:bg-[#0c1815] p-2 shadow-2xl z-40 space-y-1 animate-in fade-in zoom-in-95">
               <div className="px-2 py-1 text-[10px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400 flex items-center justify-between">
                 <span>Database Santri Terdeteksi</span>
                 <span>Klik untuk Tambah ke Izin</span>
@@ -755,7 +763,7 @@ export default function PermissionsPage() {
           )}
         </div>
 
-        <div className="flex items-center overflow-x-auto gap-1 rounded-2xl bg-slate-100/90 dark:bg-slate-950/70 p-1 border border-slate-200 dark:border-slate-800 text-xs font-bold">
+        <div className="flex items-center overflow-x-auto gap-1 rounded-2xl bg-slate-100/90 dark:bg-[#0c1815] p-1 border border-slate-200 dark:border-emerald-900/40 text-xs font-bold">
           {[
             { id: "all", label: "Semua Izin" },
             { id: "approved", label: "Belum Keluar" },
@@ -768,10 +776,10 @@ export default function PermissionsPage() {
               onClick={() => setActiveTab(tab.id as any)}
               className={`px-3 py-1.5 rounded-xl whitespace-nowrap transition-all duration-200 text-xs font-bold cursor-pointer ${
                 activeTab === tab.id
-                  ? "bg-emerald-700 text-white shadow-sm"
+                  ? "bg-emerald-600 text-white shadow-sm"
                   : tab.alert
                   ? "text-rose-500 hover:bg-rose-500/10 animate-pulse font-extrabold"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-slate-800"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-emerald-900/40"
               }`}
             >
               {tab.label}
@@ -781,10 +789,10 @@ export default function PermissionsPage() {
       </div>
 
       {/* ================= DATA PERIZINAN: RESPONSIVE DUAL-VIEW ================= */}
-      <div className="overflow-hidden rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-900/90 shadow-xl shadow-slate-200/30 dark:shadow-black/40 backdrop-blur-xl">
+      <div className="overflow-hidden rounded-3xl border border-slate-200/80 dark:border-emerald-900/40 bg-white/90 dark:bg-[#0c1815] shadow-xl shadow-slate-200/30 dark:shadow-black/40 backdrop-blur-xl">
         
-        {/* TAMPILAN 1: MOBILE CARD VIEW (Hanya tampil di layar HP < md) */}
-        <div className="block md:hidden divide-y divide-slate-100 dark:divide-slate-800/60">
+        {/* TAMPILAN 1: MOBILE CARD VIEW */}
+        <div className="block md:hidden divide-y divide-slate-100 dark:divide-emerald-900/30">
           {loading ? (
             <div className="py-16 text-center text-slate-400">
               <RefreshCw className="h-7 w-7 animate-spin mx-auto mb-2 text-emerald-600" />
@@ -803,7 +811,7 @@ export default function PermissionsPage() {
                   clearAllSelectedStudents();
                   setShowCreateModal(true);
                 }}
-                className="inline-flex items-center space-x-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white px-4 py-2 text-xs font-bold shadow-md shadow-emerald-700/20 transition active:scale-95 cursor-pointer"
+                className="inline-flex items-center space-x-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 text-xs font-bold shadow-md shadow-emerald-600/20 transition active:scale-95 cursor-pointer"
               >
                 <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
                 <span>Terbitkan Izin Baru</span>
@@ -816,10 +824,9 @@ export default function PermissionsPage() {
                 <div
                   key={p.id}
                   className={`p-4 space-y-3 transition-colors ${
-                    late ? "bg-rose-500/[0.06] dark:bg-rose-950/20" : "hover:bg-slate-50/50 dark:hover:bg-slate-800/30"
+                    late ? "bg-rose-500/[0.06] dark:bg-rose-950/20" : "hover:bg-slate-50/50 dark:hover:bg-emerald-950/20"
                   }`}
                 >
-                  {/* Header Card: Identitas & Status Gerbang */}
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center space-x-2.5 min-w-0">
                       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 font-black text-xs">
@@ -835,7 +842,6 @@ export default function PermissionsPage() {
                       </div>
                     </div>
 
-                    {/* Badge Status */}
                     <div className="shrink-0">
                       {late ? (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 text-[10px] font-black uppercase tracking-wider animate-pulse">
@@ -865,8 +871,7 @@ export default function PermissionsPage() {
                     </div>
                   </div>
 
-                  {/* Kategori & Keperluan */}
-                  <div className="space-y-1.5 bg-slate-50 dark:bg-slate-950/50 p-3 rounded-2xl border border-slate-100 dark:border-slate-800">
+                  <div className="space-y-1.5 bg-slate-50 dark:bg-emerald-950/30 p-3 rounded-2xl border border-slate-100 dark:border-emerald-900/30">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="rounded-lg bg-emerald-500/10 px-2 py-0.5 font-bold text-emerald-800 dark:text-emerald-300 border border-emerald-500/20 text-[10px]">
                         {p.category}
@@ -883,8 +888,7 @@ export default function PermissionsPage() {
                     </p>
                   </div>
 
-                  {/* Jadwal Waktu */}
-                  <div className="grid grid-cols-2 gap-2 text-[11px] bg-slate-100/60 dark:bg-slate-800/40 p-2.5 rounded-xl border border-slate-200/60 dark:border-slate-800">
+                  <div className="grid grid-cols-2 gap-2 text-[11px] bg-slate-100/60 dark:bg-emerald-950/20 p-2.5 rounded-xl border border-slate-200/60 dark:border-emerald-900/30">
                     <div className="space-y-0.5">
                       <span className="text-[10px] text-slate-400 block font-semibold">🛫 Berangkat:</span>
                       <span className="font-bold text-slate-800 dark:text-slate-200">
@@ -899,7 +903,6 @@ export default function PermissionsPage() {
                     </div>
                   </div>
 
-                  {/* Tombol Aksi */}
                   <div className="pt-1 flex items-center justify-end gap-1.5">
                     <button
                       type="button"
@@ -913,7 +916,7 @@ export default function PermissionsPage() {
                     <button
                       type="button"
                       onClick={() => handleOpenEditModal(p)}
-                      className="inline-flex items-center space-x-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 px-3 py-1.5 text-xs font-bold active:scale-95 cursor-pointer"
+                      className="inline-flex items-center space-x-1 rounded-xl bg-slate-100 dark:bg-emerald-950/40 text-slate-700 dark:text-slate-200 px-3 py-1.5 text-xs font-bold active:scale-95 border border-emerald-900/20"
                     >
                       <Edit className="h-3.5 w-3.5" />
                       <span>Edit</span>
@@ -934,11 +937,11 @@ export default function PermissionsPage() {
           )}
         </div>
 
-        {/* TAMPILAN 2: DESKTOP TABLE VIEW (Hanya tampil di tablet/desktop md ke atas) */}
+        {/* TAMPILAN 2: DESKTOP TABLE VIEW */}
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-800/80 bg-slate-50/90 dark:bg-slate-950/60 text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 select-none">
+              <tr className="border-b border-slate-200 dark:border-emerald-900/40 bg-slate-50/90 dark:bg-emerald-950/40 text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 select-none">
                 <th className="py-4 px-4 font-bold">Santri &amp; NIS</th>
                 <th className="py-4 px-4 font-bold">Kategori &amp; Keterangan</th>
                 <th className="py-4 px-4 font-bold">Jadwal Waktu Izin</th>
@@ -946,7 +949,7 @@ export default function PermissionsPage() {
                 <th className="py-4 px-4 text-center font-bold">Aksi</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
+            <tbody className="divide-y divide-slate-100 dark:divide-emerald-900/30 font-medium">
               {loading ? (
                 <tr>
                   <td colSpan={5} className="py-16 text-center text-slate-400">
@@ -969,7 +972,7 @@ export default function PermissionsPage() {
                           clearAllSelectedStudents();
                           setShowCreateModal(true);
                         }}
-                        className="inline-flex items-center space-x-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white px-4 py-2 text-xs font-bold shadow-md shadow-emerald-700/20 transition active:scale-95 cursor-pointer"
+                        className="inline-flex items-center space-x-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 text-xs font-bold shadow-md shadow-emerald-600/20 transition active:scale-95 cursor-pointer"
                       >
                         <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
                         <span>Terbitkan Izin Baru</span>
@@ -983,7 +986,7 @@ export default function PermissionsPage() {
                   return (
                     <tr
                       key={p.id}
-                      className={`group transition-all duration-200 hover:bg-emerald-500/[0.03] dark:hover:bg-emerald-500/[0.02] ${
+                      className={`group transition-all duration-200 hover:bg-emerald-500/[0.03] dark:hover:bg-emerald-950/20 ${
                         late ? "bg-rose-500/[0.06] dark:bg-rose-950/20" : ""
                       }`}
                     >
@@ -1068,7 +1071,7 @@ export default function PermissionsPage() {
                           <button
                             type="button"
                             onClick={() => setSelectedPermitForPrint(p)}
-                            className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-emerald-600 hover:border-emerald-500/40 hover:bg-emerald-500/10 transition active:scale-90 cursor-pointer"
+                            className="p-2 rounded-xl border border-slate-200 dark:border-emerald-900/40 text-slate-500 dark:text-slate-400 hover:text-emerald-600 hover:border-emerald-500/40 hover:bg-emerald-500/10 transition active:scale-90 cursor-pointer"
                             title="Cetak Slip Izin"
                           >
                             <Printer className="h-4 w-4" />
@@ -1077,7 +1080,7 @@ export default function PermissionsPage() {
                           <button
                             type="button"
                             onClick={() => handleOpenEditModal(p)}
-                            className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-amber-500 hover:border-amber-500/40 hover:bg-amber-500/10 transition active:scale-90 cursor-pointer"
+                            className="p-2 rounded-xl border border-slate-200 dark:border-emerald-900/40 text-slate-500 dark:text-slate-400 hover:text-amber-500 hover:border-amber-500/40 hover:bg-amber-500/10 transition active:scale-90 cursor-pointer"
                             title="Edit Data Izin"
                           >
                             <Edit className="h-4 w-4" />
@@ -1086,7 +1089,7 @@ export default function PermissionsPage() {
                           <button
                             type="button"
                             onClick={() => setPermitToDelete(p)}
-                            className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-rose-500 hover:border-rose-500/40 hover:bg-rose-500/10 transition active:scale-90 cursor-pointer"
+                            className="p-2 rounded-xl border border-slate-200 dark:border-emerald-900/40 text-slate-500 dark:text-slate-400 hover:text-rose-500 hover:border-rose-500/40 hover:bg-rose-500/10 transition active:scale-90 cursor-pointer"
                             title="Hapus Data Izin"
                           >
                             <Trash2 className="h-4 w-4" />

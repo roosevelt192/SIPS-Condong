@@ -19,6 +19,9 @@ import {
   Sliders,
   Settings2,
   RotateCcw,
+  Tag,
+  Grid,
+  Sparkles,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { QRCodeSVG } from "qrcode.react";
@@ -51,12 +54,15 @@ export default function IdCardsGeneratorPage() {
   const [filterClass, setFilterClass] = useState("all");
   const [filterDorm, setFilterDorm] = useState("all");
 
+  // Mode Cetak: KTS Fisik CR-80 vs Stiker Label 103 vs Stiker Grid A4
+  const [printMode, setPrintMode] = useState<"card" | "label103" | "stickerA4">("card");
+
   // Selection & UI States
   const [selectedNisList, setSelectedNisList] = useState<string[]>([]);
   const [cardSide, setCardSide] = useState<"both" | "front" | "back">("both");
   const [showSettings, setShowSettings] = useState(false);
 
-  // Dimensi Cetak Kustom (Standar CR-80 Landscape)
+  // Dimensi Cetak Kustom
   const [paperSize, setPaperSize] = useState<"A4" | "F4" | "Letter" | "PVC_Single">("A4");
   const [cardPreset, setCardPreset] = useState<"CR80" | "Medium" | "Mini" | "Custom">("CR80");
   const [cardWidthMm, setCardWidthMm] = useState(85.6);
@@ -86,7 +92,7 @@ export default function IdCardsGeneratorPage() {
         nis: st.nis || "-",
         name: st.full_name || st.name || st.nama || "Santri",
         class: st.kelas || st.class_name || st.class || "-",
-        dorm: st.kamar_asrama || st.dorm || st.room || st.asrama || "-",
+        dorm: st.kamar_asrama || st.dorm || st.room || st.asrama || st.room_name || "-",
         consulate: st.asal_konsulat || st.consulate || st.origin_region || "-",
         photo_url: st.photo_url || st.foto || null,
         status: st.status_santri || st.status || "Aktif Mukim",
@@ -192,16 +198,35 @@ export default function IdCardsGeneratorPage() {
   };
 
   const getPageSizeCSS = () => {
+    if (printMode === "label103") {
+      return "size: 162mm 215mm portrait;";
+    }
     if (paperSize === "F4") return "size: 215mm 330mm portrait;";
     if (paperSize === "Letter") return "size: letter portrait;";
     if (paperSize === "PVC_Single") return `size: ${cardWidthMm}mm ${cardHeightMm}mm portrait;`;
     return "size: A4 portrait;";
   };
 
-  // Membagi kartu per halaman (8 kartu per lembar A4)
   const printPages = useMemo(() => {
-    const cards: { type: "front" | "back"; student: StudentItem }[] = [];
+    if (printMode === "label103") {
+      const perPage = 12;
+      const pages: StudentItem[][] = [];
+      for (let i = 0; i < selectedStudentsToPrint.length; i += perPage) {
+        pages.push(selectedStudentsToPrint.slice(i, i + perPage));
+      }
+      return pages;
+    }
 
+    if (printMode === "stickerA4") {
+      const perPage = 24;
+      const pages: StudentItem[][] = [];
+      for (let i = 0; i < selectedStudentsToPrint.length; i += perPage) {
+        pages.push(selectedStudentsToPrint.slice(i, i + perPage));
+      }
+      return pages;
+    }
+
+    const cards: { type: "front" | "back"; student: StudentItem }[] = [];
     selectedStudentsToPrint.forEach((student) => {
       if (cardSide === "both") {
         cards.push({ type: "front", student });
@@ -214,14 +239,12 @@ export default function IdCardsGeneratorPage() {
     });
 
     const CARDS_PER_PAGE = paperSize === "PVC_Single" ? 1 : 8;
-    const pages: { type: "front" | "back"; student: StudentItem }[][] = [];
-
+    const pages: any[] = [];
     for (let i = 0; i < cards.length; i += CARDS_PER_PAGE) {
       pages.push(cards.slice(i, i + CARDS_PER_PAGE));
     }
-
     return pages;
-  }, [selectedStudentsToPrint, cardSide, paperSize]);
+  }, [selectedStudentsToPrint, printMode, cardSide, paperSize]);
 
   // ===========================================================================
   // 6. ISOLATED MULTI-PAGE PRINT ENGINE
@@ -246,9 +269,10 @@ export default function IdCardsGeneratorPage() {
     const doc = iframe.contentWindow?.document;
     if (!doc) return;
 
+    const prefix = printMode === "label103" ? "Stiker_Label103" : printMode === "stickerA4" ? "Stiker_GridA4" : "KTS_Condong";
     const titleText =
       customTitle ||
-      `KTS_Condong_${new Date().toISOString().split("T")[0]}_(${selectedStudentsToPrint.length}_Santri)`;
+      `${prefix}_${new Date().toISOString().split("T")[0]}_(${selectedStudentsToPrint.length}_Santri)`;
 
     doc.open();
     doc.write(`
@@ -263,7 +287,7 @@ export default function IdCardsGeneratorPage() {
           <style>
             @page {
               ${getPageSizeCSS()}
-              margin: ${pageMarginMm}mm;
+              margin: ${printMode === "label103" ? "6mm 8mm" : `${pageMarginMm}mm`};
             }
             * {
               box-sizing: border-box;
@@ -278,6 +302,7 @@ export default function IdCardsGeneratorPage() {
               color: #000000;
               width: 100%;
             }
+
             .kts-print-page {
               display: grid !important;
               grid-template-columns: repeat(2, ${cardWidthMm}mm) !important;
@@ -326,6 +351,67 @@ export default function IdCardsGeneratorPage() {
               box-shadow: inset 0 0 0 1000px #064e3b !important;
               color: #fef08a !important;
             }
+
+            .sticker-103-page {
+              display: grid !important;
+              grid-template-columns: repeat(3, 64mm) !important;
+              grid-auto-rows: 32mm !important;
+              column-gap: 2.5mm !important;
+              row-gap: 3mm !important;
+              justify-content: center !important;
+              align-content: start !important;
+              margin: 0 auto !important;
+              page-break-after: always !important;
+              break-after: page !important;
+            }
+            .sticker-103-page:last-child {
+              page-break-after: auto !important;
+              break-after: auto !important;
+            }
+            .sticker-103-item {
+              width: 64mm !important;
+              height: 32mm !important;
+              border: 1px dashed #cbd5e1 !important;
+              border-radius: 2mm !important;
+              padding: 2.5mm 3.5mm !important;
+              display: flex !important;
+              align-items: center !important;
+              gap: 3mm !important;
+              page-break-inside: avoid !important;
+              break-inside: avoid !important;
+              overflow: hidden !important;
+              background: #ffffff !important;
+            }
+
+            .sticker-a4-page {
+              display: grid !important;
+              grid-template-columns: repeat(3, 63mm) !important;
+              grid-auto-rows: 33mm !important;
+              gap: 2mm !important;
+              justify-content: center !important;
+              align-content: start !important;
+              margin: 0 auto !important;
+              page-break-after: always !important;
+              break-after: page !important;
+            }
+            .sticker-a4-page:last-child {
+              page-break-after: auto !important;
+              break-after: auto !important;
+            }
+            .sticker-a4-item {
+              width: 63mm !important;
+              height: 33mm !important;
+              border: 1px dashed #94a3b8 !important;
+              border-radius: 2.5mm !important;
+              padding: 2.5mm 3mm !important;
+              display: flex !important;
+              align-items: center !important;
+              gap: 3mm !important;
+              page-break-inside: avoid !important;
+              break-inside: avoid !important;
+              overflow: hidden !important;
+              background: #ffffff !important;
+            }
           </style>
         </head>
         <body>
@@ -343,121 +429,179 @@ export default function IdCardsGeneratorPage() {
 
   return (
     <div className="w-full space-y-6 font-sans relative pb-28 transition-all">
-      {/* ================= HEADER CONTROL BANNER ================= */}
-      <div className="relative overflow-hidden rounded-[32px] border border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-slate-900/95 p-6 sm:p-7 shadow-xl backdrop-blur-2xl flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 print:hidden">
-        <div className="flex items-center space-x-4 min-w-0">
-          <Link
-            href="/dashboard"
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:text-emerald-600 hover:border-emerald-500/40 transition-all active:scale-90 shadow-sm"
-            title="Kembali ke Dashboard"
-          >
-            <ArrowLeft className="h-5 w-5 stroke-[2.4]" />
-          </Link>
+      {/* ================= HEADER HERO BANNER (SUPER COLORFUL & INTERAKTIF) ================= */}
+      <div className="relative overflow-hidden rounded-[36px] bg-gradient-to-r from-emerald-950 via-[#064e3b] to-teal-950 p-6 sm:p-8 text-white shadow-2xl border border-emerald-500/40">
+        <div className="absolute -top-32 -right-32 w-80 h-80 rounded-full bg-emerald-400/20 blur-[80px] pointer-events-none animate-pulse" />
+        <div className="absolute -bottom-32 -left-32 w-80 h-80 rounded-full bg-amber-400/20 blur-[80px] pointer-events-none" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white/10 via-transparent to-black/30 pointer-events-none" />
 
-          <div className="relative flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-emerald-700 via-teal-600 to-amber-500 text-white shadow-lg shadow-emerald-700/20">
-            <IdCard className="h-6 w-6 stroke-[2.2]" />
-            <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-amber-400 border-2 border-white dark:border-slate-900 animate-pulse" />
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div className="flex items-start sm:items-center space-x-4 min-w-0">
+            <Link
+              href="/dashboard"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/20 bg-white/10 text-white hover:bg-white/20 transition-all active:scale-90 shadow-sm backdrop-blur-md"
+              title="Kembali ke Dashboard"
+            >
+              <ArrowLeft className="h-5 w-5 stroke-[2.4]" />
+            </Link>
+
+            <div className="relative flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-amber-400 via-emerald-500 to-teal-400 text-slate-950 shadow-lg font-black">
+              <IdCard className="h-6 w-6 stroke-[2.2]" />
+            </div>
+
+            <div className="space-y-1 min-w-0">
+              <div className="flex items-center space-x-2">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-emerald-200 text-[10px] font-black uppercase tracking-wider backdrop-blur-xl">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                  ID CARD &amp; STICKER QR
+                </span>
+              </div>
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight bg-gradient-to-r from-white via-emerald-100 to-amber-300 bg-clip-text text-transparent truncate">
+                Generator Cetak KTS &amp; Stiker QR
+              </h1>
+              <p className="text-xs text-emerald-100/90 font-medium truncate">
+                Cetak Kartu Tanda Santri fisik atau Stiker Label Undangan QR Code
+              </p>
+            </div>
           </div>
 
-          <div className="space-y-0.5">
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight whitespace-nowrap">
-              Generator Cetak KTS Massal
-            </h1>
-            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-              Cetak cepat &amp; simpan PDF multi-halaman Kartu Tanda Santri
-            </p>
-          </div>
-        </div>
+          <div className="flex flex-col gap-2.5 shrink-0 self-stretch sm:self-end lg:self-auto min-w-[360px]">
+            {/* Switcher Mode: Kartu vs Label 103 vs Stiker A4 */}
+            <div className="flex items-center bg-black/40 p-1.5 rounded-2xl border border-emerald-400/30 text-xs font-bold shadow-inner justify-between gap-1 backdrop-blur-xl">
+              <button
+                type="button"
+                onClick={() => setPrintMode("card")}
+                className={`flex-1 text-center py-2 px-2.5 rounded-xl transition cursor-pointer text-xs flex items-center justify-center space-x-1.5 ${
+                  printMode === "card"
+                    ? "bg-gradient-to-r from-emerald-400 to-teal-300 text-slate-950 shadow-md font-black"
+                    : "text-emerald-100/70 hover:text-white hover:bg-white/10"
+                }`}
+              >
+                <IdCard className="w-3.5 h-3.5" />
+                <span>Kartu KTS</span>
+              </button>
 
-        <div className="flex flex-col gap-2.5 shrink-0 self-stretch sm:self-end lg:self-auto min-w-[360px]">
-          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
-            <div className="flex items-center bg-slate-100/90 dark:bg-slate-800/90 p-1 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs font-bold shadow-inner flex-1 justify-between">
               <button
                 type="button"
-                onClick={() => setCardSide("both")}
-                className={`flex-1 text-center py-1.5 px-2 rounded-xl transition cursor-pointer text-[11px] ${
-                  cardSide === "both"
-                    ? "bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400 shadow-sm font-black"
-                    : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                onClick={() => setPrintMode("label103")}
+                className={`flex-1 text-center py-2 px-2.5 rounded-xl transition cursor-pointer text-xs flex items-center justify-center space-x-1.5 ${
+                  printMode === "label103"
+                    ? "bg-gradient-to-r from-emerald-400 to-teal-300 text-slate-950 shadow-md font-black"
+                    : "text-emerald-100/70 hover:text-white hover:bg-white/10"
                 }`}
               >
-                Bolak-Balik
+                <Tag className="w-3.5 h-3.5" />
+                <span>Stiker Label 103</span>
               </button>
+
               <button
                 type="button"
-                onClick={() => setCardSide("front")}
-                className={`flex-1 text-center py-1.5 px-2 rounded-xl transition cursor-pointer text-[11px] ${
-                  cardSide === "front"
-                    ? "bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400 shadow-sm font-black"
-                    : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                onClick={() => setPrintMode("stickerA4")}
+                className={`flex-1 text-center py-2 px-2.5 rounded-xl transition cursor-pointer text-xs flex items-center justify-center space-x-1.5 ${
+                  printMode === "stickerA4"
+                    ? "bg-gradient-to-r from-emerald-400 to-teal-300 text-slate-950 shadow-md font-black"
+                    : "text-emerald-100/70 hover:text-white hover:bg-white/10"
                 }`}
               >
-                Depan
-              </button>
-              <button
-                type="button"
-                onClick={() => setCardSide("back")}
-                className={`flex-1 text-center py-1.5 px-2 rounded-xl transition cursor-pointer text-[11px] ${
-                  cardSide === "back"
-                    ? "bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400 shadow-sm font-black"
-                    : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
-                }`}
-              >
-                Belakang
+                <Grid className="w-3.5 h-3.5" />
+                <span>Stiker Grid A4 (24)</span>
               </button>
             </div>
 
-            <button
-              type="button"
-              onClick={() => executeIsolatedPrint()}
-              disabled={selectedStudentsToPrint.length === 0}
-              className="inline-flex items-center justify-center space-x-1.5 rounded-2xl bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 px-4 py-2.5 text-xs font-black text-white shadow-lg shadow-emerald-700/25 hover:scale-[1.02] active:scale-95 transition cursor-pointer disabled:opacity-40"
-              title="Cetak Multi-Halaman ke Printer"
-            >
-              <Printer className="h-4 w-4 stroke-[2.5]" />
-              <span className="whitespace-nowrap">Cetak ({selectedStudentsToPrint.length})</span>
-            </button>
+            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
+              {/* Opsi Sisi Kartu (Khusus Mode Kartu) */}
+              {printMode === "card" && (
+                <div className="flex items-center bg-black/40 p-1.5 rounded-2xl border border-emerald-400/30 text-xs font-bold shadow-inner flex-1 justify-between backdrop-blur-xl">
+                  <button
+                    type="button"
+                    onClick={() => setCardSide("both")}
+                    className={`flex-1 text-center py-1.5 px-2 rounded-xl transition cursor-pointer text-[11px] ${
+                      cardSide === "both"
+                        ? "bg-white text-slate-950 shadow-sm font-black"
+                        : "text-emerald-100/70 hover:text-white hover:bg-white/10"
+                    }`}
+                  >
+                    Bolak-Balik
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCardSide("front")}
+                    className={`flex-1 text-center py-1.5 px-2 rounded-xl transition cursor-pointer text-[11px] ${
+                      cardSide === "front"
+                        ? "bg-white text-slate-950 shadow-sm font-black"
+                        : "text-emerald-100/70 hover:text-white hover:bg-white/10"
+                    }`}
+                  >
+                    Depan
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCardSide("back")}
+                    className={`flex-1 text-center py-1.5 px-2 rounded-xl transition cursor-pointer text-[11px] ${
+                      cardSide === "back"
+                        ? "bg-white text-slate-950 shadow-sm font-black"
+                        : "text-emerald-100/70 hover:text-white hover:bg-white/10"
+                    }`}
+                  >
+                    Belakang
+                  </button>
+                </div>
+              )}
 
-            <button
-              type="button"
-              onClick={() =>
-                executeIsolatedPrint(
-                  `KTS_Condong_${new Date().toISOString().split("T")[0]}_(${selectedStudentsToPrint.length}_Santri)`
-                )
-              }
-              disabled={selectedStudentsToPrint.length === 0}
-              className="inline-flex items-center justify-center space-x-1.5 rounded-2xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 px-4 py-2.5 text-xs font-black text-white shadow-lg shadow-cyan-600/25 hover:scale-[1.02] active:scale-95 transition cursor-pointer disabled:opacity-40"
-              title="Simpan Lengkap ke File PDF"
-            >
-              <FileDown className="h-4 w-4 stroke-[2.5]" />
-              <span className="whitespace-nowrap">PDF</span>
-            </button>
+              <button
+                type="button"
+                onClick={() => executeIsolatedPrint()}
+                disabled={selectedStudentsToPrint.length === 0}
+                className="inline-flex items-center justify-center space-x-1.5 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-300 hover:from-emerald-300 hover:to-teal-200 px-4 py-2.5 text-xs font-black text-slate-950 shadow-lg shadow-emerald-900/30 hover:scale-[1.02] active:scale-95 transition cursor-pointer disabled:opacity-40 flex-1"
+                title="Cetak Langsung ke Printer"
+              >
+                <Printer className="h-4 w-4 stroke-[2.5]" />
+                <span className="whitespace-nowrap">Cetak ({selectedStudentsToPrint.length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  executeIsolatedPrint(
+                    `${printMode === "label103" ? "Stiker_103" : printMode === "stickerA4" ? "Stiker_A4" : "KTS"}_${new Date().toISOString().split("T")[0]}_(${selectedStudentsToPrint.length}_Santri)`
+                  )
+                }
+                disabled={selectedStudentsToPrint.length === 0}
+                className="inline-flex items-center justify-center space-x-1.5 rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-400 hover:from-cyan-300 hover:to-blue-300 px-4 py-2.5 text-xs font-black text-slate-950 shadow-lg shadow-cyan-900/30 hover:scale-[1.02] active:scale-95 transition cursor-pointer disabled:opacity-40"
+                title="Simpan Lengkap ke File PDF"
+              >
+                <FileDown className="h-4 w-4 stroke-[2.5]" />
+                <span className="whitespace-nowrap">PDF</span>
+              </button>
+            </div>
+
+            {printMode === "card" && (
+              <button
+                type="button"
+                onClick={() => setShowSettings(!showSettings)}
+                className={`w-full inline-flex items-center justify-center space-x-2 rounded-2xl py-2 px-4 text-xs font-bold border transition cursor-pointer active:scale-98 shadow-xs ${
+                  showSettings
+                    ? "bg-emerald-700 text-white border-emerald-700 shadow-emerald-700/20"
+                    : "bg-white/10 hover:bg-white/20 text-emerald-200 border-white/20 backdrop-blur-md"
+                }`}
+              >
+                <Settings2 className="h-3.5 w-3.5 text-amber-300" />
+                <span>
+                  Pengaturan Kartu ({paperSize} • {cardWidthMm}×{cardHeightMm}mm)
+                </span>
+              </button>
+            )}
           </div>
-
-          <button
-            type="button"
-            onClick={() => setShowSettings(!showSettings)}
-            className={`w-full inline-flex items-center justify-center space-x-2 rounded-2xl py-2 px-4 text-xs font-bold border transition cursor-pointer active:scale-98 shadow-xs ${
-              showSettings
-                ? "bg-emerald-700 text-white border-emerald-700 shadow-emerald-700/20"
-                : "bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/80 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:border-emerald-500"
-            }`}
-          >
-            <Settings2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span>
-              Ukuran Kertas &amp; Dimensi Kartu ({paperSize} • {cardWidthMm}×{cardHeightMm}mm)
-            </span>
-          </button>
         </div>
       </div>
 
-      {/* ================= PANEL PENGATURAN DIMENSI KERTAS & KARTU ================= */}
-      {showSettings && (
+      {/* ================= PANEL PENGATURAN DIMENSI KARTU ================= */}
+      {showSettings && printMode === "card" && (
         <div className="rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-emerald-50/70 via-white to-teal-50/50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-950 p-6 shadow-xl backdrop-blur-xl animate-in fade-in slide-in-from-top-3 duration-200 print:hidden space-y-4">
           <div className="flex items-center justify-between border-b border-emerald-500/20 pb-3">
             <div className="flex items-center space-x-2 text-emerald-800 dark:text-emerald-300 font-black text-sm">
               <Sliders className="h-4 w-4" />
-              <span>Pengaturan Dimensi Cetak</span>
+              <span>Pengaturan Dimensi Cetak KTS</span>
             </div>
             <span className="text-[11px] text-slate-500">
               Menyesuaikan tata letak cetak secara instan
@@ -537,7 +681,7 @@ export default function IdCardsGeneratorPage() {
       )}
 
       {/* ================= DAFTAR PEMILIH SANTRI & FILTER ================= */}
-      <div className="rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-900/90 p-5 sm:p-6 shadow-xl backdrop-blur-xl space-y-4 print:hidden">
+      <div className="rounded-3xl border border-slate-200/80 dark:border-emerald-900/40 bg-white/90 dark:bg-[#0c1815] p-5 sm:p-6 shadow-xl backdrop-blur-xl space-y-4 print:hidden">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-3 text-xs items-center">
           <div className="relative sm:col-span-2 md:col-span-5">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -546,7 +690,7 @@ export default function IdCardsGeneratorPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Cari nama santri, NIS, asrama, atau konsulat..."
-              className="h-10 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 pl-10 pr-3 text-xs font-semibold outline-none focus:border-emerald-500 transition shadow-xs"
+              className="h-10 w-full rounded-2xl border border-slate-200 dark:border-emerald-900/60 bg-slate-50 dark:bg-emerald-950/30 pl-10 pr-3 text-xs font-semibold outline-none focus:border-emerald-500 transition shadow-xs"
             />
           </div>
 
@@ -554,11 +698,11 @@ export default function IdCardsGeneratorPage() {
             <select
               value={filterClass}
               onChange={(e) => setFilterClass(e.target.value)}
-              className="h-10 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer"
+              className="h-10 w-full rounded-2xl border border-slate-200 dark:border-emerald-900/60 bg-slate-50 dark:bg-emerald-950/30 px-3 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer"
             >
-              <option value="all">Semua Kelas ({availableClasses.length})</option>
+              <option value="all" className="dark:bg-slate-900">Semua Kelas ({availableClasses.length})</option>
               {availableClasses.map((cls) => (
-                <option key={cls} value={cls}>
+                <option key={cls} value={cls} className="dark:bg-slate-900">
                   Kelas: {cls}
                 </option>
               ))}
@@ -569,11 +713,11 @@ export default function IdCardsGeneratorPage() {
             <select
               value={filterDorm}
               onChange={(e) => setFilterDorm(e.target.value)}
-              className="h-10 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer"
+              className="h-10 w-full rounded-2xl border border-slate-200 dark:border-emerald-900/60 bg-slate-50 dark:bg-emerald-950/30 px-3 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer"
             >
-              <option value="all">Semua Asrama ({availableDorms.length})</option>
+              <option value="all" className="dark:bg-slate-900">Semua Asrama ({availableDorms.length})</option>
               {availableDorms.map((dorm) => (
-                <option key={dorm} value={dorm}>
+                <option key={dorm} value={dorm} className="dark:bg-slate-900">
                   {dorm}
                 </option>
               ))}
@@ -584,7 +728,7 @@ export default function IdCardsGeneratorPage() {
             <button
               type="button"
               onClick={handleResetFilters}
-              className="w-full h-10 flex items-center justify-center rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition cursor-pointer"
+              className="w-full h-10 flex items-center justify-center rounded-2xl border border-slate-200 dark:border-emerald-900/60 bg-slate-100 hover:bg-slate-200 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 text-slate-600 dark:text-slate-300 transition cursor-pointer"
               title="Batal / Reset Filter"
             >
               <RotateCcw className="h-4 w-4" />
@@ -596,22 +740,24 @@ export default function IdCardsGeneratorPage() {
         <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent border border-emerald-500/20 text-xs">
           <div className="flex items-center space-x-2 font-bold text-emerald-800 dark:text-emerald-300">
             <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-            <span>{selectedStudentsToPrint.length} Santri Terpilih untuk Dicetak</span>
+            <span>
+              {selectedStudentsToPrint.length} Santri Terpilih ({printMode === "label103" ? "Format Stiker Tom & Jerry 103" : printMode === "stickerA4" ? "Format Grid Stiker A4" : "Format Kartu Fisik KTS"})
+            </span>
           </div>
 
           <div className="flex items-center space-x-3 text-[11px] text-slate-500 dark:text-slate-400">
-            <span className="bg-white dark:bg-slate-800 px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-700 font-semibold">
+            <span className="bg-white dark:bg-emerald-950/50 px-2.5 py-1 rounded-xl border border-slate-200 dark:border-emerald-900/40 font-semibold">
               Total: <strong>{students.length} Santri</strong>
             </span>
-            <span className="bg-white dark:bg-slate-800 px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-700 font-semibold">
-              Halaman Dokumen: <strong>{printPages.length} Lembar ({paperSize})</strong>
+            <span className="bg-white dark:bg-emerald-950/50 px-2.5 py-1 rounded-xl border border-slate-200 dark:border-emerald-900/40 font-semibold">
+              Halaman Dokumen: <strong>{printPages.length} Lembar ({printMode === "label103" ? "Label 103" : paperSize})</strong>
             </span>
           </div>
         </div>
 
         {/* Box Checklist Pemilih Santri */}
-        <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-slate-50/50 dark:bg-slate-950/40">
-          <div className="flex items-center justify-between p-3 bg-slate-100 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-800 text-xs font-bold">
+        <div className="border border-slate-200 dark:border-emerald-900/40 rounded-2xl overflow-hidden bg-slate-50/50 dark:bg-emerald-950/20">
+          <div className="flex items-center justify-between p-3 bg-slate-100 dark:bg-emerald-950/50 border-b border-slate-200 dark:border-emerald-900/40 text-xs font-bold">
             <button
               type="button"
               onClick={handleToggleSelectAll}
@@ -649,7 +795,7 @@ export default function IdCardsGeneratorPage() {
                     className={`flex items-center space-x-3 p-3 rounded-2xl border transition-all duration-200 cursor-pointer select-none group ${
                       isSelected
                         ? "bg-emerald-50/90 dark:bg-emerald-950/40 border-emerald-500/50 shadow-md shadow-emerald-500/5 scale-[1.01]"
-                        : "bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-emerald-300 hover:shadow-sm"
+                        : "bg-white dark:bg-[#071310] border-slate-200/80 dark:border-emerald-900/30 text-slate-600 dark:text-slate-400 hover:border-emerald-300 hover:shadow-sm"
                     }`}
                   >
                     <input
@@ -659,7 +805,7 @@ export default function IdCardsGeneratorPage() {
                       className="rounded text-emerald-600 pointer-events-none"
                     />
 
-                    <div className="relative h-10 w-9 shrink-0 rounded-xl overflow-hidden bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 shadow-xs group-hover:scale-105 transition-transform flex items-center justify-center">
+                    <div className="relative h-10 w-9 shrink-0 rounded-xl overflow-hidden bg-slate-200 dark:bg-emerald-900/40 border border-slate-300 dark:border-emerald-800 shadow-xs group-hover:scale-105 transition-transform flex items-center justify-center">
                       {st.photo_url ? (
                         <img
                           src={st.photo_url}
@@ -693,12 +839,349 @@ export default function IdCardsGeneratorPage() {
           PRINT TEMPLATE SOURCE (MULTI-PAGE CHUNKS SOURCE)
           ===================================================================== */}
       <div id="print-area-kts" style={{ display: "none" }}>
-        {printPages.map((pageCards, pageIndex) => (
-          <div key={`print-page-${pageIndex}`} className="kts-print-page">
-            {pageCards.map(({ type, student }, cardIndex) => {
-              if (type === "front") {
+        {/* ================= MODE 1: KARTU FISIK KTS ================= */}
+        {printMode === "card" &&
+          printPages.map((pageCards: any[], pageIndex: number) => (
+            <div key={`print-card-page-${pageIndex}`} className="kts-print-page">
+              {pageCards.map(({ type, student }: any, cardIndex: number) => {
+                if (type === "front") {
+                  return (
+                    <div key={`front-${student.nis}-${cardIndex}`} className="print-card-item">
+                      <div
+                        style={{
+                          width: `${cardWidthMm}mm`,
+                          height: `${cardHeightMm}mm`,
+                          boxSizing: "border-box",
+                          backgroundColor: "#ffffff",
+                          display: "flex",
+                          flexDirection: "column",
+                          justifyContent: "space-between",
+                        }}
+                        className="kts-card relative"
+                      >
+                        {/* Header Kop Depan */}
+                        <div>
+                          <div
+                            style={{
+                              backgroundColor: "#064e3b",
+                              height: "38px",
+                              width: "100%",
+                              padding: "0 12px",
+                              boxSizing: "border-box",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "9px",
+                            }}
+                            className="kts-header-solid"
+                          >
+                            <img
+                              src="/logo Condong.png"
+                              alt="Logo Condong"
+                              style={{
+                                width: "24px",
+                                height: "24px",
+                                objectFit: "contain",
+                                display: "block",
+                                flexShrink: 0,
+                              }}
+                            />
+
+                            <div style={{ textAlign: "left", lineHeight: "1.15", flex: 1, minWidth: 0 }}>
+                              <span
+                                style={{
+                                  color: "#ffffff",
+                                  fontSize: "9px",
+                                  fontWeight: "900",
+                                  textTransform: "uppercase",
+                                  letterSpacing: "0.8px",
+                                  display: "block",
+                                }}
+                              >
+                                KARTU TANDA SANTRI
+                              </span>
+                              <span
+                                style={{
+                                  color: "#fef08a",
+                                  fontSize: "6.5px",
+                                  fontWeight: "700",
+                                  display: "block",
+                                  marginTop: "1px",
+                                }}
+                              >
+                                Pondok Pesantren Riyadlul &apos;Ulum Wadda&apos;wah Condong
+                              </span>
+                            </div>
+                          </div>
+
+                          <div
+                            style={{
+                              backgroundColor: "#d97706",
+                              height: "2.5px",
+                              width: "100%",
+                            }}
+                            className="kts-gold-solid"
+                          />
+                        </div>
+
+                        {/* Body Depan */}
+                        <div
+                          style={{
+                            padding: "4px 10px 2px",
+                            margin: "auto 0",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            gap: "8px",
+                            width: "100%",
+                            boxSizing: "border-box",
+                          }}
+                        >
+                          <div style={{ width: "66px", flexShrink: 0, textAlign: "center" }}>
+                            <div
+                              style={{
+                                width: "64px",
+                                height: "82px",
+                                borderRadius: "7px",
+                                border: "2px solid #d97706",
+                                backgroundColor: "#f8fafc",
+                                overflow: "hidden",
+                                boxSizing: "border-box",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                margin: "0 auto",
+                              }}
+                            >
+                              {student.photo_url ? (
+                                <img
+                                  src={student.photo_url}
+                                  alt={student.name}
+                                  style={{
+                                    width: "100%",
+                                    height: "100%",
+                                    objectFit: "cover",
+                                    display: "block",
+                                  }}
+                                />
+                              ) : (
+                                <div
+                                  style={{
+                                    width: "100%",
+                                    height: "100%",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    fontWeight: "900",
+                                    fontSize: "24px",
+                                    color: "#064e3b",
+                                    backgroundColor: "#ecfdf5",
+                                  }}
+                                >
+                                  {student.name.charAt(0)}
+                                </div>
+                              )}
+                            </div>
+
+                            <div
+                              style={{
+                                backgroundColor: "#064e3b",
+                                color: "#fef08a",
+                                fontSize: "6.5px",
+                                fontWeight: "800",
+                                fontFamily: "monospace",
+                                padding: "1.5px 0",
+                                borderRadius: "3px",
+                                marginTop: "2.5px",
+                                lineHeight: "1",
+                              }}
+                              className="kts-badge-nis-solid"
+                            >
+                              NIS: {student.nis}
+                            </div>
+                          </div>
+
+                          <div
+                            style={{
+                              flex: 1,
+                              minWidth: 0,
+                              paddingLeft: "6px",
+                              borderLeft: "2px solid #064e3b",
+                            }}
+                          >
+                            <div
+                              style={{
+                                color: "#0f172a",
+                                fontWeight: "900",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.2px",
+                                lineHeight: "1.15",
+                                marginBottom: "2px",
+                              }}
+                              className={getDynamicNameFontSize(student.name)}
+                            >
+                              {student.name}
+                            </div>
+
+                            <div
+                              style={{
+                                color: "#b45309",
+                                fontSize: "6.2px",
+                                fontWeight: "800",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.5px",
+                                marginBottom: "4px",
+                              }}
+                            >
+                              SANTRI MUKIM AKTIF
+                            </div>
+
+                            <div
+                              style={{
+                                display: "grid",
+                                gridTemplateColumns: "1fr 1fr",
+                                gap: "3px",
+                                marginBottom: "2px",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  border: "1px solid #cbd5e1",
+                                  backgroundColor: "#f8fafc",
+                                  padding: "2px 4px",
+                                  borderRadius: "4px",
+                                  fontSize: "6.8px",
+                                }}
+                              >
+                                <span style={{ color: "#64748b", fontWeight: "700", fontSize: "5px", display: "block", textTransform: "uppercase" }}>
+                                  KELAS
+                                </span>
+                                <strong style={{ color: "#0f172a", fontWeight: "800" }}>{student.class}</strong>
+                              </div>
+
+                              <div
+                                style={{
+                                  border: "1px solid #cbd5e1",
+                                  backgroundColor: "#f8fafc",
+                                  padding: "2px 4px",
+                                  borderRadius: "4px",
+                                  fontSize: "6.8px",
+                                }}
+                              >
+                                <span style={{ color: "#64748b", fontWeight: "700", fontSize: "5px", display: "block", textTransform: "uppercase" }}>
+                                  KAMAR ASRAMA
+                                </span>
+                                <strong style={{ color: "#0f172a", fontWeight: "800", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", display: "block" }}>
+                                  {student.dorm}
+                                </strong>
+                              </div>
+
+                              <div
+                                style={{
+                                  border: "1px solid #cbd5e1",
+                                  backgroundColor: "#f8fafc",
+                                  padding: "2px 4px",
+                                  borderRadius: "4px",
+                                  fontSize: "6.8px",
+                                }}
+                              >
+                                <span style={{ color: "#64748b", fontWeight: "700", fontSize: "5px", display: "block", textTransform: "uppercase" }}>
+                                  KONSULAT
+                                </span>
+                                <strong style={{ color: "#0f172a", fontWeight: "800", textTransform: "uppercase", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", display: "block" }}>
+                                  {student.consulate}
+                                </strong>
+                              </div>
+
+                              <div
+                                style={{
+                                  border: "1px solid #cbd5e1",
+                                  backgroundColor: "#f8fafc",
+                                  padding: "2px 4px",
+                                  borderRadius: "4px",
+                                  fontSize: "6.8px",
+                                }}
+                              >
+                                <span style={{ color: "#64748b", fontWeight: "700", fontSize: "5px", display: "block", textTransform: "uppercase" }}>
+                                  TAHUN MASUK
+                                </span>
+                                <strong style={{ color: "#0f172a", fontWeight: "800" }}>
+                                  Angkatan {student.entry_year}
+                                </strong>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div
+                            style={{
+                              textAlign: "center",
+                              width: "60px",
+                              flexShrink: 0,
+                            }}
+                          >
+                            <div
+                              style={{
+                                padding: "2px",
+                                backgroundColor: "#ffffff",
+                                border: "1.5px solid #cbd5e1",
+                                borderRadius: "6px",
+                                display: "inline-block",
+                              }}
+                            >
+                              <QRCodeSVG
+                                value={generateStandardQRPayload({ nis: student.nis, id: student.id })}
+                                size={56}
+                                level="M"
+                                includeMargin={false}
+                              />
+                            </div>
+                            <div
+                              style={{
+                                backgroundColor: "#064e3b",
+                                color: "#ffffff",
+                                fontSize: "5px",
+                                fontWeight: "900",
+                                textTransform: "uppercase",
+                                padding: "1px 2px",
+                                borderRadius: "2px",
+                                marginTop: "2px",
+                                letterSpacing: "0.4px",
+                              }}
+                              className="kts-header-solid"
+                            >
+                              SCAN PROFIL
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Footer Depan */}
+                        <div
+                          style={{
+                            backgroundColor: "#f1f5f9",
+                            borderTop: "1px solid #cbd5e1",
+                            padding: "3.5px 12px",
+                            fontSize: "6px",
+                            boxSizing: "border-box",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                          }}
+                        >
+                          <div style={{ color: "#475569", fontWeight: "700", display: "flex", alignItems: "center", gap: "3px" }}>
+                            <Building2 style={{ width: "9px", height: "9px", color: "#064e3b" }} />
+                            <span>Tasikmalaya, Jawa Barat</span>
+                          </div>
+                          <span style={{ fontStyle: "italic", fontWeight: "800", color: "#064e3b" }}>
+                            *Berlaku Selama Menjadi Santri
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Sisi Belakang
                 return (
-                  <div key={`front-${student.nis}-${cardIndex}`} className="print-card-item">
+                  <div key={`back-${student.nis}-${cardIndex}`} className="print-card-item">
                     <div
                       style={{
                         width: `${cardWidthMm}mm`,
@@ -711,7 +1194,6 @@ export default function IdCardsGeneratorPage() {
                       }}
                       className="kts-card relative"
                     >
-                      {/* Header Kop Depan */}
                       <div>
                         <div
                           style={{
@@ -722,49 +1204,23 @@ export default function IdCardsGeneratorPage() {
                             boxSizing: "border-box",
                             display: "flex",
                             alignItems: "center",
-                            gap: "9px",
+                            justifyContent: "space-between",
                           }}
                           className="kts-header-solid"
                         >
-                          <img
-                            src="/logo Condong.png"
-                            alt="Logo Condong"
+                          <span
                             style={{
-                              width: "24px",
-                              height: "24px",
-                              objectFit: "contain",
-                              display: "block",
-                              flexShrink: 0,
+                              color: "#fef08a",
+                              fontSize: "8.5px",
+                              fontWeight: "900",
+                              textTransform: "uppercase",
+                              letterSpacing: "0.8px",
                             }}
-                          />
-
-                          <div style={{ textAlign: "left", lineHeight: "1.15", flex: 1, minWidth: 0 }}>
-                            <span
-                              style={{
-                                color: "#ffffff",
-                                fontSize: "9px",
-                                fontWeight: "900",
-                                textTransform: "uppercase",
-                                letterSpacing: "0.8px",
-                                display: "block",
-                              }}
-                            >
-                              KARTU TANDA SANTRI
-                            </span>
-                            <span
-                              style={{
-                                color: "#fef08a",
-                                fontSize: "6.5px",
-                                fontWeight: "700",
-                                display: "block",
-                                marginTop: "1px",
-                              }}
-                            >
-                              Pondok Pesantren Riyadlul &apos;Ulum Wadda&apos;wah Condong
-                            </span>
-                          </div>
+                          >
+                            KETENTUAN PEMEGANG KARTU
+                          </span>
+                          <ShieldCheck style={{ width: "16px", height: "16px", color: "#fef08a" }} />
                         </div>
-
                         <div
                           style={{
                             backgroundColor: "#d97706",
@@ -775,413 +1231,181 @@ export default function IdCardsGeneratorPage() {
                         />
                       </div>
 
-                      {/* Body Depan */}
-                      <div
-                        style={{
-                          padding: "4px 10px 2px",
-                          margin: "auto 0",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          gap: "8px",
-                          width: "100%",
-                          boxSizing: "border-box",
-                        }}
-                      >
-                        {/* Pas Foto Besar */}
-                        <div style={{ width: "66px", flexShrink: 0, textAlign: "center" }}>
-                          <div
-                            style={{
-                              width: "64px",
-                              height: "82px",
-                              borderRadius: "7px",
-                              border: "2px solid #d97706",
-                              backgroundColor: "#f8fafc",
-                              overflow: "hidden",
-                              boxSizing: "border-box",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              margin: "0 auto",
-                            }}
-                          >
-                            {student.photo_url ? (
-                              <img
-                                src={student.photo_url}
-                                alt={student.name}
-                                style={{
-                                  width: "100%",
-                                  height: "100%",
-                                  objectFit: "cover",
-                                  display: "block",
-                                }}
-                              />
-                            ) : (
-                              <div
-                                style={{
-                                  width: "100%",
-                                  height: "100%",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  fontWeight: "900",
-                                  fontSize: "24px",
-                                  color: "#064e3b",
-                                  backgroundColor: "#ecfdf5",
-                                }}
-                              >
-                                {student.name.charAt(0)}
-                              </div>
-                            )}
-                          </div>
-
-                          <div
-                            style={{
-                              backgroundColor: "#064e3b",
-                              color: "#fef08a",
-                              fontSize: "6.5px",
-                              fontWeight: "800",
-                              fontFamily: "monospace",
-                              padding: "1.5px 0",
-                              borderRadius: "3px",
-                              marginTop: "2.5px",
-                              lineHeight: "1",
-                            }}
-                            className="kts-badge-nis-solid"
-                          >
-                            NIS: {student.nis}
-                          </div>
+                      <div style={{ padding: "4px 12px", margin: "auto 0", fontSize: "7px", lineHeight: "11px", color: "#1e293b" }}>
+                        <div style={{ display: "flex", alignItems: "flex-start", gap: "5px", marginBottom: "3px" }}>
+                          <span style={{ backgroundColor: "#064e3b", color: "#fef08a", fontWeight: "900", fontSize: "6px", borderRadius: "50%", width: "12px", height: "12px", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                            1
+                          </span>
+                          <span style={{ fontWeight: "600" }}>Kartu ini adalah tanda pengenal resmi santri Pondok Pesantren Condong.</span>
                         </div>
 
-                        {/* Rincian Data */}
-                        <div
-                          style={{
-                            flex: 1,
-                            minWidth: 0,
-                            paddingLeft: "6px",
-                            borderLeft: "2px solid #064e3b",
-                          }}
-                        >
-                          <div
-                            style={{
-                              color: "#0f172a",
-                              fontWeight: "900",
-                              textTransform: "uppercase",
-                              letterSpacing: "0.2px",
-                              lineHeight: "1.15",
-                              marginBottom: "2px",
-                            }}
-                            className={getDynamicNameFontSize(student.name)}
-                          >
-                            {student.name}
-                          </div>
-
-                          <div
-                            style={{
-                              color: "#b45309",
-                              fontSize: "6.2px",
-                              fontWeight: "800",
-                              textTransform: "uppercase",
-                              letterSpacing: "0.5px",
-                              marginBottom: "4px",
-                            }}
-                          >
-                            SANTRI MUKIM AKTIF
-                          </div>
-
-                          <div
-                            style={{
-                              display: "grid",
-                              gridTemplateColumns: "1fr 1fr",
-                              gap: "3px",
-                              marginBottom: "2px",
-                            }}
-                          >
-                            <div
-                              style={{
-                                border: "1px solid #cbd5e1",
-                                backgroundColor: "#f8fafc",
-                                padding: "2px 4px",
-                                borderRadius: "4px",
-                                fontSize: "6.8px",
-                              }}
-                            >
-                              <span style={{ color: "#64748b", fontWeight: "700", fontSize: "5px", display: "block", textTransform: "uppercase" }}>
-                                KELAS
-                              </span>
-                              <strong style={{ color: "#0f172a", fontWeight: "800" }}>{student.class}</strong>
-                            </div>
-
-                            <div
-                              style={{
-                                border: "1px solid #cbd5e1",
-                                backgroundColor: "#f8fafc",
-                                padding: "2px 4px",
-                                borderRadius: "4px",
-                                fontSize: "6.8px",
-                              }}
-                            >
-                              <span style={{ color: "#64748b", fontWeight: "700", fontSize: "5px", display: "block", textTransform: "uppercase" }}>
-                                KAMAR ASRAMA
-                              </span>
-                              <strong style={{ color: "#0f172a", fontWeight: "800", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", display: "block" }}>
-                                {student.dorm}
-                              </strong>
-                            </div>
-
-                            <div
-                              style={{
-                                border: "1px solid #cbd5e1",
-                                backgroundColor: "#f8fafc",
-                                padding: "2px 4px",
-                                borderRadius: "4px",
-                                fontSize: "6.8px",
-                              }}
-                            >
-                              <span style={{ color: "#64748b", fontWeight: "700", fontSize: "5px", display: "block", textTransform: "uppercase" }}>
-                                KONSULAT
-                              </span>
-                              <strong style={{ color: "#0f172a", fontWeight: "800", textTransform: "uppercase", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", display: "block" }}>
-                                {student.consulate}
-                              </strong>
-                            </div>
-
-                            <div
-                              style={{
-                                border: "1px solid #cbd5e1",
-                                backgroundColor: "#f8fafc",
-                                padding: "2px 4px",
-                                borderRadius: "4px",
-                                fontSize: "6.8px",
-                              }}
-                            >
-                              <span style={{ color: "#64748b", fontWeight: "700", fontSize: "5px", display: "block", textTransform: "uppercase" }}>
-                                TAHUN MASUK
-                              </span>
-                              <strong style={{ color: "#0f172a", fontWeight: "800" }}>
-                                Angkatan {student.entry_year}
-                              </strong>
-                            </div>
-                          </div>
+                        <div style={{ display: "flex", alignItems: "flex-start", gap: "5px", marginBottom: "3px" }}>
+                          <span style={{ backgroundColor: "#064e3b", color: "#fef08a", fontWeight: "900", fontSize: "6px", borderRadius: "50%", width: "12px", height: "12px", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                            2
+                          </span>
+                          <span style={{ fontWeight: "600" }}>Wajib dibawa saat perizinan keluar gerbang, kunjungan wali, dan kegiatan resmi.</span>
                         </div>
 
-                        {/* QR Code Standar */}
-                        <div
-                          style={{
-                            textAlign: "center",
-                            width: "60px",
-                            flexShrink: 0,
-                          }}
-                        >
-                          <div
-                            style={{
-                              padding: "2px",
-                              backgroundColor: "#ffffff",
-                              border: "1.5px solid #cbd5e1",
-                              borderRadius: "6px",
-                              display: "inline-block",
-                            }}
-                          >
-                            <QRCodeSVG
-                              value={generateStandardQRPayload({ nis: student.nis, id: student.id })}
-                              size={56}
-                              level="M"
-                              includeMargin={false}
-                            />
-                          </div>
-                          <div
-                            style={{
-                              backgroundColor: "#064e3b",
-                              color: "#ffffff",
-                              fontSize: "5px",
-                              fontWeight: "900",
-                              textTransform: "uppercase",
-                              padding: "1px 2px",
-                              borderRadius: "2px",
-                              marginTop: "2px",
-                              letterSpacing: "0.4px",
-                            }}
-                            className="kts-header-solid"
-                          >
-                            SCAN PROFIL
-                          </div>
+                        <div style={{ display: "flex", alignItems: "flex-start", gap: "5px", marginBottom: "3px" }}>
+                          <span style={{ backgroundColor: "#064e3b", color: "#fef08a", fontWeight: "900", fontSize: "6px", borderRadius: "50%", width: "12px", height: "12px", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                            3
+                          </span>
+                          <span style={{ fontWeight: "600" }}>QR Code di sisi depan terhubung langsung ke server portal monitoring perizinan santri.</span>
+                        </div>
+
+                        <div style={{ display: "flex", alignItems: "flex-start", gap: "5px", marginBottom: "3px" }}>
+                          <span style={{ backgroundColor: "#064e3b", color: "#fef08a", fontWeight: "900", fontSize: "6px", borderRadius: "50%", width: "12px", height: "12px", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                            4
+                          </span>
+                          <span style={{ fontWeight: "600" }}>Dilarang keras memindahtangankan, meminjamkan, atau memalsukan kartu ini.</span>
+                        </div>
+
+                        <div style={{ display: "flex", alignItems: "flex-start", gap: "5px" }}>
+                          <span style={{ backgroundColor: "#064e3b", color: "#fef08a", fontWeight: "900", fontSize: "6px", borderRadius: "50%", width: "12px", height: "12px", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                            5
+                          </span>
+                          <span style={{ fontWeight: "600" }}>Bila menemukan kartu ini, harap segera menghubungi Bagian Pengasuhan Santri.</span>
                         </div>
                       </div>
 
-                      {/* Footer Depan */}
                       <div
                         style={{
                           backgroundColor: "#f1f5f9",
                           borderTop: "1px solid #cbd5e1",
-                          padding: "3.5px 12px",
+                          padding: "4px 12px",
                           fontSize: "6px",
                           boxSizing: "border-box",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "space-between",
+                          minHeight: "28px",
                         }}
                       >
-                        <div style={{ color: "#475569", fontWeight: "700", display: "flex", alignItems: "center", gap: "3px" }}>
-                          <Building2 style={{ width: "9px", height: "9px", color: "#064e3b" }} />
-                          <span>Tasikmalaya, Jawa Barat</span>
+                        <div style={{ lineHeight: "1.2", textAlign: "left" }}>
+                          <div style={{ fontWeight: "700", fontSize: "6.5px", color: "#0f172a" }}>
+                            Pondok Pesantren
+                          </div>
+                          <div style={{ fontWeight: "900", color: "#064e3b", fontSize: "7px" }}>
+                            Riyadlul Wadda&apos;wah Condong
+                          </div>
+                          <div style={{ color: "#64748b", fontSize: "5px" }}>
+                            Cibeureum - Setianegara - Kota Tasikmalaya
+                          </div>
                         </div>
-                        <span style={{ fontStyle: "italic", fontWeight: "800", color: "#064e3b" }}>
-                          *Berlaku Selama Menjadi Santri
-                        </span>
+
+                        <div style={{ textAlign: "right", lineHeight: "1.2" }}>
+                          <div style={{ fontWeight: "900", color: "#0f172a", textTransform: "uppercase", fontSize: "7px" }}>
+                            Bagian Pengasuhan Santri
+                          </div>
+                          <div style={{ fontStyle: "italic", fontWeight: "800", color: "#047857", fontSize: "6.2px" }}>
+                            Tarbiyah &amp; Disiplin
+                          </div>
+                          <div
+                            style={{
+                              fontSize: "5.5px",
+                              color: "#1e293b",
+                              fontFamily: "monospace",
+                              fontWeight: "800",
+                              backgroundColor: "#fef3c7",
+                              padding: "1px 4px",
+                              borderRadius: "3px",
+                              border: "1px solid #fde68a",
+                              display: "inline-block",
+                              marginTop: "1px",
+                            }}
+                          >
+                            Narahubung: 0812-3456-7890
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
                 );
-              }
+              })}
+            </div>
+          ))}
 
-              // Sisi Belakang
-              return (
-                <div key={`back-${student.nis}-${cardIndex}`} className="print-card-item">
-                  <div
-                    style={{
-                      width: `${cardWidthMm}mm`,
-                      height: `${cardHeightMm}mm`,
-                      boxSizing: "border-box",
-                      backgroundColor: "#ffffff",
-                      display: "flex",
-                      flexDirection: "column",
-                      justifyContent: "space-between",
-                    }}
-                    className="kts-card relative"
-                  >
-                    {/* Header Kop Belakang */}
-                    <div>
-                      <div
-                        style={{
-                          backgroundColor: "#064e3b",
-                          height: "38px",
-                          width: "100%",
-                          padding: "0 12px",
-                          boxSizing: "border-box",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                        }}
-                        className="kts-header-solid"
-                      >
-                        <span
-                          style={{
-                            color: "#fef08a",
-                            fontSize: "8.5px",
-                            fontWeight: "900",
-                            textTransform: "uppercase",
-                            letterSpacing: "0.8px",
-                          }}
-                        >
-                          KETENTUAN PEMEGANG KARTU
-                        </span>
-                        <ShieldCheck style={{ width: "16px", height: "16px", color: "#fef08a" }} />
-                      </div>
-                      <div
-                        style={{
-                          backgroundColor: "#d97706",
-                          height: "2.5px",
-                          width: "100%",
-                        }}
-                        className="kts-gold-solid"
-                      />
+        {/* ================= MODE 2: STIKER LABEL UNDANGAN NO. 103 (12/LEMBAR) ================= */}
+        {printMode === "label103" &&
+          printPages.map((pageStudents: StudentItem[], pageIndex: number) => (
+            <div key={`print-label103-page-${pageIndex}`} className="sticker-103-page">
+              {pageStudents.map((student) => (
+                <div key={`stk103-${student.nis}`} className="sticker-103-item">
+                  <div style={{ flexShrink: 0, padding: "1.5px", border: "1px solid #064e3b", borderRadius: "4px", display: "inline-block" }}>
+                    <QRCodeSVG
+                      value={generateStandardQRPayload({ nis: student.nis, id: student.id })}
+                      size={80}
+                      level="M"
+                      includeMargin={false}
+                    />
+                  </div>
+
+                  <div style={{ flex: 1, minWidth: 0, lineHeight: "1.25", textAlign: "left" }}>
+                    <div style={{ fontSize: "6px", fontWeight: "800", color: "#064e3b", textTransform: "uppercase", letterSpacing: "0.4px" }}>
+                      PESANTREN CONDONG
                     </div>
 
-                    {/* 5 Butir Tata Tertib */}
-                    <div style={{ padding: "4px 12px", margin: "auto 0", fontSize: "7px", lineHeight: "11px", color: "#1e293b" }}>
-                      <div style={{ display: "flex", alignItems: "flex-start", gap: "5px", marginBottom: "3px" }}>
-                        <span style={{ backgroundColor: "#064e3b", color: "#fef08a", fontWeight: "900", fontSize: "6px", borderRadius: "50%", width: "12px", height: "12px", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                          1
-                        </span>
-                        <span style={{ fontWeight: "600" }}>Kartu ini adalah tanda pengenal resmi santri Pondok Pesantren Condong.</span>
-                      </div>
-
-                      <div style={{ display: "flex", alignItems: "flex-start", gap: "5px", marginBottom: "3px" }}>
-                        <span style={{ backgroundColor: "#064e3b", color: "#fef08a", fontWeight: "900", fontSize: "6px", borderRadius: "50%", width: "12px", height: "12px", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                          2
-                        </span>
-                        <span style={{ fontWeight: "600" }}>Wajib dibawa saat perizinan keluar gerbang, kunjungan wali, dan kegiatan resmi.</span>
-                      </div>
-
-                      <div style={{ display: "flex", alignItems: "flex-start", gap: "5px", marginBottom: "3px" }}>
-                        <span style={{ backgroundColor: "#064e3b", color: "#fef08a", fontWeight: "900", fontSize: "6px", borderRadius: "50%", width: "12px", height: "12px", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                          3
-                        </span>
-                        <span style={{ fontWeight: "600" }}>QR Code di sisi depan terhubung langsung ke server portal monitoring perizinan santri.</span>
-                      </div>
-
-                      <div style={{ display: "flex", alignItems: "flex-start", gap: "5px", marginBottom: "3px" }}>
-                        <span style={{ backgroundColor: "#064e3b", color: "#fef08a", fontWeight: "900", fontSize: "6px", borderRadius: "50%", width: "12px", height: "12px", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                          4
-                        </span>
-                        <span style={{ fontWeight: "600" }}>Dilarang keras memindahtangankan, meminjamkan, atau memalsukan kartu ini.</span>
-                      </div>
-
-                      <div style={{ display: "flex", alignItems: "flex-start", gap: "5px" }}>
-                        <span style={{ backgroundColor: "#064e3b", color: "#fef08a", fontWeight: "900", fontSize: "6px", borderRadius: "50%", width: "12px", height: "12px", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                          5
-                        </span>
-                        <span style={{ fontWeight: "600" }}>Bila menemukan kartu ini, harap segera menghubungi Bagian Pengasuhan Santri.</span>
-                      </div>
+                    <div style={{ fontSize: "8.5px", fontWeight: "900", color: "#0f172a", textTransform: "uppercase", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", margin: "1px 0" }}>
+                      {student.name}
                     </div>
 
-                    {/* Footer Belakang */}
-                    <div
-                      style={{
-                        backgroundColor: "#f1f5f9",
-                        borderTop: "1px solid #cbd5e1",
-                        padding: "4px 12px",
-                        fontSize: "6px",
-                        boxSizing: "border-box",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        minHeight: "28px",
-                      }}
-                    >
-                      <div style={{ lineHeight: "1.2", textAlign: "left" }}>
-                        <div style={{ fontWeight: "700", fontSize: "6.5px", color: "#0f172a" }}>
-                          Pondok Pesantren
-                        </div>
-                        <div style={{ fontWeight: "900", color: "#064e3b", fontSize: "7px" }}>
-                          Riyadlul Wadda&apos;wah Condong
-                        </div>
-                        <div style={{ color: "#64748b", fontSize: "5px" }}>
-                          Cibeureum - Setianegara - Kota Tasikmalaya
-                        </div>
-                      </div>
+                    <div style={{ fontSize: "7px", fontFamily: "monospace", fontWeight: "800", color: "#b45309" }}>
+                      NIS: {student.nis}
+                    </div>
 
-                      <div style={{ textAlign: "right", lineHeight: "1.2" }}>
-                        <div style={{ fontWeight: "900", color: "#0f172a", textTransform: "uppercase", fontSize: "7px" }}>
-                          Bagian Pengasuhan Santri
-                        </div>
-                        <div style={{ fontStyle: "italic", fontWeight: "800", color: "#047857", fontSize: "6.2px" }}>
-                          Tarbiyah &amp; Disiplin
-                        </div>
-                        <div
-                          style={{
-                            fontSize: "5.5px",
-                            color: "#1e293b",
-                            fontFamily: "monospace",
-                            fontWeight: "800",
-                            backgroundColor: "#fef3c7",
-                            padding: "1px 4px",
-                            borderRadius: "3px",
-                            border: "1px solid #fde68a",
-                            display: "inline-block",
-                            marginTop: "1px",
-                          }}
-                        >
-                          Narahubung: 0812-3456-7890
-                        </div>
-                      </div>
+                    <div style={{ fontSize: "6.5px", color: "#334155", fontWeight: "700", marginTop: "1.5px" }}>
+                      Kelas: {student.class}
+                    </div>
+
+                    <div style={{ fontSize: "6px", color: "#64748b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      Kamar: {student.dorm}
                     </div>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        ))}
+              ))}
+            </div>
+          ))}
+
+        {/* ================= MODE 3: STIKER GRID A4 KOMPAK (24/LEMBAR) ================= */}
+        {printMode === "stickerA4" &&
+          printPages.map((pageStudents: StudentItem[], pageIndex: number) => (
+            <div key={`print-stickera4-page-${pageIndex}`} className="sticker-a4-page">
+              {pageStudents.map((student) => (
+                <div key={`stka4-${student.nis}`} className="sticker-a4-item">
+                  <div style={{ flexShrink: 0, padding: "2px", border: "1.5px solid #047857", borderRadius: "5px", display: "inline-block" }}>
+                    <QRCodeSVG
+                      value={generateStandardQRPayload({ nis: student.nis, id: student.id })}
+                      size={82}
+                      level="M"
+                      includeMargin={false}
+                    />
+                  </div>
+
+                  <div style={{ flex: 1, minWidth: 0, lineHeight: "1.25", textAlign: "left" }}>
+                    <div style={{ fontSize: "6px", fontWeight: "900", color: "#047857", textTransform: "uppercase", letterSpacing: "0.3px" }}>
+                      SIPS CONDONG
+                    </div>
+
+                    <div style={{ fontSize: "8.5px", fontWeight: "900", color: "#0f172a", textTransform: "uppercase", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", margin: "1px 0" }}>
+                      {student.name}
+                    </div>
+
+                    <div style={{ fontSize: "7px", fontFamily: "monospace", fontWeight: "800", color: "#b45309" }}>
+                      NIS: {student.nis}
+                    </div>
+
+                    <div style={{ fontSize: "6.5px", color: "#334155", fontWeight: "700", marginTop: "1px" }}>
+                      Kelas: {student.class}
+                    </div>
+
+                    <div style={{ fontSize: "6px", color: "#64748b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      Asrama: {student.dorm}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))}
       </div>
     </div>
   );

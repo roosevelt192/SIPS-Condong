@@ -530,7 +530,7 @@ export default function ViolationsDashboardPage() {
   };
 
   return (
-    <div className="space-y-5 max-w-7xl mx-auto font-sans relative pb-24">
+    <div className="space-y-6 max-w-7xl mx-auto font-sans relative pb-24">
       {/* ================= STRICT CSS PRINT ENGINE ================= */}
       <style jsx global>{`
         @media print {
@@ -555,84 +555,91 @@ export default function ViolationsDashboardPage() {
         }
       `}</style>
 
-      {/* ================= HEADER HERO BANNER ================= */}
-      <div className="relative overflow-hidden rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-900/90 p-4 sm:p-5 shadow-sm backdrop-blur-xl print:hidden">
-        <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
-          <div className="flex items-center space-x-3.5 min-w-0">
+      {/* ================= HEADER HERO BANNER (SUPER COLORFUL & INTERAKTIF) ================= */}
+      <div className="relative overflow-hidden rounded-[36px] bg-gradient-to-r from-rose-950 via-[#7f1d1d] to-rose-900 p-6 sm:p-8 text-white shadow-2xl border border-rose-500/40">
+        <div className="absolute -top-32 -right-32 w-80 h-80 rounded-full bg-rose-400/20 blur-[80px] pointer-events-none animate-pulse" />
+        <div className="absolute -bottom-32 -left-32 w-80 h-80 rounded-full bg-amber-400/20 blur-[80px] pointer-events-none" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white/10 via-transparent to-black/30 pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col xl:flex-row xl:items-center justify-between gap-6">
+          <div className="flex items-start sm:items-center space-x-4 min-w-0">
             <Link
               href="/dashboard"
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-rose-600 transition active:scale-95"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/20 bg-white/10 text-white hover:bg-white/20 transition-all active:scale-90 shadow-sm backdrop-blur-md"
               title="Kembali ke Dashboard"
             >
-              <ArrowLeft className="h-4 w-4 stroke-[2.4]" />
+              <ArrowLeft className="h-5 w-5 stroke-[2.4]" />
             </Link>
 
-            <div className="flex h-11 w-11 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-rose-500 to-amber-600 text-white shadow-md shadow-rose-500/20">
+            <div className="relative flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-amber-400 via-rose-500 to-red-600 text-white shadow-lg font-black">
               <ShieldAlert className="h-6 w-6 stroke-[2.3]" />
             </div>
 
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-base sm:text-lg lg:text-xl font-black text-slate-900 dark:text-white tracking-tight">
-                  Biro Pelanggaran &amp; Kedisiplinan
-                </h1>
-                <span className="rounded-full bg-rose-500/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-rose-600 dark:text-rose-400 border border-rose-500/20 whitespace-nowrap">
-                  Tarbiyah Board
+            <div className="space-y-1 min-w-0">
+              <div className="flex items-center space-x-2">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-rose-200 text-[10px] font-black uppercase tracking-wider backdrop-blur-xl">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                  TARBIYAH BOARD
+                </span>
+                <span className="rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold px-2.5 py-0.5">
+                  Bag. Disiplin
                 </span>
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight bg-gradient-to-r from-white via-rose-100 to-amber-300 bg-clip-text text-transparent truncate">
+                Pelanggaran &amp; Kedisiplinan
+              </h1>
+              <p className="text-xs text-rose-100/90 font-medium truncate">
                 Rekapitulasi berkas disiplin, tracking rekam jejak santri, dan ekspor data komprehensif
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap self-start xl:self-center">
+          <div className="flex items-center gap-2.5 xl:justify-end shrink-0 flex-wrap">
             <button
               type="button"
               onClick={fetchData}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 shadow-xs transition hover:border-rose-500/50 hover:text-rose-500 active:scale-95 cursor-pointer"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/20 bg-white/10 text-white shadow-sm transition hover:bg-white/20 active:scale-95 cursor-pointer backdrop-blur-md"
               title="Segarkan Data"
             >
-              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin text-rose-500" : ""}`} />
+              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin text-amber-300" : ""}`} />
             </button>
 
-            {/* SCAN QR KTS BUTTON */}
             <button
               type="button"
               onClick={() => setShowScanner(true)}
-              className="inline-flex items-center space-x-1.5 rounded-xl border border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400 px-3 py-2 text-xs font-bold transition active:scale-95 shadow-xs whitespace-nowrap cursor-pointer"
+              className="inline-flex items-center space-x-1.5 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 px-3.5 py-2.5 text-xs font-bold text-white transition active:scale-95 cursor-pointer backdrop-blur-md"
               title="Pindai QR KTS untuk membuka rekam jejak santri secara instan"
             >
               <QrCode className="h-4 w-4" />
-              <span>Scan QR KTS</span>
+              <span>Scan KTS</span>
               <Sparkles className="h-3 w-3 opacity-60 animate-pulse" />
             </button>
 
             <button
               type="button"
               onClick={handleExportCSV}
-              className="inline-flex items-center space-x-1.5 rounded-xl border border-emerald-600/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 px-3 py-2 text-xs font-bold transition active:scale-95 shadow-xs whitespace-nowrap cursor-pointer"
+              className="inline-flex items-center space-x-1.5 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 px-3.5 py-2.5 text-xs font-bold text-white transition active:scale-95 cursor-pointer backdrop-blur-md"
               title="Unduh format CSV/Excel"
             >
-              <FileSpreadsheet className="h-4 w-4" />
+              <FileSpreadsheet className="h-4 w-4 text-emerald-300" />
               <span>Ekspor Excel</span>
             </button>
 
             <button
               type="button"
               onClick={handlePrintGlobalReport}
-              className="inline-flex items-center space-x-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 transition active:scale-95 shadow-xs whitespace-nowrap cursor-pointer"
+              className="inline-flex items-center space-x-1.5 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 px-3.5 py-2.5 text-xs font-bold text-white transition active:scale-95 cursor-pointer backdrop-blur-md"
               title="Cetak format Laporan"
             >
-              <Printer className="h-4 w-4" />
+              <Printer className="h-4 w-4 text-amber-300" />
               <span>Cetak Laporan</span>
             </button>
 
             <Link
               href="/dashboard/violations/create"
-              className="inline-flex items-center space-x-1.5 rounded-xl bg-gradient-to-r from-rose-600 to-amber-500 hover:from-rose-500 hover:to-amber-400 px-3.5 py-2 text-xs font-black text-white shadow-md shadow-rose-500/20 transition active:scale-95 whitespace-nowrap cursor-pointer"
+              className="inline-flex items-center space-x-1.5 rounded-2xl bg-gradient-to-r from-amber-400 via-rose-500 to-red-500 hover:from-amber-300 hover:to-red-400 px-4 py-2.5 text-xs font-black text-slate-950 shadow-lg shadow-rose-900/30 transition active:scale-95 whitespace-nowrap"
             >
-              <Plus className="h-4 w-4 stroke-[2.5]" />
+              <Plus className="h-4 w-4 stroke-[2.8]" />
               <span>Catat Pelanggaran</span>
             </Link>
           </div>
@@ -641,44 +648,44 @@ export default function ViolationsDashboardPage() {
 
       {/* ================= KARTU METRIK REKAPITULASI ================= */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 print:hidden">
-        <div className="rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white/70 dark:bg-slate-900/60 p-4 sm:p-5 shadow-xs backdrop-blur-md">
+        <div className="rounded-3xl border border-slate-200/80 dark:border-rose-900/40 bg-white/90 dark:bg-[#1a0f12] p-4 sm:p-5 shadow-xs backdrop-blur-md transition hover:border-rose-500/50 hover:shadow-lg">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Total Kasus</span>
-            <div className="h-8 w-8 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center">
-              <Scale className="h-4 w-4" />
+            <div className="h-9 w-9 rounded-2xl bg-slate-100 dark:bg-rose-950/60 text-slate-600 dark:text-rose-300 flex items-center justify-center shadow-inner">
+              <Scale className="h-4.5 w-4.5" />
             </div>
           </div>
           <p className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white mt-2 font-mono">{stats.totalCases}</p>
           <p className="text-[11px] text-slate-400 mt-0.5">Rekapitulasi Global</p>
         </div>
 
-        <div className="rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white/70 dark:bg-slate-900/60 p-4 sm:p-5 shadow-xs backdrop-blur-md">
+        <div className="rounded-3xl border border-slate-200/80 dark:border-rose-900/40 bg-white/90 dark:bg-[#1a0f12] p-4 sm:p-5 shadow-xs backdrop-blur-md transition hover:border-amber-500/50 hover:shadow-lg">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Akumulasi Poin</span>
-            <div className="h-8 w-8 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
-              <Flame className="h-4 w-4" />
+            <div className="h-9 w-9 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center shadow-inner">
+              <Flame className="h-4.5 w-4.5" />
             </div>
           </div>
           <p className="text-2xl sm:text-3xl font-black text-amber-500 mt-2 font-mono">{stats.totalPoints}</p>
           <p className="text-[11px] text-slate-400 mt-0.5">Beban Poin Tercatat</p>
         </div>
 
-        <div className="rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white/70 dark:bg-slate-900/60 p-4 sm:p-5 shadow-xs backdrop-blur-md">
+        <div className="rounded-3xl border border-slate-200/80 dark:border-rose-900/40 bg-white/90 dark:bg-[#1a0f12] p-4 sm:p-5 shadow-xs backdrop-blur-md transition hover:border-cyan-500/50 hover:shadow-lg">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Dalam Proses</span>
-            <div className="h-8 w-8 rounded-xl bg-cyan-500/10 text-cyan-500 flex items-center justify-center">
-              <Clock className="h-4 w-4" />
+            <div className="h-9 w-9 rounded-2xl bg-cyan-500/10 text-cyan-500 flex items-center justify-center shadow-inner">
+              <Clock className="h-4.5 w-4.5" />
             </div>
           </div>
           <p className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white mt-2 font-mono">{stats.inProcess}</p>
           <p className="text-[11px] text-slate-400 mt-0.5">Menunggu Pembinaan</p>
         </div>
 
-        <div className="rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white/70 dark:bg-slate-900/60 p-4 sm:p-5 shadow-xs backdrop-blur-md">
+        <div className="rounded-3xl border border-slate-200/80 dark:border-rose-900/40 bg-white/90 dark:bg-[#1a0f12] p-4 sm:p-5 shadow-xs backdrop-blur-md transition hover:border-rose-500/50 hover:shadow-lg">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">Pelanggaran Berat</span>
-            <div className="h-8 w-8 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center">
-              <ShieldAlert className="h-4 w-4" />
+            <div className="h-9 w-9 rounded-2xl bg-rose-500/10 text-rose-500 flex items-center justify-center shadow-inner">
+              <ShieldAlert className="h-4.5 w-4.5" />
             </div>
           </div>
           <p className="text-2xl sm:text-3xl font-black text-rose-500 mt-2 font-mono">{stats.heavyCases}</p>
@@ -696,11 +703,11 @@ export default function ViolationsDashboardPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Cari nama santri, NIS, atau bentuk pelanggaran..."
-              className="h-10 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/90 pl-10 pr-4 text-xs font-semibold text-slate-900 dark:text-white placeholder-slate-400 outline-none transition focus:border-rose-500 focus:ring-1 focus:ring-rose-500 shadow-xs"
+              className="h-10 w-full rounded-2xl border border-slate-200 dark:border-rose-900/60 bg-white dark:bg-[#1a0f12] pl-10 pr-4 text-xs font-semibold text-slate-900 dark:text-white placeholder-slate-400 outline-none transition focus:border-rose-500 focus:ring-1 focus:ring-rose-500 shadow-xs"
             />
           </div>
 
-          <div className="flex items-center overflow-x-auto gap-1 rounded-2xl bg-slate-100/90 dark:bg-slate-950/70 p-1 border border-slate-200 dark:border-slate-800 text-xs font-bold self-start md:self-auto">
+          <div className="flex items-center overflow-x-auto gap-1 rounded-2xl bg-slate-100/90 dark:bg-[#1a0f12] p-1 border border-slate-200 dark:border-rose-900/40 text-xs font-bold self-start md:self-auto">
             {[
               { id: "all", label: "Semua", count: violations.length },
               { id: "Proses", label: "Proses", count: violations.filter((v) => v.status === "Proses").length },
@@ -710,15 +717,15 @@ export default function ViolationsDashboardPage() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`px-3 py-1.5 rounded-xl whitespace-nowrap transition-all duration-200 text-xs font-bold flex items-center gap-1.5 cursor-pointer ${
+                className={`px-3.5 py-1.5 rounded-xl whitespace-nowrap transition-all duration-200 text-xs font-bold flex items-center gap-1.5 cursor-pointer ${
                   activeTab === tab.id
-                    ? "bg-slate-900 text-white dark:bg-white dark:text-slate-950 shadow-xs"
+                    ? "bg-rose-600 text-white shadow-xs"
                     : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
                 }`}
               >
                 <span>{tab.label}</span>
                 <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
-                  activeTab === tab.id ? "bg-rose-500 text-white" : "bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
+                  activeTab === tab.id ? "bg-white text-rose-700" : "bg-slate-200 dark:bg-rose-950/60 text-slate-600 dark:text-slate-400"
                 }`}>
                   {tab.count}
                 </span>
@@ -732,13 +739,13 @@ export default function ViolationsDashboardPage() {
             <select
               value={filterPeriod}
               onChange={(e) => setFilterPeriod(e.target.value as any)}
-              className="h-10 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3.5 text-xs font-bold text-slate-700 dark:text-slate-300 outline-none focus:border-rose-500 cursor-pointer shadow-xs"
+              className="h-10 w-full rounded-2xl border border-slate-200 dark:border-rose-900/60 bg-white dark:bg-[#1a0f12] px-3.5 text-xs font-bold text-slate-700 dark:text-slate-300 outline-none focus:border-rose-500 cursor-pointer shadow-xs"
             >
-              <option value="all">Periode: Semua Waktu</option>
-              <option value="7days">1 Minggu Terakhir (7 Hari)</option>
-              <option value="30days">1 Bulan Terakhir (30 Hari)</option>
-              <option value="semester">1 Semester Terakhir (6 Bulan)</option>
-              <option value="custom">Rentang Tanggal Khusus...</option>
+              <option value="all" className="dark:bg-slate-900">Periode: Semua Waktu</option>
+              <option value="7days" className="dark:bg-slate-900">1 Minggu Terakhir (7 Hari)</option>
+              <option value="30days" className="dark:bg-slate-900">1 Bulan Terakhir (30 Hari)</option>
+              <option value="semester" className="dark:bg-slate-900">1 Semester Terakhir (6 Bulan)</option>
+              <option value="custom" className="dark:bg-slate-900">Rentang Tanggal Khusus...</option>
             </select>
           </div>
 
@@ -746,12 +753,12 @@ export default function ViolationsDashboardPage() {
             <select
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
-              className="h-10 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3.5 text-xs font-bold text-slate-700 dark:text-slate-300 outline-none focus:border-rose-500 cursor-pointer shadow-xs"
+              className="h-10 w-full rounded-2xl border border-slate-200 dark:border-rose-900/60 bg-white dark:bg-[#1a0f12] px-3.5 text-xs font-bold text-slate-700 dark:text-slate-300 outline-none focus:border-rose-500 cursor-pointer shadow-xs"
             >
-              <option value="all">Semua Kategori</option>
-              <option value="Ringan">Kategori: Ringan</option>
-              <option value="Sedang">Kategori: Sedang</option>
-              <option value="Berat">Kategori: Berat</option>
+              <option value="all" className="dark:bg-slate-900">Semua Kategori</option>
+              <option value="Ringan" className="dark:bg-slate-900">Kategori: Ringan</option>
+              <option value="Sedang" className="dark:bg-slate-900">Kategori: Sedang</option>
+              <option value="Berat" className="dark:bg-slate-900">Kategori: Berat</option>
             </select>
           </div>
 
@@ -759,19 +766,19 @@ export default function ViolationsDashboardPage() {
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
-              className="h-10 w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3.5 text-xs font-bold text-slate-700 dark:text-slate-300 outline-none focus:border-rose-500 cursor-pointer shadow-xs"
+              className="h-10 w-full rounded-2xl border border-slate-200 dark:border-rose-900/60 bg-white dark:bg-[#1a0f12] px-3.5 text-xs font-bold text-slate-700 dark:text-slate-300 outline-none focus:border-rose-500 cursor-pointer shadow-xs"
             >
-              <option value="newest">Urutkan: Kasus Terbaru</option>
-              <option value="oldest">Urutkan: Kasus Terlama</option>
-              <option value="points_high">Poin Tertinggi (Beban Berat)</option>
-              <option value="points_low">Poin Terendah</option>
-              <option value="name_asc">Nama Santri (A - Z)</option>
+              <option value="newest" className="dark:bg-slate-900">Urutkan: Kasus Terbaru</option>
+              <option value="oldest" className="dark:bg-slate-900">Urutkan: Kasus Terlama</option>
+              <option value="points_high" className="dark:bg-slate-900">Poin Tertinggi (Beban Berat)</option>
+              <option value="points_low" className="dark:bg-slate-900">Poin Terendah</option>
+              <option value="name_asc" className="dark:bg-slate-900">Nama Santri (A - Z)</option>
             </select>
           </div>
         </div>
 
         {filterPeriod === "custom" && (
-          <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 flex flex-wrap items-center gap-3 text-xs animate-in fade-in">
+          <div className="p-3 rounded-2xl bg-slate-50 dark:bg-[#1a0f12] border border-slate-200 dark:border-rose-900/60 flex flex-wrap items-center gap-3 text-xs animate-in fade-in">
             <span className="font-bold text-slate-700 dark:text-slate-300">Dari:</span>
             <input
               type="date"
@@ -801,15 +808,15 @@ export default function ViolationsDashboardPage() {
       </div>
 
       {/* ================= DATA PELANGGARAN: RESPONSIVE DUAL VIEW ================= */}
-      <div className="overflow-hidden rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-900/90 shadow-xl shadow-slate-200/30 dark:shadow-black/40 backdrop-blur-xl print:hidden">
+      <div className="overflow-hidden rounded-3xl border border-slate-200/80 dark:border-rose-900/40 bg-white/90 dark:bg-[#1a0f12] shadow-xl shadow-slate-200/30 dark:shadow-black/40 backdrop-blur-xl print:hidden">
         
         {/* TAMPILAN 1: MOBILE CARD LIST (Layar HP < md) */}
-        <div className="block md:hidden divide-y divide-slate-100 dark:divide-slate-800/60">
-          <div className="p-3 bg-slate-50/90 dark:bg-slate-950/60 flex items-center justify-between border-b border-slate-200 dark:border-slate-800">
+        <div className="block md:hidden divide-y divide-slate-100 dark:divide-rose-900/30">
+          <div className="p-3 bg-slate-50/90 dark:bg-rose-950/40 flex items-center justify-between border-b border-slate-200 dark:border-rose-900/40">
             <button
               type="button"
               onClick={handleToggleSelectAll}
-              className="inline-flex items-center space-x-2 text-xs font-bold text-slate-600 dark:text-slate-300"
+              className="inline-flex items-center space-x-2 text-xs font-bold text-slate-600 dark:text-slate-300 cursor-pointer"
             >
               {isAllFilteredSelected ? (
                 <CheckSquare className="h-4 w-4 text-rose-500" />
@@ -842,7 +849,7 @@ export default function ViolationsDashboardPage() {
                 <div
                   key={v.id}
                   className={`p-4 space-y-3 transition-colors ${
-                    isSelected ? "bg-rose-500/[0.08] dark:bg-rose-950/30" : "hover:bg-slate-50/50 dark:hover:bg-slate-800/30"
+                    isSelected ? "bg-rose-500/[0.08] dark:bg-rose-950/30" : "hover:bg-slate-50/50 dark:hover:bg-rose-950/20"
                   }`}
                 >
                   <div className="flex items-start gap-3">
@@ -856,7 +863,7 @@ export default function ViolationsDashboardPage() {
                     <div className="flex-1 min-w-0 space-y-2">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-center space-x-2.5 min-w-0">
-                          <div className="relative h-9 w-9 shrink-0 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-black text-xs overflow-hidden flex items-center justify-center">
+                          <div className="relative h-9 w-9 shrink-0 rounded-xl bg-slate-100 dark:bg-rose-900/40 border border-slate-200 dark:border-rose-800 text-slate-800 dark:text-slate-200 font-black text-xs overflow-hidden flex items-center justify-center">
                             {meta.photo_url ? (
                               <img src={meta.photo_url} alt={v.student_name} className="h-full w-full object-cover" />
                             ) : (
@@ -867,7 +874,7 @@ export default function ViolationsDashboardPage() {
                             <button
                               type="button"
                               onClick={() => handleOpenStudentDossier(v)}
-                              className="font-extrabold text-sm text-slate-900 dark:text-white truncate hover:underline text-left block"
+                              className="font-extrabold text-sm text-slate-900 dark:text-white truncate hover:underline text-left block cursor-pointer"
                             >
                               {v.student_name}
                             </button>
@@ -882,7 +889,7 @@ export default function ViolationsDashboardPage() {
                         </span>
                       </div>
 
-                      <div className="bg-slate-50 dark:bg-slate-950/50 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 space-y-1">
+                      <div className="bg-slate-50 dark:bg-rose-950/30 p-2.5 rounded-xl border border-slate-100 dark:border-rose-900/30 space-y-1">
                         <p className="font-bold text-xs text-slate-900 dark:text-white leading-tight">
                           {v.violation_name}
                         </p>
@@ -931,7 +938,7 @@ export default function ViolationsDashboardPage() {
                           <button
                             type="button"
                             onClick={() => handleOpenStudentDossier(v)}
-                            className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-cyan-500"
+                            className="p-1.5 rounded-lg border border-slate-200 dark:border-rose-900/40 text-slate-500 dark:text-slate-400 hover:text-cyan-500 cursor-pointer"
                             title="Rekam Jejak"
                           >
                             <History className="h-4 w-4" />
@@ -943,7 +950,7 @@ export default function ViolationsDashboardPage() {
                               setEditStatus(v.status);
                               setEditSanction(v.sanction || "");
                             }}
-                            className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-amber-500"
+                            className="p-1.5 rounded-lg border border-slate-200 dark:border-rose-900/40 text-slate-500 dark:text-slate-400 hover:text-amber-500 cursor-pointer"
                             title="Edit"
                           >
                             <Edit className="h-4 w-4" />
@@ -951,7 +958,7 @@ export default function ViolationsDashboardPage() {
                           <button
                             type="button"
                             onClick={() => setItemToDelete(v)}
-                            className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-rose-500"
+                            className="p-1.5 rounded-lg border border-slate-200 dark:border-rose-900/40 text-slate-500 dark:text-slate-400 hover:text-rose-500 cursor-pointer"
                             title="Hapus"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -966,11 +973,11 @@ export default function ViolationsDashboardPage() {
           )}
         </div>
 
-        {/* TAMPILAN 2: DESKTOP TABLE VIEW (Layar md ke atas) */}
+        {/* TAMPILAN 2: DESKTOP TABLE VIEW */}
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-800/80 bg-slate-50/90 dark:bg-slate-950/60 text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 select-none">
+              <tr className="border-b border-slate-200 dark:border-rose-900/40 bg-slate-50/90 dark:bg-rose-950/40 text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 select-none">
                 <th className="py-4 px-3 w-10 text-center">
                   <button
                     type="button"
@@ -992,7 +999,7 @@ export default function ViolationsDashboardPage() {
                 <th className="py-4 px-4 text-right font-bold">Aksi</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
+            <tbody className="divide-y divide-slate-100 dark:divide-rose-900/30 font-medium">
               {loading ? (
                 <tr>
                   <td colSpan={7} className="py-16 text-center text-slate-400">
@@ -1021,7 +1028,7 @@ export default function ViolationsDashboardPage() {
                       className={`group transition-all duration-200 ${
                         isSelected
                           ? "bg-rose-500/[0.08] dark:bg-rose-950/30"
-                          : "hover:bg-rose-500/[0.03] dark:hover:bg-rose-500/[0.02]"
+                          : "hover:bg-rose-500/[0.03] dark:hover:bg-rose-950/20"
                       }`}
                     >
                       <td className="py-3.5 px-3 text-center">
@@ -1035,7 +1042,7 @@ export default function ViolationsDashboardPage() {
 
                       <td className="py-3.5 px-4">
                         <div className="flex items-center space-x-3">
-                          <div className="relative h-9 w-9 shrink-0 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-black text-xs group-hover:scale-105 transition-transform overflow-hidden flex items-center justify-center">
+                          <div className="relative h-9 w-9 shrink-0 rounded-xl bg-slate-100 dark:bg-rose-900/40 border border-slate-200 dark:border-rose-800 text-slate-800 dark:text-slate-200 font-black text-xs group-hover:scale-105 transition-transform overflow-hidden flex items-center justify-center">
                             {meta.photo_url ? (
                               <img src={meta.photo_url} alt={v.student_name} className="h-full w-full object-cover" />
                             ) : (
@@ -1058,7 +1065,7 @@ export default function ViolationsDashboardPage() {
                         </div>
                       </td>
 
-                      <td className="py-3.5 px-4">
+                      <td className="py-3.5 px-4 max-w-xs">
                         <p className="font-extrabold text-slate-900 dark:text-white leading-tight">
                           {v.violation_name}
                         </p>
@@ -1133,7 +1140,7 @@ export default function ViolationsDashboardPage() {
                           <button
                             type="button"
                             onClick={() => handleOpenStudentDossier(v)}
-                            className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-cyan-500 hover:border-cyan-500/40 hover:bg-cyan-500/10 transition active:scale-90 cursor-pointer"
+                            className="p-2 rounded-xl border border-slate-200 dark:border-rose-900/40 text-slate-500 dark:text-slate-400 hover:text-cyan-500 hover:border-cyan-500/40 hover:bg-cyan-500/10 transition active:scale-90 cursor-pointer"
                             title="Lihat Rekam Jejak Santri"
                           >
                             <History className="h-4 w-4" />
@@ -1146,7 +1153,7 @@ export default function ViolationsDashboardPage() {
                               setEditStatus(v.status);
                               setEditSanction(v.sanction || "");
                             }}
-                            className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-amber-500 hover:border-amber-500/40 hover:bg-amber-500/10 transition active:scale-90 cursor-pointer"
+                            className="p-2 rounded-xl border border-slate-200 dark:border-rose-900/40 text-slate-500 dark:text-slate-400 hover:text-amber-500 hover:border-amber-500/40 hover:bg-amber-500/10 transition active:scale-90 cursor-pointer"
                             title="Ubah Status & Sanksi"
                           >
                             <Edit className="h-4 w-4" />
@@ -1155,7 +1162,7 @@ export default function ViolationsDashboardPage() {
                           <button
                             type="button"
                             onClick={() => setItemToDelete(v)}
-                            className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-rose-500 hover:border-rose-500/40 hover:bg-rose-500/10 transition active:scale-90 cursor-pointer"
+                            className="p-2 rounded-xl border border-slate-200 dark:border-rose-900/40 text-slate-500 dark:text-slate-400 hover:text-rose-500 hover:border-rose-500/40 hover:bg-rose-500/10 transition active:scale-90 cursor-pointer"
                             title="Hapus Catatan Pelanggaran"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -1212,14 +1219,13 @@ export default function ViolationsDashboardPage() {
         </div>
       )}
 
-      {/* ================= MODAL DOSSIER REKAM JEJAK SANTRI (DENGAN TOMBOL INPUT PELANGGARAN INSTAN) ================= */}
+      {/* ================= MODAL DOSSIER REKAM JEJAK SANTRI ================= */}
       {selectedStudentForDossier && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 p-4 sm:p-6 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200 print:hidden">
           <div className="w-full max-w-3xl my-auto overflow-hidden rounded-[32px] border border-slate-800 bg-slate-900 text-white space-y-5 p-6 sm:p-8 shadow-2xl animate-in zoom-in-95">
-            {/* Header Profil Santri */}
             <div className="flex flex-col sm:flex-row items-center sm:items-start justify-between border-b border-slate-800 pb-5 gap-5">
               <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 text-center sm:text-left">
-                <div className="relative h-[115px] w-[90px] shrink-0 rounded-2xl overflow-hidden border-2 border-cyan-500/50 bg-slate-800 shadow-xl flex items-center justify-center">
+                <div className="relative h-[115px] w-[90px] shrink-0 rounded-2xl overflow-hidden border-2 border-rose-500/50 bg-slate-800 shadow-xl flex items-center justify-center">
                   {selectedStudentForDossier.photo_url ? (
                     <img
                       src={selectedStudentForDossier.photo_url}
@@ -1239,26 +1245,26 @@ export default function ViolationsDashboardPage() {
                     <h2 className="text-lg sm:text-xl font-black text-white">
                       {selectedStudentForDossier.name}
                     </h2>
-                    <span className="rounded-md bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 px-2 py-0.5 font-mono text-xs font-bold">
+                    <span className="rounded-md bg-rose-500/20 text-rose-300 border border-rose-500/30 px-2 py-0.5 font-mono text-xs font-bold">
                       NIS: {selectedStudentForDossier.nis}
                     </span>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-300 pt-1">
                     <div className="flex items-center gap-1.5 justify-center sm:justify-start">
-                      <GraduationCap className="h-3.5 w-3.5 text-cyan-400" />
+                      <GraduationCap className="h-3.5 w-3.5 text-rose-400" />
                       <span>Kelas: <strong>{selectedStudentForDossier.class}</strong></span>
                     </div>
                     <div className="flex items-center gap-1.5 justify-center sm:justify-start">
-                      <Home className="h-3.5 w-3.5 text-cyan-400" />
+                      <Home className="h-3.5 w-3.5 text-rose-400" />
                       <span>Asrama: <strong>{selectedStudentForDossier.dorm}</strong></span>
                     </div>
                     <div className="flex items-center gap-1.5 justify-center sm:justify-start">
-                      <MapPin className="h-3.5 w-3.5 text-cyan-400" />
+                      <MapPin className="h-3.5 w-3.5 text-rose-400" />
                       <span>Konsulat: <strong>{selectedStudentForDossier.consulate}</strong></span>
                     </div>
                     <div className="flex items-center gap-1.5 justify-center sm:justify-start">
-                      <Phone className="h-3.5 w-3.5 text-cyan-400" />
+                      <Phone className="h-3.5 w-3.5 text-rose-400" />
                       <span>Wali: <strong>{selectedStudentForDossier.guardian_phone || "-"}</strong></span>
                     </div>
                   </div>
@@ -1268,13 +1274,12 @@ export default function ViolationsDashboardPage() {
               <button
                 type="button"
                 onClick={() => setSelectedStudentForDossier(null)}
-                className="text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-slate-800 transition cursor-pointer self-end sm:self-auto"
+                className="text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-slate-800 transition cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            {/* Statistik Ringkas */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center text-xs">
               <div className="p-3 rounded-2xl bg-slate-950/80 border border-slate-800">
                 <p className="text-slate-400 text-[10px] uppercase font-bold">Kasus Periode Ini</p>
@@ -1296,10 +1301,9 @@ export default function ViolationsDashboardPage() {
               </div>
             </div>
 
-            {/* Filter Periode Timeline Santri */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 border-t border-slate-800">
               <div className="flex items-center space-x-1 text-xs font-bold text-slate-400">
-                <History className="h-4 w-4 text-cyan-400" />
+                <History className="h-4 w-4 text-rose-400" />
                 <span>Riwayat Periode:</span>
               </div>
 
@@ -1316,7 +1320,7 @@ export default function ViolationsDashboardPage() {
                     onClick={() => setDossierPeriodFilter(btn.id as any)}
                     className={`px-3 py-1 rounded-lg transition text-[11px] whitespace-nowrap cursor-pointer ${
                       dossierPeriodFilter === btn.id
-                        ? "bg-cyan-500 text-slate-950 font-black shadow-xs"
+                        ? "bg-rose-500 text-white font-black shadow-xs"
                         : "text-slate-400 hover:text-white"
                     }`}
                   >
@@ -1326,8 +1330,7 @@ export default function ViolationsDashboardPage() {
               </div>
             </div>
 
-            {/* List Kronologis Rekam Jejak Pelanggaran Santri */}
-            <div className="max-h-64 overflow-y-auto custom-scrollbar space-y-2.5 pr-1">
+            <div className="max-h-72 overflow-y-auto custom-scrollbar space-y-2.5 pr-1">
               {studentDossierViolations.length === 0 ? (
                 <div className="py-8 text-center text-slate-400 text-xs font-medium">
                   Tidak ada catatan pelanggaran pada periode ini.
@@ -1368,117 +1371,25 @@ export default function ViolationsDashboardPage() {
               )}
             </div>
 
-            {/* Footer Modal: Tombol Input Pelanggaran Instan, Cetak Rapor, & Tutup */}
-            <div className="flex flex-col sm:flex-row items-center justify-between pt-3 border-t border-slate-800 gap-2.5">
-              <div className="flex items-center gap-2 w-full sm:w-auto">
-                <Link
-                  href={`/dashboard/violations/create?nis=${selectedStudentForDossier.nis}`}
-                  className="flex-1 sm:flex-none inline-flex items-center justify-center space-x-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-amber-500 hover:from-rose-500 hover:to-amber-400 text-white font-black text-xs shadow-md shadow-rose-500/20 transition active:scale-95 cursor-pointer"
-                >
-                  <Plus className="h-4 w-4 stroke-[2.5]" />
-                  <span>+ Catat Pelanggaran Santri Ini</span>
-                </Link>
-
-                <button
-                  type="button"
-                  onClick={handlePrintStudentDossier}
-                  disabled={studentDossierViolations.length === 0}
-                  className="flex-1 sm:flex-none inline-flex items-center justify-center space-x-1.5 px-4 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs transition active:scale-95 disabled:opacity-40 cursor-pointer"
-                >
-                  <Printer className="h-4 w-4 stroke-[2.5]" />
-                  <span>Cetak Rapor</span>
-                </button>
-              </div>
+            <div className="flex items-center justify-between pt-3 border-t border-slate-800 gap-2">
+              <button
+                type="button"
+                onClick={handlePrintStudentDossier}
+                disabled={studentDossierViolations.length === 0}
+                className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-rose-500 hover:bg-rose-400 text-slate-950 font-black text-xs transition active:scale-95 disabled:opacity-40 cursor-pointer"
+              >
+                <Printer className="h-4 w-4 stroke-[2.5]" />
+                <span>Cetak / PDF Rapor Disiplin</span>
+              </button>
 
               <button
                 type="button"
                 onClick={() => setSelectedStudentForDossier(null)}
-                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs cursor-pointer"
+                className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs cursor-pointer"
               >
-                Tutup Rapor
+                Tutup Rapor Disiplin
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* ================= MODAL EDIT MASSAL ================= */}
-      {showBatchEditModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="w-full max-w-md overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/95 p-6 text-white space-y-4 shadow-2xl animate-in zoom-in-95">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div className="flex items-center space-x-2.5">
-                <div className="h-9 w-9 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/30 flex items-center justify-center">
-                  <Layers className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="font-black text-sm text-white">Edit {selectedIds.length} Pelanggaran Sekaligus</h3>
-                  <p className="text-[11px] text-slate-400">Pembaruan status massal santri terpilih</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowBatchEditModal(false)}
-                className="text-slate-400 hover:text-white p-1 cursor-pointer"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveBatchEdit} className="space-y-4 text-xs">
-              <div className="space-y-1.5">
-                <label className="font-bold text-slate-300">Ubah Status Pembinaan Menjadi:</label>
-                <select
-                  value={batchStatus}
-                  onChange={(e) => setBatchStatus(e.target.value as any)}
-                  className="w-full h-10 rounded-xl border border-slate-800 bg-slate-950 px-3 font-bold text-amber-400 outline-none focus:border-amber-500 cursor-pointer"
-                >
-                  <option value="Proses">Dalam Proses</option>
-                  <option value="Ditindak">Sudah Ditindak</option>
-                  <option value="Selesai">Selesai Dibina</option>
-                </select>
-              </div>
-
-              <div className="space-y-2 pt-2 border-t border-slate-800">
-                <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-300">
-                  <input
-                    type="checkbox"
-                    checked={updateSanctionToo}
-                    onChange={(e) => setUpdateSanctionToo(e.target.checked)}
-                    className="rounded text-amber-500 focus:ring-amber-500 h-4 w-4"
-                  />
-                  <span>Perbarui Bentuk Sanksi / Takzir Massal</span>
-                </label>
-
-                {updateSanctionToo && (
-                  <textarea
-                    rows={2}
-                    value={batchSanction}
-                    onChange={(e) => setBatchSanction(e.target.value)}
-                    placeholder="Tuliskan sanksi baru untuk semua santri yang dipilih..."
-                    className="w-full rounded-xl border border-slate-800 bg-slate-950 p-2.5 text-xs text-white outline-none focus:border-amber-500"
-                  />
-                )}
-              </div>
-
-              <div className="flex gap-2 pt-2 border-t border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setShowBatchEditModal(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition cursor-pointer"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  disabled={isBatchUpdating}
-                  className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-md transition disabled:opacity-50 flex items-center justify-center space-x-1.5 cursor-pointer"
-                >
-                  {isBatchUpdating ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4 stroke-[3]" />}
-                  <span>Simpan Perubahan</span>
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       )}
@@ -1647,6 +1558,87 @@ export default function ViolationsDashboardPage() {
                   className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black shadow-md transition flex items-center justify-center space-x-1.5 cursor-pointer"
                 >
                   {isUpdating ? <RefreshCw className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                  <span>Simpan Perubahan</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL EDIT MASSAL ================= */}
+      {showBatchEditModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="w-full max-w-md overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/95 p-6 text-white space-y-4 shadow-2xl animate-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center space-x-2.5">
+                <div className="h-9 w-9 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/30 flex items-center justify-center">
+                  <Layers className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-black text-sm text-white">Edit {selectedIds.length} Pelanggaran Sekaligus</h3>
+                  <p className="text-[11px] text-slate-400">Pembaruan status massal santri terpilih</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowBatchEditModal(false)}
+                className="text-slate-400 hover:text-white p-1 cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveBatchEdit} className="space-y-4 text-xs">
+              <div className="space-y-1.5">
+                <label className="font-bold text-slate-300">Ubah Status Pembinaan Menjadi:</label>
+                <select
+                  value={batchStatus}
+                  onChange={(e) => setBatchStatus(e.target.value as any)}
+                  className="w-full h-10 rounded-xl border border-slate-800 bg-slate-950 px-3 font-bold text-amber-400 outline-none focus:border-amber-500 cursor-pointer"
+                >
+                  <option value="Proses">Dalam Proses</option>
+                  <option value="Ditindak">Sudah Ditindak</option>
+                  <option value="Selesai">Selesai Dibina</option>
+                </select>
+              </div>
+
+              <div className="space-y-2 pt-2 border-t border-slate-800">
+                <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={updateSanctionToo}
+                    onChange={(e) => setUpdateSanctionToo(e.target.checked)}
+                    className="rounded text-amber-500 focus:ring-amber-500 h-4 w-4"
+                  />
+                  <span>Perbarui Bentuk Sanksi / Takzir Massal</span>
+                </label>
+
+                {updateSanctionToo && (
+                  <textarea
+                    rows={2}
+                    value={batchSanction}
+                    onChange={(e) => setBatchSanction(e.target.value)}
+                    placeholder="Tuliskan sanksi baru untuk semua santri yang dipilih..."
+                    className="w-full rounded-xl border border-slate-800 bg-slate-950 p-2.5 text-xs text-white outline-none focus:border-amber-500"
+                  />
+                )}
+              </div>
+
+              <div className="flex gap-2 pt-2 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowBatchEditModal(false)}
+                  className="flex-1 py-2.5 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={isBatchUpdating}
+                  className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-md transition disabled:opacity-50 flex items-center justify-center space-x-1.5 cursor-pointer"
+                >
+                  {isBatchUpdating ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4 stroke-[3]" />}
                   <span>Simpan Perubahan</span>
                 </button>
               </div>
@@ -1859,7 +1851,7 @@ export default function ViolationsDashboardPage() {
         </div>
       )}
 
-      {/* ================= MODAL SCANNER KTS ================= */}
+      {/* ================= MODAL SCANNER QR ================= */}
       <QRScannerModal
         isOpen={showScanner}
         onClose={() => setShowScanner(false)}

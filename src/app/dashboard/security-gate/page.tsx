@@ -239,12 +239,10 @@ export default function SecurityGatePage() {
     setActivePermit(null);
 
     try {
-      // Ekstrak data via parser universal
       const { searchKey, nis, id } = parseQRCodeText(scannedText);
 
       let student = null;
 
-      // 1. Cari via ID UUID
       if (id) {
         const { data } = await supabase
           .from("students")
@@ -254,7 +252,6 @@ export default function SecurityGatePage() {
         student = data;
       }
 
-      // 2. Cari via NIS
       if (!student && (nis || searchKey)) {
         const { data: byNis } = await supabase
           .from("students")
@@ -264,7 +261,6 @@ export default function SecurityGatePage() {
         if (byNis) student = byNis;
       }
 
-      // 3. Fallback: Cari via Nama
       if (!student) {
         const { data: byName } = await supabase
           .from("students")
@@ -275,7 +271,6 @@ export default function SecurityGatePage() {
         if (byName) student = byName;
       }
 
-      // 4. Fallback: Kolom alternatif nama
       if (!student) {
         const { data: byAltName } = await supabase
           .from("students")
@@ -345,7 +340,6 @@ export default function SecurityGatePage() {
     const returnTargetDate = new Date(activePermit.return_target);
     const isLate = actionType === "in" ? now > returnTargetDate : false;
 
-    // A. KONDISI OFFLINE: Simpan ke IndexedDB
     if (!navigator.onLine) {
       try {
         await saveOfflineScan({
@@ -392,7 +386,6 @@ export default function SecurityGatePage() {
       return;
     }
 
-    // B. KONDISI ONLINE: Eksekusi Normal Supabase
     try {
       const updatePayload =
         actionType === "out"
@@ -406,7 +399,6 @@ export default function SecurityGatePage() {
 
       if (error) throw error;
 
-      // 1. Rekam Audit Log
       await recordAuditLog({
         action: actionType === "out" ? "GATE_SCAN_OUT" : "GATE_SCAN_IN",
         target_type: "permissions",
@@ -421,7 +413,6 @@ export default function SecurityGatePage() {
         },
       });
 
-      // 2. Kirim Notifikasi WhatsApp Otomatis ke Wali Santri
       if (studentInfo.parent_phone) {
         sendParentGateNotification({
           phone: studentInfo.parent_phone,
@@ -437,14 +428,12 @@ export default function SecurityGatePage() {
         }).catch((e) => console.warn("Background WA error:", e));
       }
 
-      // 3. Audio & Haptic Feedback
       if (isLate) {
         playScanSound("warning");
       } else {
         playScanSound("success");
       }
 
-      // 4. Update Feedback UI
       if (actionType === "out") {
         setScanMessage({
           text: `[KELUAR GERBANG] ${studentInfo.name} resmi tercatat meninggalkan komplek pesantren.`,
@@ -497,91 +486,105 @@ export default function SecurityGatePage() {
   });
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto font-sans relative pb-12 transition-all">
-      {/* HEADER POS GERBANG */}
-      <div className="relative overflow-hidden rounded-3xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 p-5 sm:p-6 shadow-xl backdrop-blur-xl flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div className="flex items-center space-x-3.5">
-          <Link
-            href="/dashboard"
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition active:scale-95 shadow-sm"
-            title="Kembali ke Dashboard"
-          >
-            <ArrowLeft className="h-5 w-5 stroke-[2.3]" />
-          </Link>
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 shadow-inner">
-            <ShieldCheck className="h-6 w-6 stroke-[2.2]" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight">
+    <div className="space-y-6 max-w-7xl mx-auto font-sans relative pb-16">
+      {/* Background Subtle Glows */}
+      <div className="pointer-events-none absolute -top-10 -right-10 h-72 w-72 rounded-full bg-emerald-500/10 blur-[100px]" />
+      <div className="pointer-events-none absolute top-48 -left-10 h-72 w-72 rounded-full bg-teal-500/10 blur-[100px]" />
+
+      {/* ================= HEADER HERO BANNER ================= */}
+      <div className="relative overflow-hidden rounded-[36px] bg-gradient-to-r from-emerald-950 via-[#064e3b] to-teal-950 p-6 sm:p-8 text-white shadow-2xl border border-emerald-500/40">
+        <div className="absolute -top-32 -right-32 w-80 h-80 rounded-full bg-emerald-400/20 blur-[80px] pointer-events-none animate-pulse" />
+        <div className="absolute -bottom-32 -left-32 w-80 h-80 rounded-full bg-amber-400/20 blur-[80px] pointer-events-none" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white/10 via-transparent to-black/30 pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col xl:flex-row xl:items-center justify-between gap-6">
+          <div className="flex items-start sm:items-center space-x-4 min-w-0">
+            <Link
+              href="/dashboard"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/20 bg-white/10 text-white hover:bg-white/20 transition-all active:scale-90 shadow-sm backdrop-blur-md"
+              title="Kembali ke Dashboard Utama"
+            >
+              <ArrowLeft className="h-5 w-5 stroke-[2.4]" />
+            </Link>
+
+            <div className="relative flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-amber-400 via-emerald-500 to-teal-400 text-slate-950 shadow-lg font-black">
+              <ShieldCheck className="h-6 w-6 stroke-[2.3]" />
+              <div className="absolute -top-1 -right-1 h-3.5 w-3.5 rounded-full bg-amber-400 border-2 border-white dark:border-slate-900 animate-ping" />
+            </div>
+
+            <div className="space-y-1 min-w-0">
+              <div className="flex items-center space-x-2">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-emerald-200 text-[10px] font-black uppercase tracking-wider backdrop-blur-xl">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                  GATE CONTROL
+                </span>
+                <div
+                  className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black border ${
+                    isOnline
+                      ? "bg-emerald-500/20 text-emerald-300 border-emerald-400/30"
+                      : "bg-rose-500/20 text-rose-300 border-rose-400/30 animate-pulse"
+                  }`}
+                >
+                  {isOnline ? (
+                    <>
+                      <Wifi className="h-3 w-3 stroke-[2.5]" />
+                      <span>Online</span>
+                    </>
+                  ) : (
+                    <>
+                      <WifiOff className="h-3 w-3 stroke-[2.5]" />
+                      <span>Offline</span>
+                    </>
+                  )}
+                </div>
+              </div>
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight bg-gradient-to-r from-white via-emerald-100 to-amber-300 bg-clip-text text-transparent truncate">
                 Pos Gerbang &amp; Verifikasi Keluar/Masuk
               </h1>
-
-              {/* Status Sinyal Jaringan Badge */}
-              <div
-                className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10.5px] font-black border ${
-                  isOnline
-                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
-                    : "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30 animate-pulse"
-                }`}
-              >
-                {isOnline ? (
-                  <>
-                    <Wifi className="h-3 w-3 stroke-[2.5]" />
-                    <span>Online</span>
-                  </>
-                ) : (
-                  <>
-                    <WifiOff className="h-3 w-3 stroke-[2.5]" />
-                    <span>Offline</span>
-                  </>
-                )}
-              </div>
+              <p className="text-xs text-emerald-100/90 font-medium truncate">
+                Portal satpam untuk validasi surat izin santri dan pemindaian barcode KTS
+              </p>
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Portal satpam untuk validasi surat izin santri dan pemindaian barcode KTS
-            </p>
           </div>
-        </div>
 
-        {/* Action Group: Antrean Offline Sync, Scan Kamera & Refresh */}
-        <div className="flex items-center flex-wrap gap-2.5">
-          {pendingSyncCount > 0 && (
+          <div className="flex items-center gap-2.5 shrink-0 self-start xl:self-center flex-wrap">
+            {pendingSyncCount > 0 && (
+              <button
+                type="button"
+                onClick={handleManualSync}
+                disabled={isSyncing || !isOnline}
+                className="flex items-center space-x-1.5 px-4 py-2.5 rounded-2xl bg-amber-400 text-slate-950 font-black text-xs hover:bg-amber-300 transition active:scale-95 cursor-pointer shadow-lg disabled:opacity-50"
+                title="Sinkronkan data scan offline ke server"
+              >
+                <CloudUpload className={`h-4 w-4 ${isSyncing ? "animate-bounce" : ""}`} />
+                <span>{isSyncing ? "Syncing..." : `${pendingSyncCount} Antrean Sync`}</span>
+              </button>
+            )}
+
             <button
               type="button"
-              onClick={handleManualSync}
-              disabled={isSyncing || !isOnline}
-              className="flex items-center space-x-1.5 px-3.5 py-2.5 rounded-2xl bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 hover:bg-amber-500/25 transition active:scale-95 text-xs font-bold cursor-pointer disabled:opacity-50"
-              title="Sinkronkan data scan offline ke server"
+              onClick={fetchLiveQueue}
+              className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/20 bg-white/10 text-white hover:bg-white/20 transition active:scale-95 shadow-sm cursor-pointer backdrop-blur-md"
+              title="Muat Ulang Antrean"
             >
-              <CloudUpload className={`h-4 w-4 ${isSyncing ? "animate-bounce" : ""}`} />
-              <span>{isSyncing ? "Syncing..." : `${pendingSyncCount} Antrean Sync`}</span>
+              <RefreshCw className={`h-4.5 w-4.5 ${queueLoading ? "animate-spin text-amber-300" : ""}`} />
             </button>
-          )}
 
-          <button
-            type="button"
-            onClick={fetchLiveQueue}
-            className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition active:scale-95 shadow-xs cursor-pointer"
-            title="Muat Ulang Antrean"
-          >
-            <RefreshCw className={`h-4.5 w-4.5 ${queueLoading ? "animate-spin text-indigo-500" : ""}`} />
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setShowScanner(true)}
-            className="group relative inline-flex items-center justify-center space-x-2 rounded-2xl bg-gradient-to-r from-indigo-600 to-cyan-500 px-5 py-3 text-xs font-black text-white shadow-lg shadow-indigo-600/25 transition-all duration-300 hover:shadow-indigo-600/40 hover:scale-[1.02] active:scale-95 cursor-pointer"
-          >
-            <QrCode className="h-4 w-4 transition-transform duration-300 group-hover:rotate-12" />
-            <span>Buka Scanner Kamera</span>
-            <Sparkles className="h-3.5 w-3.5 opacity-60 animate-pulse" />
-          </button>
+            <button
+              type="button"
+              onClick={() => setShowScanner(true)}
+              className="inline-flex items-center space-x-2 rounded-2xl bg-gradient-to-r from-amber-400 via-emerald-500 to-teal-400 hover:from-amber-300 hover:to-teal-300 px-4 py-2.5 text-xs font-black text-slate-950 shadow-lg shadow-emerald-900/30 transition active:scale-95 cursor-pointer"
+            >
+              <QrCode className="h-4 w-4 stroke-[2.5]" />
+              <span>Buka Scanner Kamera</span>
+              <Sparkles className="h-3.5 w-3.5 opacity-70 animate-pulse" />
+            </button>
+          </div>
         </div>
       </div>
 
       {/* FALLBACK INPUT CEPAT SATPAM (TANPA KAMERA) */}
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 shadow-sm">
+      <div className="rounded-3xl border border-slate-200/80 dark:border-emerald-900/40 bg-white/90 dark:bg-[#0c1815] p-4 shadow-xl backdrop-blur-xl">
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -590,19 +593,20 @@ export default function SecurityGatePage() {
           className="flex flex-col sm:flex-row gap-2.5"
         >
           <div className="relative flex-1 group">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors pointer-events-none" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors pointer-events-none" />
             <input
               type="text"
               value={manualQuery}
               onChange={(e) => setManualQuery(e.target.value)}
               placeholder="Input Manual: Ketik NIS atau Nama Santri (misal: 'abdul' atau '20260001')..."
-              className="h-11 w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 pl-10 pr-3.5 text-xs font-semibold text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+              className="h-11 w-full rounded-2xl border border-slate-200 dark:border-emerald-900/60 bg-slate-50 dark:bg-emerald-950/30 pl-10 pr-3.5 text-xs font-semibold text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:border-emerald-500 transition-all shadow-xs"
             />
           </div>
           <button
-            type="submit"
+            type="button"
+            onClick={() => processStudentVerification(manualQuery)}
             disabled={loading || !manualQuery.trim()}
-            className="h-11 px-5 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 text-xs font-black transition active:scale-95 disabled:opacity-40 flex items-center justify-center space-x-1.5 cursor-pointer"
+            className="h-11 px-5 rounded-2xl bg-gradient-to-r from-emerald-700 to-teal-700 hover:from-emerald-800 hover:to-teal-800 text-white text-xs font-black transition active:scale-95 disabled:opacity-40 flex items-center justify-center space-x-1.5 cursor-pointer shadow-md shadow-emerald-700/20"
           >
             <KeyRound className="h-3.5 w-3.5" />
             <span>Verifikasi Manual</span>
@@ -618,7 +622,7 @@ export default function SecurityGatePage() {
               ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300"
               : scanMessage.type === "error"
               ? "bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-300"
-              : "bg-indigo-500/10 border-indigo-500/30 text-indigo-700 dark:text-indigo-300"
+              : "bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300"
           }`}
         >
           {scanMessage.type === "success" ? (
@@ -632,15 +636,15 @@ export default function SecurityGatePage() {
 
       {/* HASIL PEMINDAIAN SANTRI AKTIF */}
       {loading ? (
-        <div className="py-14 text-center text-slate-400 space-y-3 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800">
-          <RefreshCw className="h-8 w-8 animate-spin mx-auto text-indigo-500" />
+        <div className="py-14 text-center text-slate-400 space-y-3 bg-white dark:bg-[#0c1815] rounded-3xl border border-slate-200 dark:border-emerald-900/40 shadow-xl">
+          <RefreshCw className="h-8 w-8 animate-spin mx-auto text-emerald-600" />
           <p className="text-xs font-bold tracking-wide uppercase">Memvalidasi Status Izin Santri...</p>
         </div>
       ) : studentInfo ? (
-        <div className="group relative overflow-hidden rounded-3xl border border-indigo-500/30 bg-white dark:bg-slate-900 p-6 sm:p-7 shadow-2xl space-y-5 transition-all animate-in zoom-in-95">
-          <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100 dark:border-slate-800">
+        <div className="group relative overflow-hidden rounded-3xl border border-emerald-500/30 bg-white dark:bg-[#0c1815] p-6 sm:p-7 shadow-2xl space-y-5 transition-all animate-in zoom-in-95">
+          <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100 dark:border-emerald-900/40">
             <div className="flex items-center space-x-4">
-              <div className="h-16 w-16 sm:h-18 sm:w-18 rounded-2xl bg-gradient-to-tr from-indigo-500/20 to-cyan-500/10 border border-indigo-500/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black text-2xl shrink-0 overflow-hidden shadow-sm">
+              <div className="h-16 w-16 sm:h-18 sm:w-18 rounded-2xl bg-gradient-to-tr from-emerald-500/20 to-teal-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 flex items-center justify-center font-black text-2xl shrink-0 overflow-hidden shadow-sm">
                 {studentInfo.photo_url ? (
                   <img src={studentInfo.photo_url} alt="" className="h-full w-full object-cover object-top" />
                 ) : (
@@ -653,7 +657,7 @@ export default function SecurityGatePage() {
                   {studentInfo.name}
                 </h2>
                 <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-0.5">
-                  NIS: <span className="text-indigo-600 dark:text-indigo-400 font-bold">{studentInfo.nis}</span> &bull; Kelas: {studentInfo.class_name} &bull; Asrama: {studentInfo.dorm}
+                  NIS: <span className="text-emerald-600 dark:text-emerald-400 font-bold">{studentInfo.nis}</span> &bull; Kelas: {studentInfo.class_name} &bull; Asrama: {studentInfo.dorm}
                 </p>
               </div>
             </div>
@@ -661,7 +665,7 @@ export default function SecurityGatePage() {
             <div>
               {activePermit ? (
                 activePermit.status === "approved" ? (
-                  <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30 text-xs font-black uppercase tracking-wider">
+                  <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 text-xs font-black uppercase tracking-wider">
                     <CheckCircle2 className="h-3.5 w-3.5" />
                     <span>Izin Disetujui ({activePermit.category})</span>
                   </span>
@@ -678,7 +682,7 @@ export default function SecurityGatePage() {
                     </span>
                   )
                 ) : (
-                  <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-xs font-black uppercase tracking-wider">
+                  <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-500/30 text-xs font-black uppercase tracking-wider">
                     <CheckCircle2 className="h-3.5 w-3.5" />
                     <span>Sudah Kembali</span>
                   </span>
@@ -696,8 +700,8 @@ export default function SecurityGatePage() {
           {activePermit && (
             <div className="space-y-3.5">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="flex items-center space-x-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 shrink-0">
+                <div className="flex items-center space-x-3 p-3 rounded-2xl bg-slate-50 dark:bg-emerald-950/30 border border-slate-200/80 dark:border-emerald-900/30">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 shrink-0">
                     <Calendar className="h-4 w-4" />
                   </div>
                   <div>
@@ -712,7 +716,7 @@ export default function SecurityGatePage() {
                   className={`flex items-center space-x-3 p-3 rounded-2xl border ${
                     isOverdue(activePermit)
                       ? "bg-rose-500/10 border-rose-500/30 text-rose-600"
-                      : "bg-slate-50 dark:bg-slate-950/60 border-slate-200/80 dark:border-slate-800"
+                      : "bg-slate-50 dark:bg-emerald-950/30 border-slate-200/80 dark:border-emerald-900/30"
                   }`}
                 >
                   <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 shrink-0">
@@ -727,9 +731,9 @@ export default function SecurityGatePage() {
                 </div>
               </div>
 
-              <div className="rounded-2xl bg-slate-50/80 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800 p-3.5 space-y-1">
+              <div className="rounded-2xl bg-slate-50/80 dark:bg-emerald-950/20 border border-slate-200/80 dark:border-emerald-900/30 p-3.5 space-y-1">
                 <div className="flex items-center space-x-1.5 text-slate-400 text-xs font-bold">
-                  <FileText className="h-3.5 w-3.5 text-indigo-500" />
+                  <FileText className="h-3.5 w-3.5 text-emerald-600" />
                   <span>Keperluan / Alasan Izin:</span>
                 </div>
                 <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-200 font-medium leading-relaxed">
@@ -786,10 +790,10 @@ export default function SecurityGatePage() {
       ) : null}
 
       {/* ================= DAFTAR ANTREAN REALTIME SANTRI BERIZIN ================= */}
-      <div className="rounded-3xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 sm:p-6 shadow-xl space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
+      <div className="rounded-3xl border border-slate-200/90 dark:border-emerald-900/40 bg-white/90 dark:bg-[#0c1815] p-5 sm:p-6 shadow-xl space-y-4 backdrop-blur-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-emerald-900/30 pb-4">
           <div className="flex items-center space-x-2.5">
-            <div className="h-8 w-8 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold">
+            <div className="h-8 w-8 rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 flex items-center justify-center font-bold">
               <Users className="h-4 w-4" />
             </div>
             <div>
@@ -803,12 +807,12 @@ export default function SecurityGatePage() {
           </div>
 
           {/* Filter Tab */}
-          <div className="flex items-center p-1 rounded-xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-[11px] font-bold">
+          <div className="flex items-center p-1 rounded-2xl bg-slate-100 dark:bg-emerald-950/60 border border-slate-200 dark:border-emerald-900/40 text-[11px] font-bold">
             <button
               type="button"
               onClick={() => setQueueFilter("all")}
-              className={`px-3 py-1 rounded-lg transition ${
-                queueFilter === "all" ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs font-black" : "text-slate-400 hover:text-slate-600"
+              className={`px-3 py-1.5 rounded-xl transition cursor-pointer ${
+                queueFilter === "all" ? "bg-emerald-600 text-white shadow-sm font-black" : "text-slate-400 hover:text-slate-200"
               }`}
             >
               Semua ({liveQueue.length})
@@ -816,8 +820,8 @@ export default function SecurityGatePage() {
             <button
               type="button"
               onClick={() => setQueueFilter("approved")}
-              className={`px-3 py-1 rounded-lg transition ${
-                queueFilter === "approved" ? "bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs font-black" : "text-slate-400 hover:text-slate-600"
+              className={`px-3 py-1.5 rounded-xl transition cursor-pointer ${
+                queueFilter === "approved" ? "bg-emerald-600 text-white shadow-sm font-black" : "text-slate-400 hover:text-slate-200"
               }`}
             >
               Siap Keluar ({liveQueue.filter((q) => q.status === "approved").length})
@@ -825,8 +829,8 @@ export default function SecurityGatePage() {
             <button
               type="button"
               onClick={() => setQueueFilter("out_pondok")}
-              className={`px-3 py-1 rounded-lg transition ${
-                queueFilter === "out_pondok" ? "bg-white dark:bg-slate-800 text-amber-600 dark:text-amber-400 shadow-xs font-black" : "text-slate-400 hover:text-slate-600"
+              className={`px-3 py-1.5 rounded-xl transition cursor-pointer ${
+                queueFilter === "out_pondok" ? "bg-emerald-600 text-white shadow-sm font-black" : "text-slate-400 hover:text-slate-200"
               }`}
             >
               Di Luar ({liveQueue.filter((q) => q.status === "out_pondok").length})
@@ -837,7 +841,7 @@ export default function SecurityGatePage() {
         {/* Tabel / Grid Kartu Antrean */}
         {queueLoading ? (
           <div className="py-12 text-center text-slate-400 space-y-2">
-            <RefreshCw className="h-6 w-6 animate-spin mx-auto text-indigo-500" />
+            <RefreshCw className="h-6 w-6 animate-spin mx-auto text-emerald-600" />
             <p className="text-xs font-semibold">Memuat data realtime...</p>
           </div>
         ) : filteredQueue.length === 0 ? (
@@ -853,11 +857,11 @@ export default function SecurityGatePage() {
               return (
                 <div
                   key={item.id}
-                  className="rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 p-4 space-y-3 hover:border-indigo-500/40 transition"
+                  className="rounded-2xl border border-slate-200/90 dark:border-emerald-900/30 bg-slate-50/50 dark:bg-emerald-950/20 p-4 space-y-3 hover:border-emerald-500/40 transition"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3 min-w-0">
-                      <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-indigo-500/20 to-cyan-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black text-sm shrink-0 overflow-hidden">
+                      <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-emerald-500/20 to-teal-500/20 text-emerald-700 dark:text-emerald-400 flex items-center justify-center font-black text-sm shrink-0 overflow-hidden">
                         {student?.photo_url ? (
                           <img src={student.photo_url} alt="" className="h-full w-full object-cover object-top" />
                         ) : (
@@ -877,7 +881,7 @@ export default function SecurityGatePage() {
                     <span
                       className={`text-[9.5px] px-2 py-0.5 rounded-lg border font-bold ${
                         item.status === "approved"
-                          ? "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20"
+                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
                           : isLate
                           ? "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30 animate-pulse"
                           : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
@@ -887,7 +891,7 @@ export default function SecurityGatePage() {
                     </span>
                   </div>
 
-                  <div className="text-[11px] text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 p-2 rounded-xl border border-slate-100 dark:border-slate-800/80 space-y-1">
+                  <div className="text-[11px] text-slate-600 dark:text-slate-300 bg-white dark:bg-[#0c1815] p-2 rounded-xl border border-slate-100 dark:border-emerald-900/30 space-y-1">
                     <p className="font-semibold truncate">
                       <span className="text-slate-400">Keperluan:</span> {item.reason}
                     </p>
@@ -899,7 +903,7 @@ export default function SecurityGatePage() {
                   <button
                     type="button"
                     onClick={() => processStudentVerification(student?.nis || item.student_id)}
-                    className="w-full py-2 rounded-xl bg-slate-900 hover:bg-indigo-600 dark:bg-slate-800 dark:hover:bg-indigo-600 text-white text-[11px] font-bold transition active:scale-95 flex items-center justify-center space-x-1.5 cursor-pointer"
+                    className="w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold transition active:scale-95 flex items-center justify-center space-x-1.5 cursor-pointer shadow-sm"
                   >
                     <CheckCircle2 className="h-3.5 w-3.5" />
                     <span>Pilih &amp; Verifikasi Gerbang</span>
