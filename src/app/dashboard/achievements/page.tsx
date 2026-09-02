@@ -10,13 +10,20 @@ import {
   Plus,
   Search,
   RefreshCw,
+  Clock,
+  CheckCircle2,
+  AlertTriangle,
+  Flame,
+  Scale,
   Edit,
   Trash2,
+  FileText,
   X,
   Calendar,
   CheckSquare,
   Square,
-  CheckCircle2,
+  Check,
+  Layers,
   FileSpreadsheet,
   Printer,
   History,
@@ -32,13 +39,9 @@ import {
   ExternalLink,
   ArrowLeft,
   Star,
-  QrCode,
-  AlertTriangle,
+  Save,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import QRScannerModal from "@/components/QRScannerModal";
-import { parseQRCodeText } from "@/lib/qrParser";
-import { playScanSound } from "@/lib/feedback";
 
 // =============================================================================
 // 2. INTERFACE DATA TYPES
@@ -73,16 +76,40 @@ interface StudentSummary {
   achievementsCount: number;
 }
 
+interface RawStudent {
+  id: string;
+  nis: string;
+  full_name?: string;
+  name?: string;
+  nama?: string;
+  kelas?: string;
+  class_name?: string;
+  class?: string;
+  kamar_asrama?: string;
+  dorm?: string;
+  room?: string;
+  asrama?: string;
+  asal_konsulat?: string;
+  consulate?: string;
+  origin_region?: string;
+  nama_lengkap_wali?: string;
+  guardian_name?: string;
+  nama_wali?: string;
+  no_whatsapp?: string;
+  guardian_phone?: string;
+  phone?: string;
+  photo_url?: string | null;
+  foto?: string | null;
+}
+
 export default function AchievementsPage() {
   // ===========================================================================
   // 3. STATE MANAGEMENT
   // ===========================================================================
   const [achievements, setAchievements] = useState<AchievementRecord[]>([]);
+  const [rawStudents, setRawStudents] = useState<RawStudent[]>([]);
   const [studentsMap, setStudentsMap] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
-
-  // Scanner State
-  const [showScanner, setShowScanner] = useState(false);
 
   // Filter & Search States
   const [searchQuery, setSearchQuery] = useState("");
@@ -96,9 +123,24 @@ export default function AchievementsPage() {
   // Selection State (Multi Checkbox)
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-  // Single Action States
+  // Single Delete State
   const [itemToDelete, setItemToDelete] = useState<AchievementRecord | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Modal Catat Prestasi Baru (Create Modal)
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createSearchStudent, setCreateSearchStudent] = useState("");
+  const [selectedStudentForCreate, setSelectedStudentForCreate] = useState<RawStudent | null>(null);
+  const [createTitle, setCreateTitle] = useState("");
+  const [createCategory, setCreateCategory] = useState("Tahfidz / Al-Qur'an");
+  const [createLevel, setCreateLevel] = useState("Kabupaten / Kota");
+  const [createEventDate, setCreateEventDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [createRewardPoints, setCreateRewardPoints] = useState<number>(20);
+  const [createAppreciation, setCreateAppreciation] = useState("Piagam Penghargaan");
+  const [createDescription, setCreateDescription] = useState("");
+  const [createCertificateUrl, setCreateCertificateUrl] = useState("");
+  const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState("");
 
   // Comprehensive Edit Modal State
   const [editingItem, setEditingItem] = useState<AchievementRecord | null>(null);
@@ -131,12 +173,12 @@ export default function AchievementsPage() {
     setLoading(true);
     try {
       const { data: stData } = await supabase.from("students").select("*");
+      if (stData) setRawStudents(stData);
+
       const stLookup: Record<string, any> = {};
       (stData || []).forEach((st: any) => {
         const nisKey = String(st.nis || "").trim();
         stLookup[nisKey] = {
-          id: st.id,
-          name: st.full_name || st.name || st.nama || "Santri",
           class: st.kelas || st.class_name || st.class || "-",
           dorm: st.kamar_asrama || st.dorm || st.room || st.asrama || "-",
           consulate: st.asal_konsulat || st.consulate || st.origin_region || "-",
@@ -163,69 +205,26 @@ export default function AchievementsPage() {
     }
   }
 
-  // ===========================================================================
-  // 5. SCANNER QR CODE HANDLER
-  // ===========================================================================
-  const handleScanSuccess = async (rawDecodedText: string) => {
-    setShowScanner(false);
-    const { searchKey, nis, id } = parseQRCodeText(rawDecodedText);
-    const targetKey = (nis || searchKey).trim();
+  // Auto-point sesuai level prestasi
+  const handleLevelPointCalculation = (lvl: string, isEdit = false) => {
+    let pts = 20;
+    if (lvl === "Internal Pondok") pts = 10;
+    else if (lvl === "Kabupaten / Kota") pts = 20;
+    else if (lvl === "Provinsi") pts = 35;
+    else if (lvl === "Nasional") pts = 50;
+    else if (lvl === "Internasional") pts = 100;
 
-    let studentMeta = studentsMap[targetKey];
-
-    if (!studentMeta && targetKey) {
-      const { data: st } = await supabase
-        .from("students")
-        .select("*")
-        .or(`nis.eq.${targetKey},id.eq.${id || targetKey}`)
-        .maybeSingle();
-
-      if (st) {
-        studentMeta = {
-          id: st.id,
-          name: st.full_name || st.name || st.nama || "Santri",
-          class: st.kelas || st.class_name || st.class || "-",
-          dorm: st.kamar_asrama || st.dorm || st.room || st.asrama || "-",
-          consulate: st.asal_konsulat || st.consulate || st.origin_region || "-",
-          guardian_name: st.nama_lengkap_wali || st.guardian_name || st.nama_wali || "-",
-          phone: st.no_whatsapp || st.guardian_phone || st.phone || "-",
-          photo_url: st.photo_url || st.foto || null,
-        };
-      }
-    }
-
-    if (studentMeta) {
-      playScanSound("success");
-      const allStudentAchievements = achievements.filter(
-        (item) => item.nis === targetKey || item.student_id === studentMeta.id
-      );
-      const totalPts = allStudentAchievements.reduce(
-        (acc, curr) => acc + (Number(curr.reward_points) || 0),
-        0
-      );
-
-      setSelectedStudentForDossier({
-        id: studentMeta.id,
-        nis: targetKey,
-        name: studentMeta.name,
-        class: studentMeta.class,
-        dorm: studentMeta.dorm,
-        consulate: studentMeta.consulate,
-        guardian_name: studentMeta.guardian_name,
-        guardian_phone: studentMeta.phone,
-        photo_url: studentMeta.photo_url,
-        totalRewardPoints: totalPts,
-        achievementsCount: allStudentAchievements.length,
-      });
-      setDossierPeriodFilter("all");
+    if (isEdit) {
+      setEditLevel(lvl);
+      setEditRewardPoints(pts);
     } else {
-      playScanSound("error");
-      setSearchQuery(targetKey);
+      setCreateLevel(lvl);
+      setCreateRewardPoints(pts);
     }
   };
 
   // ===========================================================================
-  // 6. FILTERING, PERIOD & SORTING LOGIC
+  // 5. FILTERING, PERIOD & SORTING LOGIC
   // ===========================================================================
   const filteredAchievements = useMemo(() => {
     const now = new Date();
@@ -305,6 +304,54 @@ export default function AchievementsPage() {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
     );
+  };
+
+  // ===========================================================================
+  // 6. ACTION: CREATE ACHIEVEMENT
+  // ===========================================================================
+  const handleSaveCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedStudentForCreate) {
+      setCreateError("Silakan cari dan pilih santri yang bersangkutan.");
+      return;
+    }
+    if (!createTitle.trim()) {
+      setCreateError("Nama kejuaraan / capaian prestasi wajib diisi.");
+      return;
+    }
+
+    setIsCreating(true);
+    setCreateError("");
+    try {
+      const studentFullName = selectedStudentForCreate.full_name || selectedStudentForCreate.name || selectedStudentForCreate.nama || "Santri";
+      const payload = {
+        student_id: selectedStudentForCreate.id,
+        student_name: studentFullName,
+        nis: selectedStudentForCreate.nis,
+        title: createTitle.trim(),
+        category: createCategory,
+        level: createLevel,
+        event_date: createEventDate,
+        reward_points: Number(createRewardPoints),
+        appreciation: createAppreciation.trim() || "Piagam Penghargaan",
+        description: createDescription.trim() || null,
+        certificate_url: createCertificateUrl.trim() || null,
+      };
+
+      const { error } = await supabase.from("achievements").insert([payload]);
+      if (error) throw error;
+
+      setShowCreateModal(false);
+      setSelectedStudentForCreate(null);
+      setCreateTitle("");
+      setCreateDescription("");
+      setCreateCertificateUrl("");
+      await fetchData();
+    } catch (err: any) {
+      setCreateError(err.message || "Gagal mencatat prestasi.");
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   // ===========================================================================
@@ -457,12 +504,10 @@ export default function AchievementsPage() {
     try {
       const { error } = await supabase.from("achievements").delete().eq("id", itemToDelete.id);
       if (error) throw error;
-      playScanSound("success");
       setAchievements((prev) => prev.filter((a) => a.id !== itemToDelete.id));
       setSelectedIds((prev) => prev.filter((id) => id !== itemToDelete.id));
       setItemToDelete(null);
     } catch (err: any) {
-      playScanSound("error");
       alert("Gagal menghapus: " + err.message);
     } finally {
       setIsDeleting(false);
@@ -513,11 +558,9 @@ export default function AchievementsPage() {
         .eq("id", editingItem.id);
 
       if (error) throw error;
-      playScanSound("success");
       await fetchData();
       setEditingItem(null);
     } catch (err: any) {
-      playScanSound("error");
       setEditError(err.message || "Gagal memperbarui catatan prestasi.");
     } finally {
       setIsUpdating(false);
@@ -530,12 +573,10 @@ export default function AchievementsPage() {
     try {
       const { error } = await supabase.from("achievements").delete().in("id", selectedIds);
       if (error) throw error;
-      playScanSound("success");
       setAchievements((prev) => prev.filter((a) => !selectedIds.includes(a.id)));
       setSelectedIds([]);
       setShowBatchDeleteModal(false);
     } catch (err: any) {
-      playScanSound("error");
       alert("Gagal hapus massal: " + err.message);
     } finally {
       setIsBatchDeleting(false);
@@ -570,11 +611,11 @@ export default function AchievementsPage() {
 
       {/* ================= HEADER HERO BANNER ================= */}
       <div className="relative overflow-hidden rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-900/90 p-5 sm:p-6 shadow-sm backdrop-blur-xl print:hidden">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
           <div className="flex items-start sm:items-center space-x-3.5 min-w-0">
             <Link
               href="/dashboard"
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:text-emerald-500 hover:border-emerald-500/40 transition active:scale-95 shadow-xs"
+              className="flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:text-emerald-500 hover:border-emerald-500/40 transition active:scale-95 shadow-xs"
               title="Kembali ke Dashboard Utama"
             >
               <ArrowLeft className="h-5 w-5 stroke-[2.4]" />
@@ -599,7 +640,8 @@ export default function AchievementsPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap self-start md:self-center shrink-0">
+          {/* Sisi Kanan: Klaster Tombol Aksi */}
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap self-end xl:self-center shrink-0">
             <button
               type="button"
               onClick={fetchData}
@@ -609,22 +651,10 @@ export default function AchievementsPage() {
               <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin text-emerald-500" : ""}`} />
             </button>
 
-            {/* TOMBOL SCAN QR KTS */}
-            <button
-              type="button"
-              onClick={() => setShowScanner(true)}
-              className="inline-flex items-center space-x-1.5 rounded-xl border border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400 px-3 py-2 text-xs font-bold transition active:scale-95 shadow-xs whitespace-nowrap cursor-pointer"
-              title="Pindai QR KTS untuk membuka rekam prestasi santri secara instan"
-            >
-              <QrCode className="h-4 w-4" />
-              <span>Scan QR KTS</span>
-              <Sparkles className="h-3 w-3 opacity-60 animate-pulse" />
-            </button>
-
             <button
               type="button"
               onClick={handleExportCSV}
-              className="inline-flex items-center space-x-1.5 rounded-xl border border-emerald-600/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 px-3 py-2 text-xs font-bold transition active:scale-95 shadow-xs whitespace-nowrap cursor-pointer"
+              className="inline-flex items-center space-x-1.5 rounded-xl border border-emerald-600/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 px-3.5 py-2 text-xs font-bold transition active:scale-95 shadow-xs whitespace-nowrap cursor-pointer"
               title="Unduh format CSV/Excel"
             >
               <FileSpreadsheet className="h-4 w-4" />
@@ -634,20 +664,29 @@ export default function AchievementsPage() {
             <button
               type="button"
               onClick={handlePrintGlobalReport}
-              className="inline-flex items-center space-x-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 transition active:scale-95 shadow-xs whitespace-nowrap cursor-pointer"
+              className="inline-flex items-center space-x-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 px-3.5 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 transition active:scale-95 shadow-xs whitespace-nowrap cursor-pointer"
               title="Cetak format Laporan"
             >
               <Printer className="h-4 w-4" />
               <span>Cetak Laporan</span>
             </button>
 
-            <Link
-              href="/dashboard/achievements/create"
-              className="inline-flex items-center space-x-1.5 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-500 to-amber-500 hover:from-emerald-500 hover:to-amber-400 px-3.5 py-2 text-xs font-black text-white shadow-md shadow-emerald-500/20 transition active:scale-95 whitespace-nowrap cursor-pointer"
+            {/* TOMBOL BUKA MODAL INPUT PRESTASI LANGSUNG */}
+            <button
+              type="button"
+              onClick={() => {
+                setShowCreateModal(true);
+                setCreateError("");
+                setSelectedStudentForCreate(null);
+                setCreateSearchStudent("");
+                setCreateTitle("");
+                setCreateDescription("");
+              }}
+              className="inline-flex items-center space-x-1.5 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-500 to-amber-500 hover:from-emerald-500 hover:to-amber-400 px-4 py-2 text-xs font-black text-white shadow-md shadow-emerald-500/20 transition active:scale-95 whitespace-nowrap cursor-pointer"
             >
               <Plus className="h-4 w-4 stroke-[2.5]" />
               <span>Catat Prestasi Baru</span>
-            </Link>
+            </button>
           </div>
         </div>
       </div>
@@ -1007,6 +1046,213 @@ export default function AchievementsPage() {
         </div>
       )}
 
+      {/* ================= MODAL CATAT PRESTASI BARU ================= */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
+          <div className="w-full max-w-2xl my-auto overflow-hidden rounded-[28px] border border-slate-800 bg-slate-900/95 p-6 sm:p-7 text-white space-y-4 shadow-2xl animate-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center space-x-2.5">
+                <div className="h-8 w-8 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+                  <Plus className="h-5 w-5 stroke-[2.5]" />
+                </div>
+                <div>
+                  <h3 className="font-black text-sm text-white">Catat Prestasi Baru Santri</h3>
+                  <p className="text-[11px] text-slate-400">Input rekognisi kejuaraan &amp; penambahan poin reward</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCreateModal(false)}
+                className="text-slate-400 hover:text-white cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {createError && (
+              <div className="p-3 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs font-semibold flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-rose-400 shrink-0" />
+                <span>{createError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSaveCreate} className="space-y-4 text-xs font-sans">
+              {/* Cari Santri */}
+              <div className="space-y-1.5">
+                <label className="font-bold text-slate-300">Pilih Santri Penerima *</label>
+                {!selectedStudentForCreate ? (
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                      <input
+                        type="text"
+                        value={createSearchStudent}
+                        onChange={(e) => setCreateSearchStudent(e.target.value)}
+                        placeholder="Ketik Nama Lengkap atau NIS Santri..."
+                        className="w-full h-9.5 pl-9 pr-3 rounded-xl border border-slate-800 bg-slate-950 font-semibold text-white outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                    {createSearchStudent.trim() && (
+                      <div className="max-h-36 overflow-y-auto space-y-1 border border-slate-800 rounded-xl p-1.5 bg-slate-950/80">
+                        {rawStudents
+                          .filter((s) => {
+                            const q = createSearchStudent.toLowerCase();
+                            const nm = (s.full_name || s.name || s.nama || "").toLowerCase();
+                            return nm.includes(q) || String(s.nis || "").includes(q);
+                          })
+                          .slice(0, 5)
+                          .map((st) => (
+                            <button
+                              key={st.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedStudentForCreate(st);
+                                setCreateSearchStudent("");
+                              }}
+                              className="w-full text-left p-2 rounded-lg hover:bg-slate-800 flex items-center justify-between transition cursor-pointer"
+                            >
+                              <span className="font-bold text-white text-xs">{st.full_name || st.name || st.nama}</span>
+                              <span className="text-[10px] text-slate-400 font-mono">NIS: {st.nis}</span>
+                            </button>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                    <div>
+                      <p className="font-bold text-white text-xs">
+                        {selectedStudentForCreate.full_name || selectedStudentForCreate.name || selectedStudentForCreate.nama}
+                      </p>
+                      <p className="text-[10px] text-slate-400 font-mono">
+                        NIS: {selectedStudentForCreate.nis} • Kelas: {selectedStudentForCreate.kelas || selectedStudentForCreate.class_name || "-"}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedStudentForCreate(null)}
+                      className="text-xs text-rose-400 hover:underline font-bold cursor-pointer"
+                    >
+                      Ganti
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Nama Kejuaraan */}
+              <div className="space-y-1">
+                <label className="font-bold text-slate-300">Nama Kejuaraan / Prestasi *</label>
+                <input
+                  type="text"
+                  required
+                  value={createTitle}
+                  onChange={(e) => setCreateTitle(e.target.value)}
+                  placeholder="Contoh: Juara 1 Pidato Bahasa Arab Tingkat Jawa Barat"
+                  className="w-full h-10 rounded-xl border border-slate-800 bg-slate-950 px-3 font-semibold text-white outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-300">Kategori Bidang</label>
+                  <select
+                    value={createCategory}
+                    onChange={(e) => setCreateCategory(e.target.value)}
+                    className="w-full h-10 rounded-xl border border-slate-800 bg-slate-950 px-3 font-bold text-slate-200 outline-none focus:border-emerald-500 cursor-pointer"
+                  >
+                    <option value="Tahfidz / Al-Qur'an">Tahfidz / Al-Qur&apos;an</option>
+                    <option value="Bahasa / Pidato">Bahasa / Pidato</option>
+                    <option value="Akademik & Sains">Akademik &amp; Sains</option>
+                    <option value="Keorganisasian & Kepemimpinan">Keorganisasian</option>
+                    <option value="Olahraga & Seni">Olahraga &amp; Seni</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-300">Tingkat Wilayah</label>
+                  <select
+                    value={createLevel}
+                    onChange={(e) => handleLevelPointCalculation(e.target.value, false)}
+                    className="w-full h-10 rounded-xl border border-slate-800 bg-slate-950 px-3 font-bold text-slate-200 outline-none focus:border-emerald-500 cursor-pointer"
+                  >
+                    <option value="Internal Pondok">Internal Pondok (+10 Poin)</option>
+                    <option value="Kabupaten / Kota">Kabupaten / Kota (+20 Poin)</option>
+                    <option value="Provinsi">Provinsi (+35 Poin)</option>
+                    <option value="Nasional">Nasional (+50 Poin)</option>
+                    <option value="Internasional">Internasional (+100 Poin)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-300">Tanggal Perolehan *</label>
+                  <input
+                    type="date"
+                    required
+                    value={createEventDate}
+                    onChange={(e) => setCreateEventDate(e.target.value)}
+                    className="w-full h-10 rounded-xl border border-slate-800 bg-slate-950 px-3 font-bold text-white outline-none focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                <div className="sm:col-span-4 space-y-1">
+                  <label className="font-bold text-slate-300">Reward Poin (+)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="200"
+                    value={createRewardPoints}
+                    onChange={(e) => setCreateRewardPoints(Number(e.target.value))}
+                    className="w-full h-10 rounded-xl border border-slate-800 bg-slate-950 px-3 font-bold text-emerald-400 outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div className="sm:col-span-8 space-y-1">
+                  <label className="font-bold text-slate-300">Bentuk Apresiasi / Hadiah</label>
+                  <input
+                    type="text"
+                    value={createAppreciation}
+                    onChange={(e) => setCreateAppreciation(e.target.value)}
+                    placeholder="Contoh: Piagam Emas, Uang Pembinaan"
+                    className="w-full h-10 rounded-xl border border-slate-800 bg-slate-950 px-3 text-xs text-white outline-none focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-slate-300">Keterangan Tambahan / Penyelenggara</label>
+                <textarea
+                  rows={2}
+                  value={createDescription}
+                  onChange={(e) => setCreateDescription(e.target.value)}
+                  placeholder="Keterangan instansi penyelenggara atau catatan khusus..."
+                  className="w-full rounded-xl border border-slate-800 bg-slate-950 p-2.5 text-xs text-white outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <div className="flex gap-2.5 pt-2 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  className="flex-1 py-2.5 rounded-xl border border-slate-700 bg-slate-800 text-slate-300 font-bold hover:bg-slate-700 transition cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCreating}
+                  className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-black shadow-md transition flex items-center justify-center space-x-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {isCreating ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  <span>Simpan Catatan Prestasi</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* ================= MODAL DOSSIER RAPOR PRESTASI SANTRI ================= */}
       {selectedStudentForDossier && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 p-4 sm:p-6 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200 print:hidden">
@@ -1340,14 +1586,14 @@ export default function AchievementsPage() {
                   <label className="font-bold text-slate-300">Tingkat Wilayah</label>
                   <select
                     value={editLevel}
-                    onChange={(e) => setEditLevel(e.target.value)}
+                    onChange={(e) => handleLevelPointCalculation(e.target.value, true)}
                     className="w-full h-10 rounded-xl border border-slate-800 bg-slate-950 px-3 font-bold text-slate-200 outline-none focus:border-amber-500 cursor-pointer"
                   >
-                    <option value="Internal Pondok">Internal Pondok</option>
-                    <option value="Kabupaten / Kota">Kabupaten / Kota</option>
-                    <option value="Provinsi">Provinsi</option>
-                    <option value="Nasional">Nasional</option>
-                    <option value="Internasional">Internasional</option>
+                    <option value="Internal Pondok">Internal Pondok (+10 Poin)</option>
+                    <option value="Kabupaten / Kota">Kabupaten / Kota (+20 Poin)</option>
+                    <option value="Provinsi">Provinsi (+35 Poin)</option>
+                    <option value="Nasional">Nasional (+50 Poin)</option>
+                    <option value="Internasional">Internasional (+100 Poin)</option>
                   </select>
                 </div>
 
@@ -1623,15 +1869,6 @@ export default function AchievementsPage() {
           </div>
         </div>
       )}
-
-      {/* ================= MODAL SCANNER KTS ================= */}
-      <QRScannerModal
-        isOpen={showScanner}
-        onClose={() => setShowScanner(false)}
-        onScanSuccess={handleScanSuccess}
-        title="Pemindai KTS Santri (Prestasi & Penghargaan)"
-        description="Arahkan kamera ke QR Code KTS santri untuk melihat daftar raihan prestasi"
-      />
     </div>
   );
 }

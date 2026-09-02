@@ -28,6 +28,7 @@ import {
   History,
   Menu,
   X,
+  CalendarCheck,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import SIPSLogo from "@/components/SIPSLogo";
@@ -387,6 +388,13 @@ export default function DashboardLayout({
       {
         title: "Disiplin & Tarbiyah",
         items: [
+          {
+            name: "Presensi Santri",
+            href: "/dashboard/attendance",
+            icon: CalendarCheck,
+            badge: "Live",
+            badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30 font-bold",
+          },
           {
             name: "Perizinan Santri",
             href: "/dashboard/permissions",
