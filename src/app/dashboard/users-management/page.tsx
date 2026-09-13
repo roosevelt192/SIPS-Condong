@@ -14,6 +14,7 @@ import {
   X,
   Clock,
   User,
+  Loader2,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
@@ -31,6 +32,9 @@ export default function UsersManagementPage() {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+
+  // State Animasi & Eksekusi Per Baris ID
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
   // State Modal Edit
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
@@ -88,8 +92,8 @@ export default function UsersManagementPage() {
   }
 
   const handleUpdateStatus = async (userId: string, newStatus: "approved" | "rejected") => {
+    setActionLoadingId(userId + newStatus);
     try {
-      // Mengirimkan update status ke tabel profiles
       const { error } = await supabase
         .from("profiles")
         .update({ 
@@ -99,11 +103,11 @@ export default function UsersManagementPage() {
         .eq("id", userId);
 
       if (error) throw error;
-      
-      // Refresh data secara instan setelah berhasil
       await fetchUsers();
     } catch (err: any) {
-      alert("Gagal memperbarui status akun: " + (err.message || "Terjadi kesalahan sistem RLS."));
+      alert("Gagal memperbarui status akun: " + (err.message || "Terjadi kesalahan RLS policy."));
+    } finally {
+      setActionLoadingId(null);
     }
   };
 
@@ -124,7 +128,7 @@ export default function UsersManagementPage() {
 
       if (error) throw error;
       setEditingUser(null);
-      fetchUsers();
+      await fetchUsers();
     } catch (err: any) {
       alert("Gagal memperbarui data petugas: " + err.message);
     } finally {
@@ -135,12 +139,15 @@ export default function UsersManagementPage() {
   const handleDeleteUser = async (userId: string, userName: string) => {
     if (!confirm(`Apakah Anda yakin ingin menghapus akun petugas "${userName}"?`)) return;
 
+    setActionLoadingId(userId + "delete");
     try {
       const { error } = await supabase.from("profiles").delete().eq("id", userId);
       if (error) throw error;
-      fetchUsers();
+      await fetchUsers();
     } catch (err: any) {
       alert("Gagal menghapus akun: " + err.message);
+    } finally {
+      setActionLoadingId(null);
     }
   };
 
@@ -153,7 +160,7 @@ export default function UsersManagementPage() {
   );
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto font-sans relative pb-16">
+    <div className="space-y-6 max-w-7xl mx-auto font-sans relative pb-16 animate-in fade-in duration-500">
       {/* Background Subtle Glows */}
       <div className="pointer-events-none absolute -top-10 -right-10 h-72 w-72 rounded-full bg-emerald-500/10 blur-[100px]" />
       <div className="pointer-events-none absolute top-48 -left-10 h-72 w-72 rounded-full bg-teal-500/10 blur-[100px]" />
@@ -208,7 +215,7 @@ export default function UsersManagementPage() {
 
       {/* ANTREAN VERIFIKASI (PENDING) */}
       {pendingUsers.length > 0 && (
-        <div className="rounded-[32px] border border-amber-500/30 bg-amber-500/5 dark:bg-amber-950/20 p-5 sm:p-6 space-y-4 shadow-sm backdrop-blur-md">
+        <div className="rounded-[32px] border border-amber-500/30 bg-amber-500/5 dark:bg-amber-950/20 p-5 sm:p-6 space-y-4 shadow-sm backdrop-blur-md transition-all duration-300">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center space-x-2 text-amber-600 dark:text-amber-400">
               <Clock className="h-5 w-5 animate-pulse shrink-0" />
@@ -223,7 +230,7 @@ export default function UsersManagementPage() {
             {pendingUsers.map((u) => (
               <div
                 key={u.id}
-                className="p-4 rounded-2xl border border-amber-500/20 bg-white dark:bg-[#0c1815] flex items-center justify-between shadow-sm gap-3"
+                className="p-4 rounded-2xl border border-amber-500/20 bg-white dark:bg-[#0c1815] flex items-center justify-between shadow-sm gap-3 hover:border-amber-500/50 transition-all"
               >
                 <div className="min-w-0">
                   <div className="flex items-center space-x-2">
@@ -244,19 +251,29 @@ export default function UsersManagementPage() {
                 <div className="flex items-center space-x-1.5 shrink-0">
                   <button
                     type="button"
+                    disabled={actionLoadingId !== null}
                     onClick={() => handleUpdateStatus(u.id, "approved")}
-                    className="p-2 rounded-xl bg-emerald-500 text-slate-950 font-bold hover:bg-emerald-400 transition cursor-pointer shadow-md active:scale-95"
+                    className="p-2 rounded-xl bg-emerald-500 text-slate-950 font-bold hover:bg-emerald-400 transition transform active:scale-90 cursor-pointer shadow-md disabled:opacity-50"
                     title="Setujui Akun"
                   >
-                    <Check className="h-4 w-4 stroke-[3]" />
+                    {actionLoadingId === u.id + "approved" ? (
+                      <Loader2 className="h-4 w-4 animate-spin stroke-[3]" />
+                    ) : (
+                      <Check className="h-4 w-4 stroke-[3]" />
+                    )}
                   </button>
                   <button
                     type="button"
+                    disabled={actionLoadingId !== null}
                     onClick={() => handleUpdateStatus(u.id, "rejected")}
-                    className="p-2 rounded-xl bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition cursor-pointer active:scale-95"
+                    className="p-2 rounded-xl bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition transform active:scale-90 cursor-pointer disabled:opacity-50"
                     title="Tolak Pendaftaran"
                   >
-                    <X className="h-4 w-4 stroke-[3]" />
+                    {actionLoadingId === u.id + "rejected" ? (
+                      <Loader2 className="h-4 w-4 animate-spin stroke-[3]" />
+                    ) : (
+                      <X className="h-4 w-4 stroke-[3]" />
+                    )}
                   </button>
                 </div>
               </div>
@@ -279,7 +296,7 @@ export default function UsersManagementPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Cari nama, email, role..."
-              className="h-10 w-full rounded-2xl border border-slate-200 dark:border-emerald-900/60 bg-slate-50 dark:bg-emerald-950/30 pl-10 pr-3 text-xs font-semibold outline-none focus:border-emerald-500 transition text-slate-900 dark:text-white"
+              className="h-10 w-full rounded-2xl border border-slate-200 dark:border-emerald-900/60 bg-slate-50 dark:bg-emerald-950/30 pl-10 pr-3 text-xs font-semibold outline-none focus:border-emerald-500 transition text-slate-900 dark:text-white shadow-inner"
             />
           </div>
         </div>
@@ -297,7 +314,7 @@ export default function UsersManagementPage() {
             </div>
           ) : (
             filteredUsers.map((u) => (
-              <div key={u.id} className="py-4 space-y-3">
+              <div key={u.id} className="py-4 space-y-3 transition-all">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center space-x-2.5 min-w-0">
                     <div className="h-9 w-9 rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center font-black text-xs shrink-0 shadow-inner">
@@ -347,7 +364,7 @@ export default function UsersManagementPage() {
                         setEditName(u.full_name);
                         setEditRole(u.role);
                       }}
-                      className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-emerald-900/40 bg-slate-50 dark:bg-emerald-950/40 text-slate-700 dark:text-slate-200 text-xs font-bold transition active:scale-95 cursor-pointer"
+                      className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-emerald-900/40 bg-slate-50 dark:bg-emerald-950/40 text-slate-700 dark:text-slate-200 text-xs font-bold transition transform active:scale-95 cursor-pointer shadow-sm hover:border-emerald-500"
                     >
                       <Edit2 className="h-3.5 w-3.5" />
                       <span>Edit</span>
@@ -355,11 +372,16 @@ export default function UsersManagementPage() {
                     {u.role !== "super_admin" && (
                       <button
                         type="button"
+                        disabled={actionLoadingId === u.id + "delete"}
                         onClick={() => handleDeleteUser(u.id, u.full_name)}
-                        className="p-1.5 rounded-xl border border-rose-500/20 bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition active:scale-95 cursor-pointer"
+                        className="p-1.5 rounded-xl border border-rose-500/20 bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition transform active:scale-95 cursor-pointer disabled:opacity-50"
                         title="Hapus Akun"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        {actionLoadingId === u.id + "delete" ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
                       </button>
                     )}
                   </div>
@@ -397,7 +419,7 @@ export default function UsersManagementPage() {
                 </tr>
               ) : (
                 filteredUsers.map((u) => (
-                  <tr key={u.id} className="hover:bg-emerald-500/[0.03] dark:hover:bg-emerald-950/20 transition">
+                  <tr key={u.id} className="hover:bg-emerald-500/[0.03] dark:hover:bg-emerald-950/20 transition-all duration-200">
                     <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-white">{u.full_name}</td>
                     <td className="py-3.5 px-4 text-slate-500 dark:text-slate-400 font-mono">{u.email}</td>
                     <td className="py-3.5 px-4">
@@ -439,7 +461,7 @@ export default function UsersManagementPage() {
                             setEditName(u.full_name);
                             setEditRole(u.role);
                           }}
-                          className="p-2 rounded-xl border border-slate-200 dark:border-emerald-900/40 text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:border-emerald-500/40 transition active:scale-90 cursor-pointer shadow-xs"
+                          className="p-2 rounded-xl border border-slate-200 dark:border-emerald-900/40 text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:border-emerald-500/40 transition transform active:scale-90 cursor-pointer shadow-xs"
                           title="Edit Profil & Role"
                         >
                           <Edit2 className="h-4 w-4" />
@@ -447,11 +469,16 @@ export default function UsersManagementPage() {
                         {u.role !== "super_admin" && (
                           <button
                             type="button"
+                            disabled={actionLoadingId === u.id + "delete"}
                             onClick={() => handleDeleteUser(u.id, u.full_name)}
-                            className="p-2 rounded-xl border border-slate-200 dark:border-emerald-900/40 text-slate-500 dark:text-slate-400 hover:text-rose-500 hover:border-rose-500/40 hover:bg-rose-500/10 transition active:scale-90 cursor-pointer shadow-xs"
+                            className="p-2 rounded-xl border border-slate-200 dark:border-emerald-900/40 text-slate-500 dark:text-slate-400 hover:text-rose-500 hover:border-rose-500/40 hover:bg-rose-500/10 transition transform active:scale-90 cursor-pointer shadow-xs disabled:opacity-50"
                             title="Hapus Akun"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            {actionLoadingId === u.id + "delete" ? (
+                              <Loader2 className="h-4 w-4 animate-spin text-rose-500" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
                           </button>
                         )}
                       </div>
@@ -464,10 +491,10 @@ export default function UsersManagementPage() {
         </div>
       </div>
 
-      {/* MODAL EDIT USER */}
+      {/* MODAL EDIT USER DENGAN ANIMASI TRANSISI */}
       {editingUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-md">
-          <div className="w-full max-w-md rounded-[32px] border border-slate-800 bg-slate-900 p-6 text-white space-y-5 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-[32px] border border-slate-800 bg-slate-900 p-6 text-white space-y-5 shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3.5">
               <div>
                 <h3 className="font-extrabold text-sm text-white">Edit Data Petugas &amp; Peran</h3>
@@ -489,7 +516,7 @@ export default function UsersManagementPage() {
                   type="text"
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
-                  className="w-full h-11 rounded-2xl bg-slate-950 border border-slate-800 px-3.5 font-semibold text-white outline-none focus:border-emerald-500 transition"
+                  className="w-full h-11 rounded-2xl bg-slate-950 border border-slate-800 px-3.5 font-semibold text-white outline-none focus:border-emerald-500 transition shadow-inner"
                 />
               </div>
 
@@ -498,7 +525,7 @@ export default function UsersManagementPage() {
                 <select
                   value={editRole}
                   onChange={(e) => setEditRole(e.target.value as any)}
-                  className="w-full h-11 rounded-2xl bg-slate-950 border border-slate-800 px-3.5 font-bold text-white outline-none focus:border-emerald-500 cursor-pointer transition"
+                  className="w-full h-11 rounded-2xl bg-slate-950 border border-slate-800 px-3.5 font-bold text-white outline-none focus:border-emerald-500 cursor-pointer transition shadow-inner"
                 >
                   <option value="pengasuhan">Bagian Pengasuhan Santri</option>
                   <option value="security">Pos Satpam / Keamanan Gerbang</option>
@@ -510,16 +537,23 @@ export default function UsersManagementPage() {
                 <button
                   type="button"
                   onClick={() => setEditingUser(null)}
-                  className="flex-1 py-3 rounded-2xl bg-slate-800 text-slate-300 font-bold hover:bg-slate-700 transition active:scale-95 cursor-pointer"
+                  className="flex-1 py-3 rounded-2xl bg-slate-800 text-slate-300 font-bold hover:bg-slate-700 transition transform active:scale-95 cursor-pointer"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="flex-1 py-3 rounded-2xl bg-emerald-500 text-slate-950 font-black hover:bg-emerald-400 transition active:scale-95 disabled:opacity-50 cursor-pointer"
+                  className="flex-1 py-3 rounded-2xl bg-emerald-500 text-slate-950 font-black hover:bg-emerald-400 transition transform active:scale-95 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
                 >
-                  {isSaving ? "Menyimpan..." : "Simpan Perubahan"}
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin stroke-[3]" />
+                      <span>Menyimpan...</span>
+                    </>
+                  ) : (
+                    "Simpan Perubahan"
+                  )}
                 </button>
               </div>
             </form>
