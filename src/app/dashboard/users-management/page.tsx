@@ -15,6 +15,7 @@ import {
   Clock,
   User,
   Loader2,
+  AlertTriangle,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
@@ -41,6 +42,10 @@ export default function UsersManagementPage() {
   const [editName, setEditName] = useState("");
   const [editRole, setEditRole] = useState<"super_admin" | "pengasuhan" | "security">("pengasuhan");
   const [isSaving, setIsSaving] = useState(false);
+
+  // State Modal Hapus Custom (Gaya Serasi dengan Modal Edit)
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<{ id: string; name: string; email: string } | null>(null);
 
   useEffect(() => {
     checkSuperAdminAccess();
@@ -136,13 +141,22 @@ export default function UsersManagementPage() {
     }
   };
 
-  const handleDeleteUser = async (userId: string, userName: string) => {
-    if (!confirm(`Apakah Anda yakin ingin menghapus akun petugas "${userName}"?`)) return;
+  // Fungsi membuka modal custom hapus
+  const confirmDeleteUser = (userId: string, userName: string, userEmail: string) => {
+    setUserToDelete({ id: userId, name: userName, email: userEmail });
+    setDeleteModalOpen(true);
+  };
 
-    setActionLoadingId(userId + "delete");
+  // Fungsi eksekusi hapus setelah dikonfirmasi di modal
+  const executeDeleteUser = async () => {
+    if (!userToDelete) return;
+
+    setActionLoadingId(userToDelete.id + "delete");
     try {
-      const { error } = await supabase.from("profiles").delete().eq("id", userId);
+      const { error } = await supabase.from("profiles").delete().eq("id", userToDelete.id);
       if (error) throw error;
+      setDeleteModalOpen(false);
+      setUserToDelete(null);
       await fetchUsers();
     } catch (err: any) {
       alert("Gagal menghapus akun: " + err.message);
@@ -373,7 +387,7 @@ export default function UsersManagementPage() {
                       <button
                         type="button"
                         disabled={actionLoadingId === u.id + "delete"}
-                        onClick={() => handleDeleteUser(u.id, u.full_name)}
+                        onClick={() => confirmDeleteUser(u.id, u.full_name, u.email)}
                         className="p-1.5 rounded-xl border border-rose-500/20 bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition transform active:scale-95 cursor-pointer disabled:opacity-50"
                         title="Hapus Akun"
                       >
@@ -470,7 +484,7 @@ export default function UsersManagementPage() {
                           <button
                             type="button"
                             disabled={actionLoadingId === u.id + "delete"}
-                            onClick={() => handleDeleteUser(u.id, u.full_name)}
+                            onClick={() => confirmDeleteUser(u.id, u.full_name, u.email)}
                             className="p-2 rounded-xl border border-slate-200 dark:border-emerald-900/40 text-slate-500 dark:text-slate-400 hover:text-rose-500 hover:border-rose-500/40 hover:bg-rose-500/10 transition transform active:scale-90 cursor-pointer shadow-xs disabled:opacity-50"
                             title="Hapus Akun"
                           >
@@ -491,7 +505,7 @@ export default function UsersManagementPage() {
         </div>
       </div>
 
-      {/* MODAL EDIT USER DENGAN ANIMASI TRANSISI */}
+      {/* MODAL EDIT USER */}
       {editingUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-md animate-in fade-in duration-200">
           <div className="w-full max-w-md rounded-[32px] border border-slate-800 bg-slate-900 p-6 text-white space-y-5 shadow-2xl animate-in zoom-in-95 duration-200">
@@ -544,7 +558,7 @@ export default function UsersManagementPage() {
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="flex-1 py-3 rounded-2xl bg-emerald-500 text-slate-950 font-black hover:bg-emerald-400 transition transform active:scale-95 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
+                  className="flex-1 py-3 rounded-2xl bg-emerald-500 text-slate-950 font-black hover:bg-emerald-400 transition transform active:scale-95 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20"
                 >
                   {isSaving ? (
                     <>
@@ -557,6 +571,61 @@ export default function UsersManagementPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL KONFIRMASI HAPUS CUSTOM (GAYA SERASI DENGAN MODAL EDIT) */}
+      {deleteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-[32px] border border-slate-800 bg-slate-900 p-6 text-white space-y-5 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3.5">
+              <div>
+                <h3 className="font-extrabold text-sm text-white">Konfirmasi Hapus Akun Petugas</h3>
+                <p className="text-[11px] text-slate-400">{userToDelete?.email}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDeleteModalOpen(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-xl hover:bg-slate-800 transition cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 py-1 text-xs">
+              <div className="flex items-center space-x-3 p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400">
+                <AlertTriangle className="h-5 w-5 shrink-0" />
+                <p className="font-semibold leading-relaxed">
+                  Apakah Anda yakin ingin menghapus akses sistem untuk petugas <span className="font-bold text-white">"{userToDelete?.name}"</span>? Tindakan ini tidak dapat dibatalkan.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeleteModalOpen(false)}
+                className="flex-1 py-3 rounded-2xl bg-slate-800 text-slate-300 font-bold hover:bg-slate-700 transition transform active:scale-95 cursor-pointer text-xs"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={actionLoadingId !== null}
+                onClick={executeDeleteUser}
+                className="flex-1 py-3 rounded-2xl bg-rose-500 text-white font-black hover:bg-rose-400 transition transform active:scale-95 disabled:opacity-50 cursor-pointer text-xs flex items-center justify-center gap-2 shadow-lg shadow-rose-500/20"
+              >
+                {actionLoadingId ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin stroke-[3]" />
+                    <span>Menghapus...</span>
+                  </>
+                ) : (
+                  "Ya, Hapus Akun"
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
