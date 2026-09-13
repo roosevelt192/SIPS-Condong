@@ -53,13 +53,13 @@ export default function UsersManagementPage() {
         return;
       }
 
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("role")
         .eq("id", session.user.id)
         .single();
 
-      if (!profile || profile.role !== "super_admin") {
+      if (profileError || !profile || profile.role !== "super_admin") {
         router.replace("/dashboard");
         return;
       }
@@ -81,7 +81,7 @@ export default function UsersManagementPage() {
       if (error) throw error;
       setUsers(data || []);
     } catch (err: any) {
-      console.error(err);
+      console.error("Gagal memuat pengguna:", err.message);
     } finally {
       setLoading(false);
     }
@@ -89,15 +89,21 @@ export default function UsersManagementPage() {
 
   const handleUpdateStatus = async (userId: string, newStatus: "approved" | "rejected") => {
     try {
+      // Mengirimkan update status ke tabel profiles
       const { error } = await supabase
         .from("profiles")
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .update({ 
+          status: newStatus, 
+          updated_at: new Date().toISOString() 
+        })
         .eq("id", userId);
 
       if (error) throw error;
-      fetchUsers();
+      
+      // Refresh data secara instan setelah berhasil
+      await fetchUsers();
     } catch (err: any) {
-      alert("Gagal memperbarui status akun: " + err.message);
+      alert("Gagal memperbarui status akun: " + (err.message || "Terjadi kesalahan sistem RLS."));
     }
   };
 
@@ -239,7 +245,7 @@ export default function UsersManagementPage() {
                   <button
                     type="button"
                     onClick={() => handleUpdateStatus(u.id, "approved")}
-                    className="p-2 rounded-xl bg-emerald-500 text-slate-950 font-bold hover:bg-emerald-400 transition cursor-pointer"
+                    className="p-2 rounded-xl bg-emerald-500 text-slate-950 font-bold hover:bg-emerald-400 transition cursor-pointer shadow-md active:scale-95"
                     title="Setujui Akun"
                   >
                     <Check className="h-4 w-4 stroke-[3]" />
@@ -247,7 +253,7 @@ export default function UsersManagementPage() {
                   <button
                     type="button"
                     onClick={() => handleUpdateStatus(u.id, "rejected")}
-                    className="p-2 rounded-xl bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition cursor-pointer"
+                    className="p-2 rounded-xl bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition cursor-pointer active:scale-95"
                     title="Tolak Pendaftaran"
                   >
                     <X className="h-4 w-4 stroke-[3]" />
@@ -259,7 +265,7 @@ export default function UsersManagementPage() {
         </div>
       )}
 
-      {/* DAFTAR SEMUA AKUN PETUGAS: RESPONSIVE DUAL-VIEW */}
+      {/* DAFTAR SEMUA AKUN PETUGAS */}
       <div className="rounded-[32px] border border-slate-200/80 dark:border-emerald-900/40 bg-white/95 dark:bg-[#0c1815] shadow-xl overflow-hidden space-y-4 p-5 sm:p-6 backdrop-blur-xl">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-emerald-900/30 pb-4">
           <div>
@@ -278,7 +284,7 @@ export default function UsersManagementPage() {
           </div>
         </div>
 
-        {/* TAMPILAN 1: MOBILE CARD VIEW (Layar HP < md) */}
+        {/* MOBILE CARD VIEW */}
         <div className="block md:hidden divide-y divide-slate-100 dark:divide-emerald-900/30">
           {loading ? (
             <div className="py-12 text-center text-slate-400">
@@ -363,7 +369,7 @@ export default function UsersManagementPage() {
           )}
         </div>
 
-        {/* TAMPILAN 2: DESKTOP TABLE VIEW (Layar md ke atas) */}
+        {/* DESKTOP TABLE VIEW */}
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
@@ -460,8 +466,8 @@ export default function UsersManagementPage() {
 
       {/* MODAL EDIT USER */}
       {editingUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-md animate-in fade-in">
-          <div className="w-full max-w-md rounded-[32px] border border-slate-800 bg-slate-900 p-6 text-white space-y-5 shadow-2xl animate-in zoom-in-95">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-md">
+          <div className="w-full max-w-md rounded-[32px] border border-slate-800 bg-slate-900 p-6 text-white space-y-5 shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3.5">
               <div>
                 <h3 className="font-extrabold text-sm text-white">Edit Data Petugas &amp; Peran</h3>
