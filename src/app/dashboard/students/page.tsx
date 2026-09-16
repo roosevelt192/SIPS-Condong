@@ -144,15 +144,37 @@ export default function StudentsMasterPage() {
   async function fetchStudents() {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("students")
-        .select("*")
-        .range(0, 4999);
+      let allStudents: any[] = [];
+      let page = 0;
+      const pageSize = 1000;
+      let hasMore = true;
 
-      if (error) throw error;
+      // Loop otomatis untuk mengambil data melebihi batas 1000 baris Supabase
+      while (hasMore) {
+        const from = page * pageSize;
+        const to = from + pageSize - 1;
 
-      if (data && data.length > 0) {
-        const normalizedData: Student[] = data.map((item: any) => ({
+        const { data, error } = await supabase
+          .from("students")
+          .select("*")
+          .range(from, to);
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          allStudents = [...allStudents, ...data];
+          if (data.length < pageSize) {
+            hasMore = false; // Jika data yang didapat kurang dari 1000, berarti sudah habis
+          } else {
+            page++;
+          }
+        } else {
+          hasMore = false;
+        }
+      }
+
+      if (allStudents.length > 0) {
+        const normalizedData: Student[] = allStudents.map((item: any) => ({
           id: String(item.id),
           nis: item.nis || item.nomor_induk || "-",
           nisn: item.nisn || "-",
