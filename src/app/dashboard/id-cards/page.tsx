@@ -21,7 +21,9 @@ import {
   RotateCcw,
   Tag,
   Grid,
-  Sparkles,
+  Filter,
+  X,
+  RefreshCw,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { QRCodeSVG } from "qrcode.react";
@@ -51,8 +53,11 @@ export default function IdCardsGeneratorPage() {
 
   // Filter States
   const [searchQuery, setSearchQuery] = useState("");
+  const [filterGrade, setFilterGrade] = useState("all");
   const [filterClass, setFilterClass] = useState("all");
   const [filterDorm, setFilterDorm] = useState("all");
+  const [filterConsulate, setFilterConsulate] = useState("all");
+  const [showFilterModal, setShowFilterModal] = useState(false);
 
   // Mode Cetak: KTS Fisik CR-80 vs Stiker Label 103 vs Stiker Grid A4
   const [printMode, setPrintMode] = useState<"card" | "label103" | "stickerA4">("card");
@@ -60,7 +65,7 @@ export default function IdCardsGeneratorPage() {
   // Selection & UI States
   const [selectedNisList, setSelectedNisList] = useState<string[]>([]);
   const [cardSide, setCardSide] = useState<"both" | "front" | "back">("both");
-  const [showSettings, setShowSettings] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
 
   // Dimensi Cetak Kustom
   const [paperSize, setPaperSize] = useState<"A4" | "F4" | "Letter" | "PVC_Single">("A4");
@@ -71,7 +76,7 @@ export default function IdCardsGeneratorPage() {
   const [pageMarginMm, setPageMarginMm] = useState(6);
 
   // ===========================================================================
-  // 4. FETCH DATA DARI SUPABASE
+  // 4. FETCH DATA DARI SUPABASE (FULL LOOP BATCH UNTUK 1171+ DATA)
   // ===========================================================================
   useEffect(() => {
     fetchStudents();
@@ -80,26 +85,47 @@ export default function IdCardsGeneratorPage() {
   async function fetchStudents() {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("students")
-        .select("*")
-        .range(0, 4999);
+      let allStudents: any[] = [];
+      let page = 0;
+      const pageSize = 1000;
+      let hasMore = true;
 
-      if (error) throw error;
+      while (hasMore) {
+        const from = page * pageSize;
+        const to = from + pageSize - 1;
 
-      const formatted: StudentItem[] = (data || []).map((st: any) => ({
-        id: st.id,
-        nis: st.nis || "-",
-        name: st.full_name || st.name || st.nama || "Santri",
-        class: st.kelas || st.class_name || st.class || "-",
-        dorm: st.kamar_asrama || st.dorm || st.room || st.asrama || st.room_name || "-",
-        consulate: st.asal_konsulat || st.consulate || st.origin_region || "-",
+        const { data, error } = await supabase
+          .from("students")
+          .select("*")
+          .range(from, to);
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          allStudents = [...allStudents, ...data];
+          if (data.length < pageSize) {
+            hasMore = false;
+          } else {
+            page++;
+          }
+        } else {
+          hasMore = false;
+        }
+      }
+
+      const formatted: StudentItem[] = allStudents.map((st: any) => ({
+        id: String(st.id),
+        nis: (st.nis || "-").trim(),
+        name: (st.full_name || st.name || st.nama || "Santri").trim(),
+        class: (st.kelas || st.class_name || st.class || "-").trim(),
+        dorm: (st.kamar_asrama || st.dorm || st.room || st.asrama || st.room_name || "-").trim(),
+        consulate: (st.asal_konsulat || st.consulate || st.origin_region || "-").trim(),
         photo_url: st.photo_url || st.foto || null,
         status: st.status_santri || st.status || "Aktif Mukim",
-        entry_year: st.tahun_masuk || st.entry_year || "2026",
+        entry_year: String(st.tahun_masuk || st.entry_year || "2026").trim(),
       }));
 
-      formatted.sort((a, b) => a.name.localeCompare(b.name));
+      formatted.sort((a, b) => a.name.localeCompare(b.name, "id"));
       setStudents(formatted);
       setSelectedNisList([]);
     } catch (err: any) {
@@ -110,7 +136,7 @@ export default function IdCardsGeneratorPage() {
   }
 
   // ===========================================================================
-  // 5. FILTERING & SELECTION LOGIC
+  // 5. OPSI FILTER DINAMIS & FILTERING
   // ===========================================================================
   const handlePresetChange = (preset: "CR80" | "Medium" | "Mini" | "Custom") => {
     setCardPreset(preset);
@@ -126,21 +152,61 @@ export default function IdCardsGeneratorPage() {
     }
   };
 
-  const availableClasses = useMemo(() => {
+  const availableGrades = useMemo(() => {
     const set = new Set<string>();
     students.forEach((s) => {
-      if (s.class && s.class !== "-") set.add(s.class);
+      if (s.class && s.class !== "-") {
+        const grade = s.class.split(" ")[0]?.trim();
+        if (grade) set.add(grade);
+      }
     });
     return Array.from(set).sort();
   }, [students]);
+
+  const availableClasses = useMemo(() => {
+    const set = new Set<string>();
+    students.forEach((s) => {
+      if (s.class && s.class !== "-") {
+        if (filterGrade === "all" || s.class.startsWith(filterGrade)) {
+          set.add(s.class);
+        }
+      }
+    });
+    return Array.from(set).sort();
+  }, [students, filterGrade]);
 
   const availableDorms = useMemo(() => {
     const set = new Set<string>();
     students.forEach((s) => {
       if (s.dorm && s.dorm !== "-") set.add(s.dorm);
     });
-    return Array.from(set).sort();
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "id"));
   }, [students]);
+
+  const availableConsulates = useMemo(() => {
+    const set = new Set<string>();
+    students.forEach((s) => {
+      if (s.consulate && s.consulate !== "-") set.add(s.consulate);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "id"));
+  }, [students]);
+
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (filterGrade !== "all") count++;
+    if (filterClass !== "all") count++;
+    if (filterDorm !== "all") count++;
+    if (filterConsulate !== "all") count++;
+    return count;
+  }, [filterGrade, filterClass, filterDorm, filterConsulate]);
+
+  const handleResetFilters = () => {
+    setSearchQuery("");
+    setFilterGrade("all");
+    setFilterClass("all");
+    setFilterDorm("all");
+    setFilterConsulate("all");
+  };
 
   const filteredStudents = useMemo(() => {
     return students.filter((s) => {
@@ -150,14 +216,18 @@ export default function IdCardsGeneratorPage() {
         s.name.toLowerCase().includes(q) ||
         s.nis.toLowerCase().includes(q) ||
         s.consulate.toLowerCase().includes(q) ||
-        s.dorm.toLowerCase().includes(q);
+        s.dorm.toLowerCase().includes(q) ||
+        s.class.toLowerCase().includes(q);
 
-      const matchesClass = filterClass === "all" || s.class === filterClass;
-      const matchesDorm = filterDorm === "all" || s.dorm === filterDorm;
+      const gradePart = s.class.split(" ")[0]?.trim() || "";
+      const matchesGrade = filterGrade === "all" || gradePart.toLowerCase() === filterGrade.toLowerCase();
+      const matchesClass = filterClass === "all" || s.class.toLowerCase() === filterClass.toLowerCase();
+      const matchesDorm = filterDorm === "all" || s.dorm.toLowerCase() === filterDorm.toLowerCase();
+      const matchesConsulate = filterConsulate === "all" || s.consulate.toLowerCase() === filterConsulate.toLowerCase();
 
-      return matchesSearch && matchesClass && matchesDorm;
+      return matchesSearch && matchesGrade && matchesClass && matchesDorm && matchesConsulate;
     });
-  }, [students, searchQuery, filterClass, filterDorm]);
+  }, [students, searchQuery, filterGrade, filterClass, filterDorm, filterConsulate]);
 
   const isAllFilteredSelected = useMemo(() => {
     if (filteredStudents.length === 0) return false;
@@ -180,12 +250,6 @@ export default function IdCardsGeneratorPage() {
     );
   };
 
-  const handleResetFilters = () => {
-    setSearchQuery("");
-    setFilterClass("all");
-    setFilterDorm("all");
-  };
-
   const selectedStudentsToPrint = useMemo(() => {
     return students.filter((s) => selectedNisList.includes(s.nis));
   }, [students, selectedNisList]);
@@ -198,9 +262,7 @@ export default function IdCardsGeneratorPage() {
   };
 
   const getPageSizeCSS = () => {
-    if (printMode === "label103") {
-      return "size: 162mm 215mm portrait;";
-    }
+    if (printMode === "label103") return "size: 162mm 215mm portrait;";
     if (paperSize === "F4") return "size: 215mm 330mm portrait;";
     if (paperSize === "Letter") return "size: letter portrait;";
     if (paperSize === "PVC_Single") return `size: ${cardWidthMm}mm ${cardHeightMm}mm portrait;`;
@@ -247,7 +309,7 @@ export default function IdCardsGeneratorPage() {
   }, [selectedStudentsToPrint, printMode, cardSide, paperSize]);
 
   // ===========================================================================
-  // 6. ISOLATED MULTI-PAGE PRINT ENGINE
+  // 6. ISOLATED PRINT EXECUTION
   // ===========================================================================
   const executeIsolatedPrint = (customTitle?: string) => {
     const printArea = document.getElementById("print-area-kts");
@@ -428,329 +490,400 @@ export default function IdCardsGeneratorPage() {
   };
 
   return (
-    <div className="w-full space-y-6 font-sans relative pb-28 transition-all">
-      {/* ================= HEADER HERO BANNER (SUPER COLORFUL & INTERAKTIF) ================= */}
-      <div className="relative overflow-hidden rounded-[36px] bg-gradient-to-r from-emerald-950 via-[#064e3b] to-teal-950 p-6 sm:p-8 text-white shadow-2xl border border-emerald-500/40">
-        <div className="absolute -top-32 -right-32 w-80 h-80 rounded-full bg-emerald-400/20 blur-[80px] pointer-events-none animate-pulse" />
-        <div className="absolute -bottom-32 -left-32 w-80 h-80 rounded-full bg-amber-400/20 blur-[80px] pointer-events-none" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white/10 via-transparent to-black/30 pointer-events-none" />
-
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-          <div className="flex items-start sm:items-center space-x-4 min-w-0">
+    <div className="w-full space-y-5 font-sans relative pb-24">
+      {/* ================= HEADER HERO BANNER EFISIEN ================= */}
+      <div className="relative overflow-hidden rounded-[32px] bg-gradient-to-r from-emerald-950 via-[#064e3b] to-teal-950 p-5 sm:p-7 text-white shadow-xl border border-emerald-500/40">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center space-x-3.5 min-w-0">
             <Link
               href="/dashboard"
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/20 bg-white/10 text-white hover:bg-white/20 transition-all active:scale-90 shadow-sm backdrop-blur-md"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/20 bg-white/10 text-white hover:bg-white/20 transition active:scale-90 shadow-sm backdrop-blur-md"
               title="Kembali ke Dashboard"
             >
               <ArrowLeft className="h-5 w-5 stroke-[2.4]" />
             </Link>
 
-            <div className="relative flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-amber-400 via-emerald-500 to-teal-400 text-slate-950 shadow-lg font-black">
-              <IdCard className="h-6 w-6 stroke-[2.2]" />
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-amber-400 via-emerald-500 to-teal-400 text-slate-950 shadow-md font-black">
+              <IdCard className="h-5 w-5 stroke-[2.4]" />
             </div>
 
-            <div className="space-y-1 min-w-0">
+            <div className="min-w-0">
               <div className="flex items-center space-x-2">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-emerald-200 text-[10px] font-black uppercase tracking-wider backdrop-blur-xl">
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/10 border border-white/20 text-emerald-200 text-[9.5px] font-black uppercase tracking-wider backdrop-blur-xl">
                   <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
-                  ID CARD &amp; STICKER QR
+                  KTS &amp; STIKER QR
+                </span>
+                <span className="text-[10px] text-emerald-300 font-mono font-bold">
+                  {students.length} Santri
                 </span>
               </div>
-              <h1 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight bg-gradient-to-r from-white via-emerald-100 to-amber-300 bg-clip-text text-transparent truncate">
-                Generator Cetak KTS &amp; Stiker QR
+              <h1 className="text-lg sm:text-2xl font-black tracking-tight text-white mt-0.5 truncate">
+                Generator Cetak KTS &amp; Stiker
               </h1>
-              <p className="text-xs text-emerald-100/90 font-medium truncate">
-                Cetak Kartu Tanda Santri fisik atau Stiker Label Undangan QR Code
-              </p>
             </div>
           </div>
 
-          <div className="flex flex-col gap-2.5 shrink-0 self-stretch sm:self-end lg:self-auto min-w-[360px]">
-            {/* Switcher Mode: Kartu vs Label 103 vs Stiker A4 */}
-            <div className="flex items-center bg-black/40 p-1.5 rounded-2xl border border-emerald-400/30 text-xs font-bold shadow-inner justify-between gap-1 backdrop-blur-xl">
-              <button
-                type="button"
-                onClick={() => setPrintMode("card")}
-                className={`flex-1 text-center py-2 px-2.5 rounded-xl transition cursor-pointer text-xs flex items-center justify-center space-x-1.5 ${
-                  printMode === "card"
-                    ? "bg-gradient-to-r from-emerald-400 to-teal-300 text-slate-950 shadow-md font-black"
-                    : "text-emerald-100/70 hover:text-white hover:bg-white/10"
-                }`}
-              >
-                <IdCard className="w-3.5 h-3.5" />
-                <span>Kartu KTS</span>
-              </button>
+          {/* Action Buttons Header */}
+          <div className="flex items-center gap-2 self-end md:self-auto shrink-0 w-full sm:w-auto justify-end">
+            <button
+              type="button"
+              onClick={() => setShowSettingsModal(true)}
+              className="inline-flex items-center space-x-1.5 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 px-3.5 py-2.5 text-xs font-bold text-white transition active:scale-95 cursor-pointer backdrop-blur-md shadow-sm"
+              title="Pengaturan Format & Ukuran Cetak"
+            >
+              <Settings2 className="h-4 w-4 text-amber-300" />
+              <span className="hidden sm:inline">Format:</span>
+              <span className="font-extrabold text-emerald-300">
+                {printMode === "card" ? "Kartu KTS" : printMode === "label103" ? "Label 103" : "Stiker A4"}
+              </span>
+            </button>
 
-              <button
-                type="button"
-                onClick={() => setPrintMode("label103")}
-                className={`flex-1 text-center py-2 px-2.5 rounded-xl transition cursor-pointer text-xs flex items-center justify-center space-x-1.5 ${
-                  printMode === "label103"
-                    ? "bg-gradient-to-r from-emerald-400 to-teal-300 text-slate-950 shadow-md font-black"
-                    : "text-emerald-100/70 hover:text-white hover:bg-white/10"
-                }`}
-              >
-                <Tag className="w-3.5 h-3.5" />
-                <span>Stiker Label 103</span>
-              </button>
+            <button
+              type="button"
+              onClick={() => executeIsolatedPrint()}
+              disabled={selectedStudentsToPrint.length === 0}
+              className="inline-flex items-center justify-center space-x-1.5 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-300 hover:from-emerald-300 hover:to-teal-200 px-4 py-2.5 text-xs font-black text-slate-950 shadow-lg shadow-emerald-950/40 active:scale-95 transition cursor-pointer disabled:opacity-40"
+            >
+              <Printer className="h-4 w-4 stroke-[2.5]" />
+              <span>Cetak ({selectedStudentsToPrint.length})</span>
+            </button>
 
-              <button
-                type="button"
-                onClick={() => setPrintMode("stickerA4")}
-                className={`flex-1 text-center py-2 px-2.5 rounded-xl transition cursor-pointer text-xs flex items-center justify-center space-x-1.5 ${
-                  printMode === "stickerA4"
-                    ? "bg-gradient-to-r from-emerald-400 to-teal-300 text-slate-950 shadow-md font-black"
-                    : "text-emerald-100/70 hover:text-white hover:bg-white/10"
-                }`}
-              >
-                <Grid className="w-3.5 h-3.5" />
-                <span>Stiker Grid A4 (24)</span>
-              </button>
-            </div>
-
-            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
-              {/* Opsi Sisi Kartu (Khusus Mode Kartu) */}
-              {printMode === "card" && (
-                <div className="flex items-center bg-black/40 p-1.5 rounded-2xl border border-emerald-400/30 text-xs font-bold shadow-inner flex-1 justify-between backdrop-blur-xl">
-                  <button
-                    type="button"
-                    onClick={() => setCardSide("both")}
-                    className={`flex-1 text-center py-1.5 px-2 rounded-xl transition cursor-pointer text-[11px] ${
-                      cardSide === "both"
-                        ? "bg-white text-slate-950 shadow-sm font-black"
-                        : "text-emerald-100/70 hover:text-white hover:bg-white/10"
-                    }`}
-                  >
-                    Bolak-Balik
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCardSide("front")}
-                    className={`flex-1 text-center py-1.5 px-2 rounded-xl transition cursor-pointer text-[11px] ${
-                      cardSide === "front"
-                        ? "bg-white text-slate-950 shadow-sm font-black"
-                        : "text-emerald-100/70 hover:text-white hover:bg-white/10"
-                    }`}
-                  >
-                    Depan
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCardSide("back")}
-                    className={`flex-1 text-center py-1.5 px-2 rounded-xl transition cursor-pointer text-[11px] ${
-                      cardSide === "back"
-                        ? "bg-white text-slate-950 shadow-sm font-black"
-                        : "text-emerald-100/70 hover:text-white hover:bg-white/10"
-                    }`}
-                  >
-                    Belakang
-                  </button>
-                </div>
-              )}
-
-              <button
-                type="button"
-                onClick={() => executeIsolatedPrint()}
-                disabled={selectedStudentsToPrint.length === 0}
-                className="inline-flex items-center justify-center space-x-1.5 rounded-2xl bg-gradient-to-r from-emerald-400 to-teal-300 hover:from-emerald-300 hover:to-teal-200 px-4 py-2.5 text-xs font-black text-slate-950 shadow-lg shadow-emerald-900/30 hover:scale-[1.02] active:scale-95 transition cursor-pointer disabled:opacity-40 flex-1"
-                title="Cetak Langsung ke Printer"
-              >
-                <Printer className="h-4 w-4 stroke-[2.5]" />
-                <span className="whitespace-nowrap">Cetak ({selectedStudentsToPrint.length})</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() =>
-                  executeIsolatedPrint(
-                    `${printMode === "label103" ? "Stiker_103" : printMode === "stickerA4" ? "Stiker_A4" : "KTS"}_${new Date().toISOString().split("T")[0]}_(${selectedStudentsToPrint.length}_Santri)`
-                  )
-                }
-                disabled={selectedStudentsToPrint.length === 0}
-                className="inline-flex items-center justify-center space-x-1.5 rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-400 hover:from-cyan-300 hover:to-blue-300 px-4 py-2.5 text-xs font-black text-slate-950 shadow-lg shadow-cyan-900/30 hover:scale-[1.02] active:scale-95 transition cursor-pointer disabled:opacity-40"
-                title="Simpan Lengkap ke File PDF"
-              >
-                <FileDown className="h-4 w-4 stroke-[2.5]" />
-                <span className="whitespace-nowrap">PDF</span>
-              </button>
-            </div>
-
-            {printMode === "card" && (
-              <button
-                type="button"
-                onClick={() => setShowSettings(!showSettings)}
-                className={`w-full inline-flex items-center justify-center space-x-2 rounded-2xl py-2 px-4 text-xs font-bold border transition cursor-pointer active:scale-98 shadow-xs ${
-                  showSettings
-                    ? "bg-emerald-700 text-white border-emerald-700 shadow-emerald-700/20"
-                    : "bg-white/10 hover:bg-white/20 text-emerald-200 border-white/20 backdrop-blur-md"
-                }`}
-              >
-                <Settings2 className="h-3.5 w-3.5 text-amber-300" />
-                <span>
-                  Pengaturan Kartu ({paperSize} • {cardWidthMm}×{cardHeightMm}mm)
-                </span>
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => executeIsolatedPrint()}
+              disabled={selectedStudentsToPrint.length === 0}
+              className="inline-flex items-center justify-center space-x-1.5 rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-400 hover:from-cyan-300 hover:to-blue-300 px-3.5 py-2.5 text-xs font-black text-slate-950 shadow-lg shadow-cyan-950/40 active:scale-95 transition cursor-pointer disabled:opacity-40"
+              title="Ekspor PDF"
+            >
+              <FileDown className="h-4 w-4 stroke-[2.5]" />
+              <span className="hidden sm:inline">PDF</span>
+            </button>
           </div>
         </div>
       </div>
 
-      {/* ================= PANEL PENGATURAN DIMENSI KARTU ================= */}
-      {showSettings && printMode === "card" && (
-        <div className="rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-emerald-50/70 via-white to-teal-50/50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-950 p-6 shadow-xl backdrop-blur-xl animate-in fade-in slide-in-from-top-3 duration-200 print:hidden space-y-4">
-          <div className="flex items-center justify-between border-b border-emerald-500/20 pb-3">
-            <div className="flex items-center space-x-2 text-emerald-800 dark:text-emerald-300 font-black text-sm">
-              <Sliders className="h-4 w-4" />
-              <span>Pengaturan Dimensi Cetak KTS</span>
-            </div>
-            <span className="text-[11px] text-slate-500">
-              Menyesuaikan tata letak cetak secara instan
-            </span>
-          </div>
+      {/* ================= TOOLBAR FILTER & SEARCH CERDAS ================= */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-3xl border border-slate-200/80 dark:border-emerald-900/40 bg-white/90 dark:bg-[#0c1815] p-3 sm:p-4 shadow-sm backdrop-blur-md">
+        <div className="relative flex-1">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Cari nama santri, NIS, kamar, atau konsulat..."
+            className="h-10 w-full rounded-2xl border border-slate-200 dark:border-emerald-900/60 bg-slate-50 dark:bg-emerald-950/30 pl-10 pr-4 text-xs font-semibold outline-none focus:border-emerald-500 transition text-slate-900 dark:text-white"
+          />
+        </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
-            <div className="space-y-1.5">
-              <label className="font-bold text-slate-700 dark:text-slate-300">
-                Ukuran Kertas Cetak
-              </label>
-              <select
-                value={paperSize}
-                onChange={(e) => setPaperSize(e.target.value as any)}
-                className="w-full h-10 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 font-semibold text-slate-900 dark:text-white outline-none cursor-pointer focus:border-emerald-500"
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => setShowFilterModal(true)}
+            className={`inline-flex items-center space-x-2 rounded-2xl h-10 px-4 text-xs font-bold transition active:scale-95 cursor-pointer border ${
+              activeFiltersCount > 0
+                ? "bg-emerald-600 text-white border-emerald-500 shadow-md shadow-emerald-600/30"
+                : "border-slate-200 dark:border-emerald-900/60 bg-slate-50/80 dark:bg-emerald-950/30 text-slate-700 dark:text-slate-200 hover:border-emerald-500"
+            }`}
+          >
+            <Filter className="h-3.5 w-3.5" />
+            <span>Filter Kriteria</span>
+            {activeFiltersCount > 0 && (
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-emerald-900 font-black text-[10px]">
+                {activeFiltersCount}
+              </span>
+            )}
+          </button>
+
+          {activeFiltersCount > 0 && (
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              className="h-10 w-10 flex items-center justify-center rounded-2xl border border-rose-500/30 bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition active:scale-95 cursor-pointer"
+              title="Reset Filter"
+            >
+              <RotateCcw className="h-4 w-4" />
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={fetchStudents}
+            className="h-10 w-10 flex items-center justify-center rounded-2xl border border-slate-200 dark:border-emerald-900/60 bg-slate-50 dark:bg-emerald-950/30 text-slate-700 dark:text-slate-200 hover:bg-slate-100 transition active:scale-95 cursor-pointer"
+            title="Segarkan Data"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin text-emerald-600" : ""}`} />
+          </button>
+        </div>
+      </div>
+
+      {/* ================= MODAL FILTER (PERSIS MASTER SANTRI) ================= */}
+      {showFilterModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="w-full max-w-md overflow-hidden rounded-[32px] border border-slate-800 bg-slate-900 p-6 text-white space-y-4 shadow-2xl animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center space-x-2 text-emerald-400 font-black text-sm">
+                <Filter className="h-4 w-4" />
+                <span>Filter Kriteria Santri</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowFilterModal(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-xl hover:bg-slate-800 transition cursor-pointer"
               >
-                <option value="A4">A4 (210 × 297 mm)</option>
-                <option value="F4">F4 / Folio (215 × 330 mm)</option>
-                <option value="Letter">Letter (216 × 279 mm)</option>
-                <option value="PVC_Single">Printer Kartu PVC Tray Satuan</option>
-              </select>
+                <X className="h-4 w-4" />
+              </button>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="font-bold text-slate-700 dark:text-slate-300">
-                Preset Dimensi Kartu
-              </label>
-              <select
-                value={cardPreset}
-                onChange={(e) => handlePresetChange(e.target.value as any)}
-                className="w-full h-10 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 font-semibold text-slate-900 dark:text-white outline-none cursor-pointer focus:border-emerald-500"
+            <div className="space-y-3.5 text-xs">
+              <div className="space-y-1">
+                <label className="font-bold text-slate-300">1. Tingkat / Angkatan</label>
+                <select
+                  value={filterGrade}
+                  onChange={(e) => {
+                    setFilterGrade(e.target.value);
+                    setFilterClass("all");
+                  }}
+                  className="w-full h-10 rounded-xl bg-slate-950 border border-slate-800 px-3 font-bold text-white outline-none focus:border-emerald-500 cursor-pointer"
+                >
+                  <option value="all">Semua Angkatan / Tingkat</option>
+                  {availableGrades.map((g) => (
+                    <option key={g} value={g}>
+                      Tingkat / Angkatan {g}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-slate-300">2. Rombel Kelas</label>
+                <select
+                  value={filterClass}
+                  onChange={(e) => setFilterClass(e.target.value)}
+                  className="w-full h-10 rounded-xl bg-slate-950 border border-slate-800 px-3 font-bold text-white outline-none focus:border-emerald-500 cursor-pointer"
+                >
+                  <option value="all">Semua Rombel Kelas</option>
+                  {availableClasses.map((cls) => (
+                    <option key={cls} value={cls}>
+                      Kelas {cls}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-slate-300">3. Kamar Asrama</label>
+                <select
+                  value={filterDorm}
+                  onChange={(e) => setFilterDorm(e.target.value)}
+                  className="w-full h-10 rounded-xl bg-slate-950 border border-slate-800 px-3 font-bold text-white outline-none focus:border-emerald-500 cursor-pointer"
+                >
+                  <option value="all">Semua Asrama / Kamar ({availableDorms.length})</option>
+                  {availableDorms.map((dorm) => (
+                    <option key={dorm} value={dorm}>
+                      {dorm}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-slate-300">4. Asal Konsulat</label>
+                <select
+                  value={filterConsulate}
+                  onChange={(e) => setFilterConsulate(e.target.value)}
+                  className="w-full h-10 rounded-xl bg-slate-950 border border-slate-800 px-3 font-bold text-white outline-none focus:border-emerald-500 cursor-pointer"
+                >
+                  <option value="all">Semua Asal Konsulat ({availableConsulates.length})</option>
+                  {availableConsulates.map((cons) => (
+                    <option key={cons} value={cons}>
+                      {cons}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="flex-1 py-2.5 rounded-xl bg-slate-800 text-slate-300 font-bold hover:bg-slate-700 transition active:scale-95 text-xs"
               >
-                <option value="CR80">Standar CR-80 KTP (85.6 × 54.0 mm)</option>
-                <option value="Medium">Medium Badge (90.0 × 60.0 mm)</option>
-                <option value="Mini">Mini Card (75.0 × 48.0 mm)</option>
-                <option value="Custom">Custom Ukuran Manual</option>
-              </select>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="font-bold text-slate-700 dark:text-slate-300">
-                Lebar: <strong className="text-emerald-700 dark:text-emerald-400">{cardWidthMm} mm</strong>
-              </label>
-              <input
-                type="number"
-                step="0.1"
-                min="50"
-                max="120"
-                value={cardWidthMm}
-                onChange={(e) => {
-                  setCardWidthMm(parseFloat(e.target.value) || 85.6);
-                  setCardPreset("Custom");
-                }}
-                className="w-full h-10 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 font-mono font-bold text-slate-900 dark:text-white outline-none focus:border-emerald-500"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="font-bold text-slate-700 dark:text-slate-300">
-                Tinggi: <strong className="text-emerald-700 dark:text-emerald-400">{cardHeightMm} mm</strong>
-              </label>
-              <input
-                type="number"
-                step="0.1"
-                min="30"
-                max="90"
-                value={cardHeightMm}
-                onChange={(e) => {
-                  setCardHeightMm(parseFloat(e.target.value) || 54.0);
-                  setCardPreset("Custom");
-                }}
-                className="w-full h-10 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 font-mono font-bold text-slate-900 dark:text-white outline-none focus:border-emerald-500"
-              />
+                Reset
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowFilterModal(false)}
+                className="flex-1 py-2.5 rounded-xl bg-emerald-500 text-slate-950 font-black hover:bg-emerald-400 transition active:scale-95 text-xs"
+              >
+                Terapkan Filter
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ================= DAFTAR PEMILIH SANTRI & FILTER ================= */}
-      <div className="rounded-3xl border border-slate-200/80 dark:border-emerald-900/40 bg-white/90 dark:bg-[#0c1815] p-5 sm:p-6 shadow-xl backdrop-blur-xl space-y-4 print:hidden">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-3 text-xs items-center">
-          <div className="relative sm:col-span-2 md:col-span-5">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Cari nama santri, NIS, asrama, atau konsulat..."
-              className="h-10 w-full rounded-2xl border border-slate-200 dark:border-emerald-900/60 bg-slate-50 dark:bg-emerald-950/30 pl-10 pr-3 text-xs font-semibold outline-none focus:border-emerald-500 transition shadow-xs"
-            />
-          </div>
+      {/* ================= MODAL PENGATURAN CETAK (EFISIEN & RAPI) ================= */}
+      {showSettingsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="w-full max-w-lg overflow-hidden rounded-[32px] border border-slate-800 bg-slate-900 p-6 text-white space-y-4 shadow-2xl animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center space-x-2 text-amber-400 font-black text-sm">
+                <Settings2 className="h-4 w-4" />
+                <span>Pengaturan Layout &amp; Format Cetak</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSettingsModal(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-xl hover:bg-slate-800 transition cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
 
-          <div className="md:col-span-3">
-            <select
-              value={filterClass}
-              onChange={(e) => setFilterClass(e.target.value)}
-              className="h-10 w-full rounded-2xl border border-slate-200 dark:border-emerald-900/60 bg-slate-50 dark:bg-emerald-950/30 px-3 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer"
-            >
-              <option value="all" className="dark:bg-slate-900">Semua Kelas ({availableClasses.length})</option>
-              {availableClasses.map((cls) => (
-                <option key={cls} value={cls} className="dark:bg-slate-900">
-                  Kelas: {cls}
-                </option>
-              ))}
-            </select>
-          </div>
+            <div className="space-y-4 text-xs">
+              {/* Pilihan Format Cetak */}
+              <div className="space-y-1.5">
+                <label className="font-bold text-slate-300">Format Dokumen Output</label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPrintMode("card")}
+                    className={`py-2 px-2.5 rounded-xl border text-center font-bold transition ${
+                      printMode === "card"
+                        ? "bg-emerald-500 text-slate-950 border-emerald-400"
+                        : "bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700"
+                    }`}
+                  >
+                    Kartu Fisik KTS
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPrintMode("label103")}
+                    className={`py-2 px-2.5 rounded-xl border text-center font-bold transition ${
+                      printMode === "label103"
+                        ? "bg-emerald-500 text-slate-950 border-emerald-400"
+                        : "bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700"
+                    }`}
+                  >
+                    Stiker Label 103
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPrintMode("stickerA4")}
+                    className={`py-2 px-2.5 rounded-xl border text-center font-bold transition ${
+                      printMode === "stickerA4"
+                        ? "bg-emerald-500 text-slate-950 border-emerald-400"
+                        : "bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700"
+                    }`}
+                  >
+                    Stiker Grid A4 (24)
+                  </button>
+                </div>
+              </div>
 
-          <div className="md:col-span-3">
-            <select
-              value={filterDorm}
-              onChange={(e) => setFilterDorm(e.target.value)}
-              className="h-10 w-full rounded-2xl border border-slate-200 dark:border-emerald-900/60 bg-slate-50 dark:bg-emerald-950/30 px-3 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer"
-            >
-              <option value="all" className="dark:bg-slate-900">Semua Asrama ({availableDorms.length})</option>
-              {availableDorms.map((dorm) => (
-                <option key={dorm} value={dorm} className="dark:bg-slate-900">
-                  {dorm}
-                </option>
-              ))}
-            </select>
-          </div>
+              {printMode === "card" && (
+                <>
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-slate-300">Sisi Kartu Yang Dicetak</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setCardSide("both")}
+                        className={`py-2 rounded-xl border text-center font-bold transition ${
+                          cardSide === "both"
+                            ? "bg-white text-slate-950 border-white"
+                            : "bg-slate-950 border-slate-800 text-slate-300"
+                        }`}
+                      >
+                        Bolak-Balik
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCardSide("front")}
+                        className={`py-2 rounded-xl border text-center font-bold transition ${
+                          cardSide === "front"
+                            ? "bg-white text-slate-950 border-white"
+                            : "bg-slate-950 border-slate-800 text-slate-300"
+                        }`}
+                      >
+                        Depan Saja
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCardSide("back")}
+                        className={`py-2 rounded-xl border text-center font-bold transition ${
+                          cardSide === "back"
+                            ? "bg-white text-slate-950 border-white"
+                            : "bg-slate-950 border-slate-800 text-slate-300"
+                        }`}
+                      >
+                        Belakang Saja
+                      </button>
+                    </div>
+                  </div>
 
-          <div className="md:col-span-1">
-            <button
-              type="button"
-              onClick={handleResetFilters}
-              className="w-full h-10 flex items-center justify-center rounded-2xl border border-slate-200 dark:border-emerald-900/60 bg-slate-100 hover:bg-slate-200 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 text-slate-600 dark:text-slate-300 transition cursor-pointer"
-              title="Batal / Reset Filter"
-            >
-              <RotateCcw className="h-4 w-4" />
-            </button>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="font-bold text-slate-300">Ukuran Kertas</label>
+                      <select
+                        value={paperSize}
+                        onChange={(e) => setPaperSize(e.target.value as any)}
+                        className="w-full h-10 rounded-xl bg-slate-950 border border-slate-800 px-3 font-semibold text-white outline-none focus:border-emerald-500"
+                      >
+                        <option value="A4">A4 (210 × 297 mm)</option>
+                        <option value="F4">F4 / Folio (215 × 330 mm)</option>
+                        <option value="Letter">Letter</option>
+                        <option value="PVC_Single">Printer PVC Tray Satuan</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="font-bold text-slate-300">Preset Dimensi</label>
+                      <select
+                        value={cardPreset}
+                        onChange={(e) => handlePresetChange(e.target.value as any)}
+                        className="w-full h-10 rounded-xl bg-slate-950 border border-slate-800 px-3 font-semibold text-white outline-none focus:border-emerald-500"
+                      >
+                        <option value="CR80">CR-80 Standar (85.6 × 54 mm)</option>
+                        <option value="Medium">Medium (90 × 60 mm)</option>
+                        <option value="Mini">Mini (75 × 48 mm)</option>
+                        <option value="Custom">Custom Ukuran Manual</option>
+                      </select>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="pt-2 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setShowSettingsModal(false)}
+                className="w-full py-2.5 rounded-xl bg-emerald-500 text-slate-950 font-black hover:bg-emerald-400 transition active:scale-95 text-xs"
+              >
+                Selesai
+              </button>
+            </div>
           </div>
         </div>
+      )}
 
+      {/* ================= KONTEN PEMILIH SANTRI (RINGAN & CEPAT) ================= */}
+      <div className="rounded-3xl border border-slate-200/80 dark:border-emerald-900/40 bg-white/90 dark:bg-[#0c1815] p-4 sm:p-6 shadow-xl backdrop-blur-xl space-y-3.5 print:hidden">
         {/* Counter Info Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent border border-emerald-500/20 text-xs">
+        <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent border border-emerald-500/20 text-xs">
           <div className="flex items-center space-x-2 font-bold text-emerald-800 dark:text-emerald-300">
-            <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-            <span>
-              {selectedStudentsToPrint.length} Santri Terpilih ({printMode === "label103" ? "Format Stiker Tom & Jerry 103" : printMode === "stickerA4" ? "Format Grid Stiker A4" : "Format Kartu Fisik KTS"})
-            </span>
+            <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <span>{selectedStudentsToPrint.length} Santri Dipilih Untuk Dicetak</span>
           </div>
 
-          <div className="flex items-center space-x-3 text-[11px] text-slate-500 dark:text-slate-400">
+          <div className="flex items-center space-x-2 text-[11px] text-slate-500 dark:text-slate-400">
             <span className="bg-white dark:bg-emerald-950/50 px-2.5 py-1 rounded-xl border border-slate-200 dark:border-emerald-900/40 font-semibold">
               Total: <strong>{students.length} Santri</strong>
             </span>
             <span className="bg-white dark:bg-emerald-950/50 px-2.5 py-1 rounded-xl border border-slate-200 dark:border-emerald-900/40 font-semibold">
-              Halaman Dokumen: <strong>{printPages.length} Lembar ({printMode === "label103" ? "Label 103" : paperSize})</strong>
+              Estimasi: <strong>{printPages.length} Lembar</strong>
             </span>
           </div>
         </div>
@@ -768,7 +901,7 @@ export default function IdCardsGeneratorPage() {
               ) : (
                 <Square className="h-4 w-4 text-slate-400" />
               )}
-              <span>{isAllFilteredSelected ? "Batalkan Pilihan Filter" : `Pilih Semua (${filteredStudents.length} Santri)`}</span>
+              <span>{isAllFilteredSelected ? "Batalkan Semua" : `Pilih Semua (${filteredStudents.length} Santri)`}</span>
             </button>
 
             <span className="text-[11px] text-slate-500 dark:text-slate-400">
@@ -776,14 +909,15 @@ export default function IdCardsGeneratorPage() {
             </span>
           </div>
 
-          <div className="max-h-96 overflow-y-auto p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 custom-scrollbar">
+          <div className="max-h-[500px] overflow-y-auto p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 custom-scrollbar">
             {loading ? (
-              <div className="col-span-full py-8 text-center text-xs text-slate-400 animate-pulse">
-                Memuat data santri...
+              <div className="col-span-full py-12 text-center text-xs text-slate-400 animate-pulse">
+                <RefreshCw className="h-6 w-6 animate-spin mx-auto text-emerald-600 mb-2" />
+                <span>Memuat seluruh 1171+ data santri SIPS...</span>
               </div>
             ) : filteredStudents.length === 0 ? (
-              <div className="col-span-full py-8 text-center text-xs text-slate-400">
-                Tidak ada santri yang cocok dengan filter pencarian.
+              <div className="col-span-full py-12 text-center text-xs text-slate-400">
+                Tidak ada santri yang cocok dengan filter yang dipilih.
               </div>
             ) : (
               filteredStudents.map((st) => {
@@ -792,35 +926,36 @@ export default function IdCardsGeneratorPage() {
                   <div
                     key={st.nis}
                     onClick={() => handleToggleStudent(st.nis)}
-                    className={`flex items-center space-x-3 p-3 rounded-2xl border transition-all duration-200 cursor-pointer select-none group ${
+                    className={`flex items-center space-x-3 p-2.5 rounded-2xl border transition-all duration-150 cursor-pointer select-none ${
                       isSelected
-                        ? "bg-emerald-50/90 dark:bg-emerald-950/40 border-emerald-500/50 shadow-md shadow-emerald-500/5 scale-[1.01]"
-                        : "bg-white dark:bg-[#071310] border-slate-200/80 dark:border-emerald-900/30 text-slate-600 dark:text-slate-400 hover:border-emerald-300 hover:shadow-sm"
+                        ? "bg-emerald-50/90 dark:bg-emerald-950/40 border-emerald-500/50 shadow-xs scale-[1.01]"
+                        : "bg-white dark:bg-[#071310] border-slate-200/80 dark:border-emerald-900/30 text-slate-600 dark:text-slate-400 hover:border-emerald-300"
                     }`}
                   >
                     <input
                       type="checkbox"
                       checked={isSelected}
                       onChange={() => {}}
-                      className="rounded text-emerald-600 pointer-events-none"
+                      className="rounded text-emerald-600 pointer-events-none h-4 w-4"
                     />
 
-                    <div className="relative h-10 w-9 shrink-0 rounded-xl overflow-hidden bg-slate-200 dark:bg-emerald-900/40 border border-slate-300 dark:border-emerald-800 shadow-xs group-hover:scale-105 transition-transform flex items-center justify-center">
+                    <div className="h-9 w-8 shrink-0 rounded-xl overflow-hidden bg-slate-200 dark:bg-emerald-900/40 border border-slate-300 dark:border-emerald-800 shadow-xs flex items-center justify-center">
                       {st.photo_url ? (
                         <img
                           src={st.photo_url}
                           alt={st.name}
                           className="h-full w-full object-cover"
+                          loading="lazy"
                         />
                       ) : (
-                        <div className="flex h-full w-full items-center justify-center text-xs font-black text-slate-600 dark:text-slate-300">
+                        <div className="text-xs font-black text-slate-600 dark:text-slate-300">
                           {st.name.charAt(0)}
                         </div>
                       )}
                     </div>
 
                     <div className="min-w-0 flex-1 text-xs">
-                      <p className="font-bold truncate text-slate-900 dark:text-slate-100 uppercase">
+                      <p className="font-bold truncate text-slate-900 dark:text-slate-100 uppercase text-[11px]">
                         {st.name}
                       </p>
                       <p className="text-[10px] text-slate-500 font-mono">
@@ -836,10 +971,9 @@ export default function IdCardsGeneratorPage() {
       </div>
 
       {/* =====================================================================
-          PRINT TEMPLATE SOURCE (MULTI-PAGE CHUNKS SOURCE)
+          PRINT TEMPLATE SOURCE (DIRENDER HANYA UNTUK SANTRI TERPILIH AGAR RINGAN)
           ===================================================================== */}
       <div id="print-area-kts" style={{ display: "none" }}>
-        {/* ================= MODE 1: KARTU FISIK KTS ================= */}
         {printMode === "card" &&
           printPages.map((pageCards: any[], pageIndex: number) => (
             <div key={`print-card-page-${pageIndex}`} className="kts-print-page">
@@ -885,7 +1019,6 @@ export default function IdCardsGeneratorPage() {
                                 flexShrink: 0,
                               }}
                             />
-
                             <div style={{ textAlign: "left", lineHeight: "1.15", flex: 1, minWidth: 0 }}>
                               <span
                                 style={{
@@ -1325,7 +1458,6 @@ export default function IdCardsGeneratorPage() {
             </div>
           ))}
 
-        {/* ================= MODE 2: STIKER LABEL UNDANGAN NO. 103 (12/LEMBAR) ================= */}
         {printMode === "label103" &&
           printPages.map((pageStudents: StudentItem[], pageIndex: number) => (
             <div key={`print-label103-page-${pageIndex}`} className="sticker-103-page">
@@ -1344,19 +1476,15 @@ export default function IdCardsGeneratorPage() {
                     <div style={{ fontSize: "6px", fontWeight: "800", color: "#064e3b", textTransform: "uppercase", letterSpacing: "0.4px" }}>
                       PESANTREN CONDONG
                     </div>
-
                     <div style={{ fontSize: "8.5px", fontWeight: "900", color: "#0f172a", textTransform: "uppercase", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", margin: "1px 0" }}>
                       {student.name}
                     </div>
-
                     <div style={{ fontSize: "7px", fontFamily: "monospace", fontWeight: "800", color: "#b45309" }}>
                       NIS: {student.nis}
                     </div>
-
                     <div style={{ fontSize: "6.5px", color: "#334155", fontWeight: "700", marginTop: "1.5px" }}>
                       Kelas: {student.class}
                     </div>
-
                     <div style={{ fontSize: "6px", color: "#64748b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                       Kamar: {student.dorm}
                     </div>
@@ -1366,7 +1494,6 @@ export default function IdCardsGeneratorPage() {
             </div>
           ))}
 
-        {/* ================= MODE 3: STIKER GRID A4 KOMPAK (24/LEMBAR) ================= */}
         {printMode === "stickerA4" &&
           printPages.map((pageStudents: StudentItem[], pageIndex: number) => (
             <div key={`print-stickera4-page-${pageIndex}`} className="sticker-a4-page">
@@ -1385,19 +1512,15 @@ export default function IdCardsGeneratorPage() {
                     <div style={{ fontSize: "6px", fontWeight: "900", color: "#047857", textTransform: "uppercase", letterSpacing: "0.3px" }}>
                       SIPS CONDONG
                     </div>
-
                     <div style={{ fontSize: "8.5px", fontWeight: "900", color: "#0f172a", textTransform: "uppercase", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", margin: "1px 0" }}>
                       {student.name}
                     </div>
-
                     <div style={{ fontSize: "7px", fontFamily: "monospace", fontWeight: "800", color: "#b45309" }}>
                       NIS: {student.nis}
                     </div>
-
                     <div style={{ fontSize: "6.5px", color: "#334155", fontWeight: "700", marginTop: "1px" }}>
                       Kelas: {student.class}
                     </div>
-
                     <div style={{ fontSize: "6px", color: "#64748b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                       Asrama: {student.dorm}
                     </div>
