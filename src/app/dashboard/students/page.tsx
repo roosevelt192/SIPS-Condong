@@ -39,7 +39,7 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowLeft,
-  Sparkles,
+  RotateCcw,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { generateStandardQRPayload } from "@/lib/qrParser";
@@ -72,8 +72,14 @@ export default function StudentsMasterPage() {
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterClass, setFilterClass] = useState("all");
-  const [filterStatus, setFilterStatus] = useState("all");
+
+  // ================= STATE FILTER LENGKAP & PRESISI =================
+  const [filterGrade, setFilterGrade] = useState("all"); // Tingkat/Angkatan Kelas (VII, VIII, 1 KMI, dll)
+  const [filterClass, setFilterClass] = useState("all"); // Rombel Kelas Spesifik (VIII A, VIII H, dll)
+  const [filterDorm, setFilterDorm] = useState("all"); // Kamar / Asrama
+  const [filterConsulate, setFilterConsulate] = useState("all"); // Asal Konsulat
+  const [filterStatus, setFilterStatus] = useState("all"); // Status Aktif/Non-Aktif
+  const [showFilterDrawer, setShowFilterDrawer] = useState(false); // Modal Drawer Filter Mobile/Desktop
 
   // Sorting State
   const [sortField, setSortField] = useState<SortField>("name");
@@ -149,7 +155,6 @@ export default function StudentsMasterPage() {
       const pageSize = 1000;
       let hasMore = true;
 
-      // Loop otomatis untuk mengambil data melebihi batas 1000 baris Supabase
       while (hasMore) {
         const from = page * pageSize;
         const to = from + pageSize - 1;
@@ -164,7 +169,7 @@ export default function StudentsMasterPage() {
         if (data && data.length > 0) {
           allStudents = [...allStudents, ...data];
           if (data.length < pageSize) {
-            hasMore = false; // Jika data yang didapat kurang dari 1000, berarti sudah habis
+            hasMore = false;
           } else {
             page++;
           }
@@ -195,15 +200,16 @@ export default function StudentsMasterPage() {
               : "Laki-laki",
           pob: item.pob || item.tempat_lahir || item.birth_place || "-",
           dob: item.dob || item.tanggal_lahir || item.birth_date || "-",
-          class: item.class || item.kelas || item.class_name || item.rombel || "-",
-          dorm: item.dorm || item.kamar_asrama || item.asrama || item.rayon || item.kamar || "-",
-          entry_year: String(item.entry_year || item.tahun_masuk || "2026"),
-          consulate:
+          class: (item.class || item.kelas || item.class_name || item.rombel || "-").trim(),
+          dorm: (item.dorm || item.kamar_asrama || item.asrama || item.rayon || item.kamar || "-").trim(),
+          entry_year: String(item.entry_year || item.tahun_masuk || "2026").trim(),
+          consulate: (
             item.consulate ||
             item.asal_konsulat ||
             item.konsulat ||
             item.kota_asal ||
-            "Konsulat Tasikmalaya",
+            "Konsulat Tasikmalaya"
+          ).trim(),
           guardian_name:
             item.guardian_name ||
             item.nama_lengkap_wali ||
@@ -255,6 +261,68 @@ export default function StudentsMasterPage() {
     setCurrentPage(1);
   };
 
+  // ================= DAFTAR OPSI FILTER DINAMIS & TERVERIFIKASI =================
+  const availableGrades = useMemo(() => {
+    const set = new Set<string>();
+    students.forEach((s) => {
+      if (s.class && s.class !== "-") {
+        // Ambil kata pertama sebagai tingkat/tingkatan angkatan (misal: "VII H" -> "VII", "1 KMI" -> "1")
+        const gradePart = s.class.split(" ")[0]?.trim();
+        if (gradePart) set.add(gradePart);
+      }
+    });
+    return Array.from(set).sort();
+  }, [students]);
+
+  const availableClasses = useMemo(() => {
+    const set = new Set<string>();
+    students.forEach((s) => {
+      if (s.class && s.class !== "-") {
+        if (filterGrade === "all" || s.class.startsWith(filterGrade)) {
+          set.add(s.class);
+        }
+      }
+    });
+    return Array.from(set).sort();
+  }, [students, filterGrade]);
+
+  const availableDorms = useMemo(() => {
+    const set = new Set<string>();
+    students.forEach((s) => {
+      if (s.dorm && s.dorm !== "-") set.add(s.dorm);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "id"));
+  }, [students]);
+
+  const availableConsulates = useMemo(() => {
+    const set = new Set<string>();
+    students.forEach((s) => {
+      if (s.consulate && s.consulate !== "-") set.add(s.consulate);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "id"));
+  }, [students]);
+
+  // Hitung jumlah filter aktif untuk badge indikator
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (filterGrade !== "all") count++;
+    if (filterClass !== "all") count++;
+    if (filterDorm !== "all") count++;
+    if (filterConsulate !== "all") count++;
+    if (filterStatus !== "all") count++;
+    return count;
+  }, [filterGrade, filterClass, filterDorm, filterConsulate, filterStatus]);
+
+  const resetAllFilters = () => {
+    setFilterGrade("all");
+    setFilterClass("all");
+    setFilterDorm("all");
+    setFilterConsulate("all");
+    setFilterStatus("all");
+    setCurrentPage(1);
+  };
+
+  // ================= LOGIKA FILTERING PRESISI & TANPA BUG =================
   const filteredStudents = useMemo(() => {
     const filtered = students.filter((s) => {
       const q = searchQuery.toLowerCase().trim();
@@ -267,10 +335,23 @@ export default function StudentsMasterPage() {
         s.consulate.toLowerCase().includes(q) ||
         s.class.toLowerCase().includes(q);
 
-      const matchesClass = filterClass === "all" || s.class === filterClass;
+      // Filter Tingkat Angkatan (Kata pertama dari rombel)
+      const gradePart = s.class.split(" ")[0]?.trim() || "";
+      const matchesGrade = filterGrade === "all" || gradePart.toLowerCase() === filterGrade.toLowerCase();
+
+      // Filter Rombel Kelas Spesifik
+      const matchesClass = filterClass === "all" || s.class.toLowerCase() === filterClass.toLowerCase();
+
+      // Filter Kamar Asrama (Case-Insensitive & Trimmed)
+      const matchesDorm = filterDorm === "all" || s.dorm.toLowerCase() === filterDorm.toLowerCase();
+
+      // Filter Konsulat
+      const matchesConsulate = filterConsulate === "all" || s.consulate.toLowerCase() === filterConsulate.toLowerCase();
+
+      // Filter Status
       const matchesStatus = filterStatus === "all" || s.status === filterStatus;
 
-      return matchesSearch && matchesClass && matchesStatus;
+      return matchesSearch && matchesGrade && matchesClass && matchesDorm && matchesConsulate && matchesStatus;
     });
 
     return filtered.sort((a, b) => {
@@ -288,7 +369,7 @@ export default function StudentsMasterPage() {
       }
       return sortOrder === "asc" ? comparison : -comparison;
     });
-  }, [students, searchQuery, filterClass, filterStatus, sortField, sortOrder]);
+  }, [students, searchQuery, filterGrade, filterClass, filterDorm, filterConsulate, filterStatus, sortField, sortOrder]);
 
   const totalPages = Math.ceil(filteredStudents.length / itemsPerPage) || 1;
   const paginatedStudents = useMemo(() => {
@@ -382,14 +463,6 @@ export default function StudentsMasterPage() {
   const uniqueConsulates = useMemo(() => {
     const list = students.map((s) => s.consulate.trim()).filter((c) => c && c !== "-");
     return new Set(list).size;
-  }, [students]);
-
-  const availableClasses = useMemo(() => {
-    const set = new Set<string>();
-    students.forEach((s) => {
-      if (s.class && s.class !== "-") set.add(s.class);
-    });
-    return Array.from(set).sort();
   }, [students]);
 
   const handleExecuteExport = async () => {
@@ -911,7 +984,7 @@ export default function StudentsMasterPage() {
       <div className="pointer-events-none absolute -top-10 -right-10 h-72 w-72 rounded-full bg-emerald-500/10 blur-[100px]" />
       <div className="pointer-events-none absolute top-40 -left-10 h-72 w-72 rounded-full bg-teal-500/10 blur-[100px]" />
 
-      {/* HEADER HERO BANNER (SUPER COLORFUL & INTERAKTIF) */}
+      {/* HEADER HERO BANNER */}
       <div className="relative overflow-hidden rounded-[36px] bg-gradient-to-r from-emerald-950 via-[#064e3b] to-teal-950 p-6 sm:p-8 text-white shadow-2xl border border-emerald-500/40">
         <div className="absolute -top-32 -right-32 w-80 h-80 rounded-full bg-emerald-400/20 blur-[80px] pointer-events-none animate-pulse" />
         <div className="absolute -bottom-32 -left-32 w-80 h-80 rounded-full bg-amber-400/20 blur-[80px] pointer-events-none" />
@@ -1069,9 +1142,10 @@ export default function StudentsMasterPage() {
         </div>
       </div>
 
-      {/* Toolbar: Search, Filter, & Sorting */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 rounded-3xl border border-slate-200/80 dark:border-emerald-900/40 bg-white/90 dark:bg-[#0c1815] p-4 shadow-sm backdrop-blur-md">
-        <div className="relative flex-1 max-w-md">
+      {/* ================= TOOLBAR PINTAR (RESPONSIF & TIDAK RUMIT) ================= */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-3xl border border-slate-200/80 dark:border-emerald-900/40 bg-white/90 dark:bg-[#0c1815] p-3 sm:p-4 shadow-sm backdrop-blur-md">
+        {/* Input Pencarian Universal */}
+        <div className="relative flex-1">
           <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 pointer-events-none" />
           <input
             type="text"
@@ -1080,15 +1154,15 @@ export default function StudentsMasterPage() {
               setSearchQuery(e.target.value);
               setCurrentPage(1);
             }}
-            placeholder="Cari nama santri, NIS, NISN, konsulat, asrama..."
+            placeholder="Cari santri, NIS, kamar, konsulat..."
             className="h-10 w-full rounded-2xl border border-slate-200 dark:border-emerald-900/60 bg-slate-50/80 dark:bg-emerald-950/30 pl-10 pr-4 text-xs font-semibold text-slate-900 dark:text-white placeholder-slate-400 outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center space-x-1.5 rounded-2xl border border-slate-200 dark:border-emerald-900/60 bg-slate-50/80 dark:bg-emerald-950/30 px-3 py-1.5 text-xs">
+        {/* Tombol Sorting & Tombol Filter Utama */}
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center space-x-1.5 rounded-2xl border border-slate-200 dark:border-emerald-900/60 bg-slate-50/80 dark:bg-emerald-950/30 px-3 py-1.5 text-xs h-10">
             <ArrowUpDown className="h-3.5 w-3.5 text-slate-400" />
-            <span className="text-[11px] font-bold text-slate-500">Urut:</span>
             <select
               value={`${sortField}-${sortOrder}`}
               onChange={(e) => {
@@ -1104,50 +1178,193 @@ export default function StudentsMasterPage() {
               <option value="nis-asc" className="dark:bg-slate-900">NIS (Terkecil)</option>
               <option value="nis-desc" className="dark:bg-slate-900">NIS (Terbesar)</option>
               <option value="class-asc" className="dark:bg-slate-900">Kelas</option>
-              <option value="points-desc" className="dark:bg-slate-900">Poin (Tertinggi)</option>
-              <option value="points-asc" className="dark:bg-slate-900">Poin (Terendah)</option>
+              <option value="points-desc" className="dark:bg-slate-900">Poin Tertinggi</option>
             </select>
           </div>
 
-          <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-500 dark:text-slate-400 pl-1">
+          {/* Tombol Buka Panel Filter Multi-Kriteria dengan Badge */}
+          <button
+            type="button"
+            onClick={() => setShowFilterDrawer(true)}
+            className={`inline-flex items-center space-x-2 rounded-2xl h-10 px-4 text-xs font-bold transition active:scale-95 cursor-pointer border ${
+              activeFiltersCount > 0
+                ? "bg-emerald-600 text-white border-emerald-500 shadow-md shadow-emerald-600/30"
+                : "border-slate-200 dark:border-emerald-900/60 bg-slate-50/80 dark:bg-emerald-950/30 text-slate-700 dark:text-slate-200 hover:border-emerald-500"
+            }`}
+          >
             <Filter className="h-3.5 w-3.5" />
-            <span>Filter:</span>
-          </div>
+            <span>Filter Data</span>
+            {activeFiltersCount > 0 && (
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-emerald-900 font-black text-[10px]">
+                {activeFiltersCount}
+              </span>
+            )}
+          </button>
 
-          <select
-            value={filterClass}
-            onChange={(e) => {
-              setFilterClass(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="h-10 rounded-2xl border border-slate-200 dark:border-emerald-900/60 bg-slate-50/80 dark:bg-emerald-950/30 px-3.5 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none transition focus:border-emerald-500 cursor-pointer"
-          >
-            <option value="all" className="dark:bg-slate-900">Semua Kelas</option>
-            {availableClasses.map((cls) => (
-              <option key={cls} value={cls} className="dark:bg-slate-900">
-                {cls}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={filterStatus}
-            onChange={(e) => {
-              setFilterStatus(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="h-10 rounded-2xl border border-slate-200 dark:border-emerald-900/60 bg-slate-50/80 dark:bg-emerald-950/30 px-3.5 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none transition focus:border-emerald-500 cursor-pointer"
-          >
-            <option value="all" className="dark:bg-slate-900">Semua Status</option>
-            <option value="active" className="dark:bg-slate-900">Aktif</option>
-            <option value="inactive" className="dark:bg-slate-900">Non-Aktif</option>
-          </select>
+          {activeFiltersCount > 0 && (
+            <button
+              type="button"
+              onClick={resetAllFilters}
+              className="h-10 w-10 flex items-center justify-center rounded-2xl border border-rose-500/30 bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition active:scale-95 cursor-pointer"
+              title="Reset Semua Filter"
+            >
+              <RotateCcw className="h-4 w-4" />
+            </button>
+          )}
         </div>
       </div>
 
+      {/* ================= MODAL PANEL FILTER LENGKAP & RAPI (DESKTOP & MOBILE FRIENDLY) ================= */}
+      {showFilterDrawer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="w-full max-w-lg overflow-hidden rounded-[32px] border border-slate-800 bg-slate-900/95 p-6 shadow-2xl text-white space-y-5 animate-in zoom-in-95 duration-150 max-h-[90vh] flex flex-col">
+            {/* Header Modal Filter */}
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3.5 shrink-0">
+              <div className="flex items-center space-x-2.5">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  <Filter className="h-4.5 w-4.5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-sm text-white">Filter Kriteria Santri</h3>
+                  <p className="text-[11px] text-slate-400">Saring data santri berdasarkan parameter spesifik</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowFilterDrawer(false)}
+                className="text-slate-400 hover:text-white rounded-xl p-1 hover:bg-slate-800 transition cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Isi Form Filter (Scrollable di Mobile) */}
+            <div className="space-y-4 overflow-y-auto pr-1 text-xs">
+              {/* 1. Filter Tingkat Angkatan (Satu Angkatan) */}
+              <div className="space-y-1.5">
+                <label className="font-bold text-slate-300 flex items-center justify-between">
+                  <span>1. Tingkat / Angkatan Kelas</span>
+                  {filterGrade !== "all" && <span className="text-[10px] text-emerald-400 font-mono">1 Angkatan</span>}
+                </label>
+                <select
+                  value={filterGrade}
+                  onChange={(e) => {
+                    setFilterGrade(e.target.value);
+                    setFilterClass("all"); // Reset rombel spesifik saat tingkat berubah
+                    setCurrentPage(1);
+                  }}
+                  className="w-full h-11 rounded-2xl bg-slate-950 border border-slate-800 px-3.5 font-bold text-white outline-none focus:border-emerald-500 cursor-pointer transition shadow-inner"
+                >
+                  <option value="all">Semua Angkatan / Tingkat</option>
+                  {availableGrades.map((grade) => (
+                    <option key={grade} value={grade}>
+                      Angkatan / Kelas Tingkat {grade}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* 2. Filter Rombel Kelas Spesifik */}
+              <div className="space-y-1.5">
+                <label className="font-bold text-slate-300">2. Rombel Kelas Spesifik</label>
+                <select
+                  value={filterClass}
+                  onChange={(e) => {
+                    setFilterClass(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full h-11 rounded-2xl bg-slate-950 border border-slate-800 px-3.5 font-bold text-white outline-none focus:border-emerald-500 cursor-pointer transition shadow-inner"
+                >
+                  <option value="all">Semua Rombel Kelas</option>
+                  {availableClasses.map((cls) => (
+                    <option key={cls} value={cls}>
+                      Kelas {cls}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* 3. Filter Kamar Asrama */}
+              <div className="space-y-1.5">
+                <label className="font-bold text-slate-300">3. Kamar / Gedung Asrama</label>
+                <select
+                  value={filterDorm}
+                  onChange={(e) => {
+                    setFilterDorm(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full h-11 rounded-2xl bg-slate-950 border border-slate-800 px-3.5 font-bold text-white outline-none focus:border-emerald-500 cursor-pointer transition shadow-inner"
+                >
+                  <option value="all">Semua Kamar Asrama ({availableDorms.length} Kamar)</option>
+                  {availableDorms.map((dorm) => (
+                    <option key={dorm} value={dorm}>
+                      {dorm}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* 4. Filter Asal Konsulat */}
+              <div className="space-y-1.5">
+                <label className="font-bold text-slate-300">4. Asal Wilayah / Konsulat</label>
+                <select
+                  value={filterConsulate}
+                  onChange={(e) => {
+                    setFilterConsulate(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full h-11 rounded-2xl bg-slate-950 border border-slate-800 px-3.5 font-bold text-white outline-none focus:border-emerald-500 cursor-pointer transition shadow-inner"
+                >
+                  <option value="all">Semua Asal Konsulat ({availableConsulates.length} Konsulat)</option>
+                  {availableConsulates.map((cons) => (
+                    <option key={cons} value={cons}>
+                      {cons}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* 5. Filter Status Santri */}
+              <div className="space-y-1.5">
+                <label className="font-bold text-slate-300">5. Status Keaktifan</label>
+                <select
+                  value={filterStatus}
+                  onChange={(e) => {
+                    setFilterStatus(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full h-11 rounded-2xl bg-slate-950 border border-slate-800 px-3.5 font-bold text-white outline-none focus:border-emerald-500 cursor-pointer transition shadow-inner"
+                >
+                  <option value="all">Semua Status Santri</option>
+                  <option value="active">Aktif Mukim Saja</option>
+                  <option value="inactive">Non-Aktif Saja</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Footer Aksi Filter */}
+            <div className="flex gap-2.5 pt-3 border-t border-slate-800 shrink-0">
+              <button
+                type="button"
+                onClick={resetAllFilters}
+                className="flex-1 py-3 rounded-2xl bg-slate-800 text-slate-300 font-bold hover:bg-slate-700 transition active:scale-95 cursor-pointer text-xs"
+              >
+                Reset Filter
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowFilterDrawer(false)}
+                className="flex-1 py-3 rounded-2xl bg-emerald-500 text-slate-950 font-black hover:bg-emerald-400 transition active:scale-95 cursor-pointer text-xs shadow-lg shadow-emerald-500/20"
+              >
+                Terapkan ({filteredStudents.length} Santri)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* DATA CONTAINER: CARD VIEW PADA HP & TABEL ELEGAN PADA DESKTOP */}
       <div className="overflow-hidden rounded-3xl border border-slate-200/80 dark:border-emerald-900/40 bg-white/90 dark:bg-[#0c1815] shadow-xl shadow-slate-200/30 dark:shadow-black/40 backdrop-blur-xl relative">
-        
         {/* TAMPILAN 1: MOBILE CARD LIST */}
         <div className="block md:hidden divide-y divide-slate-100 dark:divide-emerald-900/30">
           <div className="p-4 bg-slate-50/90 dark:bg-emerald-950/40 flex items-center justify-between border-b border-slate-200 dark:border-emerald-900/40">
@@ -1175,7 +1392,7 @@ export default function StudentsMasterPage() {
             </div>
           ) : paginatedStudents.length === 0 ? (
             <div className="py-16 text-center text-slate-400 text-xs px-4">
-              Tidak ada data santri yang cocok dengan kriteria pencarian.
+              Tidak ada data santri yang cocok dengan kriteria filter yang dipilih.
             </div>
           ) : (
             paginatedStudents.map((s) => {
@@ -1387,7 +1604,7 @@ export default function StudentsMasterPage() {
               ) : paginatedStudents.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="py-16 text-center text-slate-400 text-xs">
-                    Tidak ada data santri yang cocok dengan kriteria pencarian.
+                    Tidak ada data santri yang cocok dengan kriteria filter yang dipilih.
                   </td>
                 </tr>
               ) : (
