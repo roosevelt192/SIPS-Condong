@@ -20,11 +20,10 @@ import {
   Check,
   X,
   RefreshCw,
-  Clock,
-  Building,
-  GraduationCap,
-  MapPin,
-  ChevronDown,
+  Sparkles,
+  Building2,
+  ShieldCheck,
+  Eye,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
@@ -123,10 +122,10 @@ export default function AttendanceDashboardPage() {
   const [customStart, setCustomStart] = useState(getTodayDateStr());
   const [customEnd, setCustomEnd] = useState(getTodayDateStr());
   const [filterCategory, setFilterCategory] = useState<string>("all");
-  const [filterScopeType, setFilterScopeType] = useState<string>("all");
+  const [filterScopeType, setFilterScopeType] = useState<"all" | "kamar" | "kelas" | "angkatan" | "konsulat">("all");
   const [filterScopeValue, setFilterScopeValue] = useState<string>("all");
+  const [isReportRendered, setIsReportRendered] = useState(false);
   const [rekapSearch, setRekapSearch] = useState("");
-  const [expandedStudentId, setExpandedStudentId] = useState<string | null>(null);
 
   // Pemuatan data penuh melebihi batas 1000 baris
   const loadDatabaseData = useCallback(async () => {
@@ -201,9 +200,9 @@ export default function AttendanceDashboardPage() {
   const uniqueGenerations = useMemo(() => {
     const set = new Set<string>();
     students.forEach((s) => {
-      if (s.entry_year && s.entry_year !== "-") set.add(s.entry_year);
       const gradePart = s.class_name.split(" ")[0]?.trim();
       if (gradePart && gradePart !== "-") set.add(`Tingkat ${gradePart}`);
+      if (s.entry_year && s.entry_year !== "-") set.add(`Angkatan ${s.entry_year}`);
     });
     return Array.from(set).sort();
   }, [students]);
@@ -216,17 +215,15 @@ export default function AttendanceDashboardPage() {
     return Array.from(set).sort((a, b) => a.localeCompare(b, "id"));
   }, [students]);
 
-  // Inisialisasi default scope value saat data termuat
+  // Inisialisasi default scope value saat mode berganti
   useEffect(() => {
-    if (!inputScopeValue) {
-      if (inputScopeType === "kamar" && uniqueRooms[0]) setInputScopeValue(uniqueRooms[0]);
-      if (inputScopeType === "kelas" && uniqueClasses[0]) setInputScopeValue(uniqueClasses[0]);
-      if (inputScopeType === "angkatan" && uniqueGenerations[0]) setInputScopeValue(uniqueGenerations[0]);
-      if (inputScopeType === "konsulat" && uniqueConsulates[0]) setInputScopeValue(uniqueConsulates[0]);
-    }
-  }, [inputScopeType, inputScopeValue, uniqueRooms, uniqueClasses, uniqueGenerations, uniqueConsulates]);
+    if (inputScopeType === "kamar") setInputScopeValue(uniqueRooms[0] || "");
+    if (inputScopeType === "kelas") setInputScopeValue(uniqueClasses[0] || "");
+    if (inputScopeType === "angkatan") setInputScopeValue(uniqueGenerations[0] || "");
+    if (inputScopeType === "konsulat") setInputScopeValue(uniqueConsulates[0] || "");
+  }, [inputScopeType, uniqueRooms, uniqueClasses, uniqueGenerations, uniqueConsulates]);
 
-  // Santri yang cocok dengan cakupan terpilih
+  // Santri yang cocok dengan cakupan terpilih (Input Cepat)
   const targetInputStudents = useMemo(() => {
     return students.filter((s) => {
       if (inputScopeType === "kamar") return s.dorm.toLowerCase() === inputScopeValue.toLowerCase();
@@ -238,7 +235,10 @@ export default function AttendanceDashboardPage() {
           const studentGrade = s.class_name.split(" ")[0]?.trim().toLowerCase();
           return studentGrade === targetGrade;
         }
-        return s.entry_year === inputScopeValue;
+        if (inputScopeValue.startsWith("Angkatan ")) {
+          const targetYear = inputScopeValue.replace("Angkatan ", "").trim();
+          return s.entry_year === targetYear;
+        }
       }
       return true;
     });
@@ -350,24 +350,26 @@ export default function AttendanceDashboardPage() {
     (dateStr: string) => {
       const sessOnDate = sessions.filter((s) => {
         if (s.date !== dateStr) return false;
-        if (calendarScope !== "all" && s.scope_value !== calendarScope) return false;
+        if (calendarScope !== "all" && s.scope_value.toLowerCase() !== calendarScope.toLowerCase()) return false;
         return true;
       });
 
       const totalSesi = sessOnDate.length;
+      const hasSpecial = sessOnDate.some((s) => s.category === "khusus");
       const isPast = new Date(dateStr) < new Date(getTodayDateStr());
 
-      return { totalSesi, isPast, sessions: sessOnDate };
+      return { totalSesi, hasSpecial, isPast, sessions: sessOnDate };
     },
     [sessions, calendarScope]
   );
 
-  // Rekapitulasi Data
+  // Rekapitulasi Data Santri Terfilter
   const filteredSessionsRekap = useMemo(() => {
+    if (!isReportRendered) return [];
     return sessions.filter((s) => {
       if (filterCategory !== "all" && s.category !== filterCategory) return false;
       if (filterScopeType !== "all" && s.scope_type !== filterScopeType) return false;
-      if (filterScopeValue !== "all" && s.scope_value !== filterScopeValue) return false;
+      if (filterScopeValue !== "all" && s.scope_value.toLowerCase() !== filterScopeValue.toLowerCase()) return false;
 
       if (rekapPeriod === "today") return s.date === getTodayDateStr();
       if (rekapPeriod === "week") {
@@ -385,16 +387,34 @@ export default function AttendanceDashboardPage() {
       }
       return true;
     });
-  }, [sessions, filterCategory, filterScopeType, filterScopeValue, rekapPeriod, customStart, customEnd]);
+  }, [sessions, isReportRendered, filterCategory, filterScopeType, filterScopeValue, rekapPeriod, customStart, customEnd]);
 
   const filteredSessionIdsRekap = useMemo(() => new Set(filteredSessionsRekap.map((s) => s.id)), [filteredSessionsRekap]);
 
   const rekapDataRows = useMemo(() => {
+    if (!isReportRendered) return [];
+
     return students
       .filter((s) => {
-        if (filterScopeType === "kamar" && filterScopeValue !== "all") return s.dorm.toLowerCase() === filterScopeValue.toLowerCase();
-        if (filterScopeType === "kelas" && filterScopeValue !== "all") return s.class_name.toLowerCase() === filterScopeValue.toLowerCase();
-        if (filterScopeType === "konsulat" && filterScopeValue !== "all") return s.consulate.toLowerCase() === filterScopeValue.toLowerCase();
+        if (filterScopeType === "kamar" && filterScopeValue !== "all") {
+          return s.dorm.toLowerCase() === filterScopeValue.toLowerCase();
+        }
+        if (filterScopeType === "kelas" && filterScopeValue !== "all") {
+          return s.class_name.toLowerCase() === filterScopeValue.toLowerCase();
+        }
+        if (filterScopeType === "konsulat" && filterScopeValue !== "all") {
+          return s.consulate.toLowerCase() === filterScopeValue.toLowerCase();
+        }
+        if (filterScopeType === "angkatan" && filterScopeValue !== "all") {
+          if (filterScopeValue.startsWith("Tingkat ")) {
+            const tg = filterScopeValue.replace("Tingkat ", "").trim().toLowerCase();
+            return s.class_name.split(" ")[0]?.trim().toLowerCase() === tg;
+          }
+          if (filterScopeValue.startsWith("Angkatan ")) {
+            const ty = filterScopeValue.replace("Angkatan ", "").trim();
+            return s.entry_year === ty;
+          }
+        }
         return true;
       })
       .map((st) => {
@@ -421,69 +441,219 @@ export default function AttendanceDashboardPage() {
           ghoib: g,
           totalSesi,
           disciplinePct,
-          records: stRecords,
         };
       });
-  }, [students, records, filteredSessionIdsRekap, filterScopeType, filterScopeValue]);
+  }, [students, records, filteredSessionIdsRekap, isReportRendered, filterScopeType, filterScopeValue]);
 
   const kpiMetrics = useMemo(() => {
-    if (rekapDataRows.length === 0) return { avgPct: 100, perfectCount: 0, topGhoib: [] };
+    if (rekapDataRows.length === 0) return { avgPct: 100, perfectCount: 0, warningCount: 0 };
     const avg = Math.round(rekapDataRows.reduce((acc, r) => acc + r.disciplinePct, 0) / rekapDataRows.length);
     const perfect = rekapDataRows.filter((r) => r.ghoib === 0 && r.totalSesi > 0).length;
-    const topGhoib = [...rekapDataRows].filter((r) => r.ghoib > 0).sort((a, b) => b.ghoib - a.ghoib).slice(0, 4);
-
-    return { avgPct: avg, perfectCount: perfect, topGhoib };
+    const warning = rekapDataRows.filter((r) => r.ghoib >= 3).length;
+    return { avgPct: avg, perfectCount: perfect, warningCount: warning };
   }, [rekapDataRows]);
 
+  // ================= EXPORT EXCEL PROFESIONAL =================
   const handleExportExcel = async () => {
     const workbook = new ExcelJS.Workbook();
-    workbook.creator = "SIPS Condong";
+    workbook.creator = "SIPS Pengasuhan Santri";
     workbook.created = new Date();
 
-    const ws1 = workbook.addWorksheet("Rekap_Presensi", {
-      views: [{ state: "frozen", ySplit: 4, xSplit: 3 }],
+    const ws = workbook.addWorksheet("Rekap_Presensi", {
+      views: [{ state: "frozen", ySplit: 5, xSplit: 3 }],
     });
 
-    ws1.mergeCells("A1:I1");
-    const titleCell = ws1.getCell("A1");
-    titleCell.value = "LAPORAN PRESENSI PENGASUHAN SANTRI - SIPS CONDONG";
+    const borderStyle: Partial<ExcelJS.Borders> = {
+      top: { style: "thin", color: { argb: "CBD5E1" } },
+      left: { style: "thin", color: { argb: "CBD5E1" } },
+      bottom: { style: "thin", color: { argb: "CBD5E1" } },
+      right: { style: "thin", color: { argb: "CBD5E1" } },
+    };
+
+    // Header Kop Resmi
+    ws.mergeCells("A1:K1");
+    const titleCell = ws.getCell("A1");
+    titleCell.value = "PONDOK PESANTREN CONDONG - SISTEM INFORMASI PENGASUHAN SANTRI (SIPS)";
     titleCell.font = { name: "Segoe UI", size: 12, bold: true, color: { argb: "FFFFFF" } };
     titleCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "064E3B" } };
     titleCell.alignment = { horizontal: "center", vertical: "middle" };
+    ws.getRow(1).height = 24;
 
-    const headers = ["No", "NIS", "Nama Lengkap", "Kamar", "Kelas", "Hadir", "Sakit", "Izin", "Ghoib", "% Disiplin"];
-    const hRow = ws1.getRow(3);
+    ws.mergeCells("A2:K2");
+    const subCell = ws.getCell("A2");
+    subCell.value = `Laporan Rekapitulasi Presensi Santri | Periode: ${rekapPeriod.toUpperCase()} | Cakupan: ${filterScopeType.toUpperCase()} (${filterScopeValue}) | Tanggal Unduh: ${formatDateIndo(getTodayDateStr())}`;
+    subCell.font = { name: "Segoe UI", size: 9, italic: true, color: { argb: "064E3B" } };
+    subCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "D1FAE5" } };
+    subCell.alignment = { horizontal: "center", vertical: "middle" };
+    ws.getRow(2).height = 18;
+
+    ws.addRow([]);
+
+    // Header Kolom
+    const headers = ["NO", "NIS", "NAMA SANTRI", "KAMAR", "KELAS", "KONSULAT", "HADIR (H)", "SAKIT (S)", "IZIN (I)", "GHOIB (G)", "% DISIPLIN"];
+    const hRow = ws.getRow(4);
     hRow.values = headers;
+    hRow.height = 24;
     hRow.eachCell((c) => {
-      c.font = { bold: true, color: { argb: "FFFFFF" } };
+      c.font = { name: "Segoe UI", size: 9, bold: true, color: { argb: "FFFFFF" } };
       c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "047857" } };
-      c.alignment = { horizontal: "center" };
+      c.alignment = { horizontal: "center", vertical: "middle" };
+      c.border = borderStyle;
     });
 
     rekapDataRows.forEach((r, idx) => {
-      const row = ws1.getRow(idx + 4);
+      const row = ws.getRow(idx + 5);
       row.values = [
         idx + 1,
         r.student.nis,
         r.student.full_name,
         r.student.dorm,
         r.student.class_name,
+        r.student.consulate,
         r.hadir,
         r.sakit,
         r.izin,
         r.ghoib,
         `${r.disciplinePct}%`,
       ];
+      row.height = 19;
+      const isEven = idx % 2 === 1;
+      row.eachCell((cell, colNum) => {
+        cell.font = { name: "Segoe UI", size: 9 };
+        cell.border = borderStyle;
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: isEven ? "F8FAFC" : "FFFFFF" } };
+        cell.alignment = { horizontal: [1, 2, 5, 7, 8, 9, 10, 11].includes(colNum) ? "center" : "left", vertical: "middle" };
+      });
     });
+
+    ws.columns = [
+      { width: 6 }, { width: 14 }, { width: 30 }, { width: 20 }, { width: 12 }, { width: 22 },
+      { width: 12 }, { width: 12 }, { width: 12 }, { width: 12 }, { width: 14 },
+    ];
 
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `Rekap_Presensi_Pengasuhan_${getTodayDateStr()}.xlsx`;
+    a.download = `Rekap_Presensi_SIPS_${filterScopeValue.replace(/\s+/g, "_")}_${getTodayDateStr()}.xlsx`;
     a.click();
     window.URL.revokeObjectURL(url);
+  };
+
+  // ================= CETAK DOKUMEN PDF RESMI =================
+  const handlePrintOfficialPDF = () => {
+    const existingIframe = document.getElementById("sips-report-print-frame");
+    if (existingIframe) existingIframe.remove();
+
+    const iframe = document.createElement("iframe");
+    iframe.id = "sips-report-print-frame";
+    iframe.style.position = "fixed";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document;
+    if (!doc) return;
+
+    doc.open();
+    doc.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Laporan_Presensi_Pengasuhan_${getTodayDateStr()}</title>
+          <style>
+            @page { size: A4 portrait; margin: 12mm 15mm; }
+            * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, sans-serif; }
+            body { color: #000; font-size: 8.5pt; }
+            .header-kop { text-align: center; border-bottom: 2px solid #000; padding-bottom: 6px; margin-bottom: 10px; }
+            .header-kop h2 { font-size: 11pt; font-weight: 900; text-transform: uppercase; }
+            .header-kop p { font-size: 8pt; color: #333; margin-top: 1px; }
+            .meta-box { width: 100%; border: 1px solid #999; padding: 6px 8px; margin-bottom: 12px; font-size: 7.5pt; display: flex; justify-content: space-between; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 8pt; }
+            th, td { border: 1px solid #444; padding: 4px 6px; }
+            th { background-color: #f0fdf4; font-weight: bold; text-align: center; }
+            .ttd-box { display: flex; justify-content: space-between; margin-top: 30px; font-size: 8pt; text-align: center; }
+            .ttd-col { width: 40%; }
+            .ttd-space { height: 50px; }
+          </style>
+        </head>
+        <body>
+          <div class="header-kop">
+            <h2>PONDOK PESANTREN CONDONG</h2>
+            <p>BAGIAN PENGASUHAN SANTRI & KEDISIPLINAN TERPADU (SIPS)</p>
+            <p style="font-size: 7pt; color: #666;">Cibeureum, Kota Tasikmalaya, Jawa Barat - Telp. (0265) 331578</p>
+          </div>
+          <div class="meta-box">
+            <div>
+              <p><b>Filter Cakupan:</b> ${filterScopeType.toUpperCase()} - ${filterScopeValue}</p>
+              <p><b>Kategori Sesi:</b> ${filterCategory.toUpperCase()}</p>
+            </div>
+            <div style="text-align: right;">
+              <p><b>Periode Rekap:</b> ${rekapPeriod.toUpperCase()} (${rekapPeriod === "custom" ? `${customStart} s/d ${customEnd}` : formatDateIndo(getTodayDateStr())})</p>
+              <p><b>Total Santri:</b> ${rekapDataRows.length} Orang</p>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 25px;">No</th>
+                <th style="width: 70px;">NIS</th>
+                <th>Nama Santri</th>
+                <th style="width: 80px;">Kamar</th>
+                <th style="width: 50px;">Kelas</th>
+                <th style="width: 30px;">H</th>
+                <th style="width: 30px;">S</th>
+                <th style="width: 30px;">I</th>
+                <th style="width: 30px;">G</th>
+                <th style="width: 45px;">% Disiplin</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rekapDataRows
+                .map(
+                  (r, idx) => `
+                <tr>
+                  <td align="center">${idx + 1}</td>
+                  <td align="center">${r.student.nis}</td>
+                  <td><b>${r.student.full_name}</b></td>
+                  <td>${r.student.dorm}</td>
+                  <td align="center">${r.student.class_name}</td>
+                  <td align="center">${r.hadir}</td>
+                  <td align="center">${r.sakit}</td>
+                  <td align="center">${r.izin}</td>
+                  <td align="center" style="color: ${r.ghoib > 0 ? '#b91c1c' : '#000'}; font-weight: ${r.ghoib > 0 ? 'bold' : 'normal'}">${r.ghoib}</td>
+                  <td align="right"><b>${r.disciplinePct}%</b></td>
+                </tr>
+              `
+                )
+                .join("")}
+            </tbody>
+          </table>
+          <div class="ttd-box">
+            <div class="ttd-col">
+              <p>Mengetahui,</p>
+              <p><b>Kepala Bagian Pengasuhan</b></p>
+              <div class="ttd-space"></div>
+              <p><u>( Ust. Pengasuhan Santri )</u></p>
+            </div>
+            <div class="ttd-col">
+              <p>Tasikmalaya, ${formatDateIndo(getTodayDateStr())}</p>
+              <p><b>Staf Kedisiplinan & Tarbiyah</b></p>
+              <div class="ttd-space"></div>
+              <p><u>( ............................................ )</u></p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `);
+    doc.close();
+
+    setTimeout(() => {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+    }, 400);
   };
 
   return (
@@ -551,7 +721,6 @@ export default function AttendanceDashboardPage() {
         <div className="space-y-5">
           <div className="bg-white dark:bg-[#0c1815] p-5 sm:p-6 rounded-[32px] border border-slate-200 dark:border-emerald-900/40 shadow-xs space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 text-xs">
-              {/* Kategori */}
               <div className="space-y-1">
                 <label className="font-bold text-slate-500">Kategori Kegiatan</label>
                 <select
@@ -571,7 +740,6 @@ export default function AttendanceDashboardPage() {
                 </select>
               </div>
 
-              {/* Pilihan Waktu / Judul */}
               {inputCategory === "khusus" ? (
                 <div className="space-y-1">
                   <label className="font-bold text-slate-500">Nama Agenda Khusus</label>
@@ -595,7 +763,6 @@ export default function AttendanceDashboardPage() {
                 </div>
               )}
 
-              {/* Tanggal */}
               <div className="space-y-1">
                 <label className="font-bold text-slate-500">Tanggal Pelaksanaan</label>
                 <input
@@ -606,7 +773,6 @@ export default function AttendanceDashboardPage() {
                 />
               </div>
 
-              {/* Basis Cakupan Rombel */}
               <div className="space-y-1">
                 <label className="font-bold text-slate-500">Kelompok Santri</label>
                 <div className="grid grid-cols-4 gap-1 p-1 bg-slate-100 dark:bg-emerald-950/40 rounded-xl">
@@ -629,7 +795,6 @@ export default function AttendanceDashboardPage() {
               </div>
             </div>
 
-            {/* Sub-Kategori Sholat 5 Waktu */}
             {inputCategory === "sholat_wajib" && (
               <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100 dark:border-emerald-900/30 text-xs">
                 <span className="font-bold text-slate-400">Waktu Sholat:</span>
@@ -654,7 +819,6 @@ export default function AttendanceDashboardPage() {
               </div>
             )}
 
-            {/* Pemilihan Unit Spesifik & Tombol Muat */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-emerald-900/30">
               <div className="flex items-center gap-2.5 text-xs">
                 <span className="font-bold text-slate-500">Pilih {inputScopeType}:</span>
@@ -704,7 +868,6 @@ export default function AttendanceDashboardPage() {
             </div>
           </div>
 
-          {/* Lembar Pengisian Presensi */}
           {isInputLoaded ? (
             <div className="space-y-4">
               <div className="bg-white/95 dark:bg-[#0c1815]/95 backdrop-blur-xl p-4 rounded-3xl border border-slate-200 dark:border-emerald-900/50 shadow-md flex flex-wrap items-center justify-between gap-3">
@@ -928,6 +1091,9 @@ export default function AttendanceDashboardPage() {
                       <span className={`text-xs font-black ${isToday ? "text-emerald-600" : "text-slate-800 dark:text-slate-200"}`}>
                         {dayNum}
                       </span>
+                      {summary.hasSpecial && (
+                        <span className="h-2 w-2 rounded-full bg-purple-500 ring-2 ring-purple-300" title="Ada Kegiatan Khusus" />
+                      )}
                     </div>
 
                     <div
@@ -1003,7 +1169,7 @@ export default function AttendanceDashboardPage() {
         </div>
       )}
 
-      {/* ================= MODUL 3: REKAPITULASI & ANALITIK ================= */}
+      {/* ================= MODUL 3: LAPORAN & REKAPITULASI KEDISIPLINAN ================= */}
       {activeModule === "analytics" && (
         <div className="space-y-5">
           <div className="bg-white dark:bg-[#0c1815] p-5 sm:p-6 rounded-[32px] border border-slate-200 dark:border-emerald-900/40 shadow-xs space-y-4">
@@ -1012,7 +1178,10 @@ export default function AttendanceDashboardPage() {
                 <label className="font-bold text-slate-500">Rentang Waktu</label>
                 <select
                   value={rekapPeriod}
-                  onChange={(e) => setRekapPeriod(e.target.value as any)}
+                  onChange={(e) => {
+                    setRekapPeriod(e.target.value as any);
+                    setIsReportRendered(false);
+                  }}
                   className="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-emerald-900/60 bg-slate-50 dark:bg-emerald-950/30 font-bold outline-none cursor-pointer"
                 >
                   <option value="today">Hari Ini</option>
@@ -1026,7 +1195,10 @@ export default function AttendanceDashboardPage() {
                 <label className="font-bold text-slate-500">Kategori Kegiatan</label>
                 <select
                   value={filterCategory}
-                  onChange={(e) => setFilterCategory(e.target.value)}
+                  onChange={(e) => {
+                    setFilterCategory(e.target.value);
+                    setIsReportRendered(false);
+                  }}
                   className="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-emerald-900/60 bg-slate-50 dark:bg-emerald-950/30 font-bold outline-none cursor-pointer"
                 >
                   <option value="all">Semua Kategori</option>
@@ -1036,31 +1208,42 @@ export default function AttendanceDashboardPage() {
                 </select>
               </div>
 
+              {/* Filter Rombel Utama */}
               <div className="space-y-1">
-                <label className="font-bold text-slate-500">Filter Rombel</label>
+                <label className="font-bold text-slate-500">Filter Basis Rombel</label>
                 <select
                   value={filterScopeType}
                   onChange={(e) => {
-                    setFilterScopeType(e.target.value);
+                    const val = e.target.value as any;
+                    setFilterScopeType(val);
                     setFilterScopeValue("all");
+                    setIsReportRendered(false);
                   }}
                   className="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-emerald-900/60 bg-slate-50 dark:bg-emerald-950/30 font-bold outline-none cursor-pointer"
                 >
-                  <option value="all">Semua Rombel</option>
-                  <option value="kamar">Per Kamar</option>
+                  <option value="all">Semua Santri (Global)</option>
+                  <option value="kamar">Per Kamar Asrama</option>
                   <option value="kelas">Per Kelas</option>
-                  <option value="konsulat">Per Konsulat</option>
+                  <option value="angkatan">Per Angkatan / Tingkat</option>
+                  <option value="konsulat">Per Konsulat Wilayah</option>
                 </select>
               </div>
 
+              {/* Dropdown Pilihan Unit Dinamis */}
               <div className="space-y-1">
-                <label className="font-bold text-slate-500">Pilihan Unit</label>
+                <label className="font-bold text-slate-500">
+                  {filterScopeType === "all" ? "Pilihan Unit (Otomatis)" : `Pilih ${filterScopeType.toUpperCase()}`}
+                </label>
                 <select
+                  disabled={filterScopeType === "all"}
                   value={filterScopeValue}
-                  onChange={(e) => setFilterScopeValue(e.target.value)}
-                  className="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-emerald-900/60 bg-slate-50 dark:bg-emerald-950/30 font-bold outline-none cursor-pointer"
+                  onChange={(e) => {
+                    setFilterScopeValue(e.target.value);
+                    setIsReportRendered(false);
+                  }}
+                  className="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-emerald-900/60 bg-slate-50 dark:bg-emerald-950/30 font-bold outline-none cursor-pointer disabled:opacity-50"
                 >
-                  <option value="all">Semua Unit</option>
+                  <option value="all">Semua {filterScopeType !== "all" ? filterScopeType : "Unit"}</option>
                   {filterScopeType === "kamar" &&
                     uniqueRooms.map((r) => (
                       <option key={r} value={r}>
@@ -1071,6 +1254,12 @@ export default function AttendanceDashboardPage() {
                     uniqueClasses.map((c) => (
                       <option key={c} value={c}>
                         Kelas {c}
+                      </option>
+                    ))}
+                  {filterScopeType === "angkatan" &&
+                    uniqueGenerations.map((g) => (
+                      <option key={g} value={g}>
+                        {g}
                       </option>
                     ))}
                   {filterScopeType === "konsulat" &&
@@ -1089,117 +1278,154 @@ export default function AttendanceDashboardPage() {
                 <input
                   type="date"
                   value={customStart}
-                  onChange={(e) => setCustomStart(e.target.value)}
+                  onChange={(e) => {
+                    setCustomStart(e.target.value);
+                    setIsReportRendered(false);
+                  }}
                   className="h-8 px-2 rounded-lg border border-slate-200 bg-white font-semibold"
                 />
                 <span className="text-slate-400">s/d</span>
                 <input
                   type="date"
                   value={customEnd}
-                  onChange={(e) => setCustomEnd(e.target.value)}
+                  onChange={(e) => {
+                    setCustomEnd(e.target.value);
+                    setIsReportRendered(false);
+                  }}
                   className="h-8 px-2 rounded-lg border border-slate-200 bg-white font-semibold"
                 />
               </div>
             )}
 
-            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-emerald-900/30">
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-emerald-900/30">
               <button
                 type="button"
-                onClick={handleExportExcel}
-                className="flex items-center space-x-1.5 px-4 py-2 border border-emerald-600/30 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 text-xs font-bold rounded-xl cursor-pointer"
+                onClick={() => setIsReportRendered(true)}
+                className="flex items-center space-x-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-black transition cursor-pointer shadow-md shadow-emerald-600/20"
               >
-                <FileSpreadsheet className="w-4 h-4" />
-                <span>Unduh Excel</span>
+                <Eye className="w-4 h-4" />
+                <span>Tampilkan Data Rekapitulasi</span>
               </button>
-              <button
-                type="button"
-                onClick={() => window.print()}
-                className="flex items-center space-x-1.5 px-4 py-2 bg-slate-900 text-white text-xs font-black rounded-xl cursor-pointer"
-              >
-                <Printer className="w-4 h-4" />
-                <span>Cetak Laporan</span>
-              </button>
+
+              {isReportRendered && (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleExportExcel}
+                    className="flex items-center space-x-1.5 px-4 py-2.5 border border-emerald-600/30 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 text-xs font-bold rounded-2xl cursor-pointer shadow-xs hover:bg-emerald-100"
+                  >
+                    <FileSpreadsheet className="w-4 h-4" />
+                    <span>Unduh Excel (.xlsx)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handlePrintOfficialPDF}
+                    className="flex items-center space-x-1.5 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-black rounded-2xl cursor-pointer shadow-md"
+                  >
+                    <Printer className="w-4 h-4" />
+                    <span>Cetak PDF Resmi</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* KPI Ringkas */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-            <div className="bg-white dark:bg-[#0c1815] p-5 rounded-3xl border border-slate-200 dark:border-emerald-900/40 shadow-xs">
-              <span className="text-[10px] font-black uppercase text-slate-400">Rata-Rata Kehadiran</span>
-              <p className="text-3xl font-black text-emerald-600 mt-1">{kpiMetrics.avgPct}%</p>
-            </div>
-            <div className="bg-white dark:bg-[#0c1815] p-5 rounded-3xl border border-slate-200 dark:border-emerald-900/40 shadow-xs">
-              <span className="text-[10px] font-black uppercase text-slate-400">100% Taat (Nihil Ghoib)</span>
-              <p className="text-3xl font-black text-teal-600 mt-1">{kpiMetrics.perfectCount} Santri</p>
-            </div>
-            <div className="bg-white dark:bg-[#0c1815] p-5 rounded-3xl border border-slate-200 dark:border-emerald-900/40 shadow-xs">
-              <span className="text-[10px] font-black uppercase text-rose-500">Perlu Pembinaan (Ghoib)</span>
-              <p className="text-3xl font-black text-rose-600 mt-1">{kpiMetrics.topGhoib.length} Santri</p>
-            </div>
-          </div>
+          {/* Tampilan Data Setelah Ditekan Tampilkan */}
+          {isReportRendered ? (
+            <div className="space-y-4">
+              {/* KPI Ringkas */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                <div className="bg-white dark:bg-[#0c1815] p-5 rounded-3xl border border-slate-200 dark:border-emerald-900/40 shadow-xs">
+                  <span className="text-[10px] font-black uppercase text-slate-400">Rata-Rata Kehadiran</span>
+                  <p className="text-3xl font-black text-emerald-600 mt-1">{kpiMetrics.avgPct}%</p>
+                </div>
+                <div className="bg-white dark:bg-[#0c1815] p-5 rounded-3xl border border-slate-200 dark:border-emerald-900/40 shadow-xs">
+                  <span className="text-[10px] font-black uppercase text-slate-400">100% Disiplin (Taat Penuh)</span>
+                  <p className="text-3xl font-black text-teal-600 mt-1">{kpiMetrics.perfectCount} Santri</p>
+                </div>
+                <div className="bg-white dark:bg-[#0c1815] p-5 rounded-3xl border border-slate-200 dark:border-emerald-900/40 shadow-xs">
+                  <span className="text-[10px] font-black uppercase text-rose-500">Peringatan Disiplin (≥3 Ghoib)</span>
+                  <p className="text-3xl font-black text-rose-600 mt-1">{kpiMetrics.warningCount} Santri</p>
+                </div>
+              </div>
 
-          {/* Tabel Rekap Santri */}
-          <div className="bg-white dark:bg-[#0c1815] p-5 sm:p-6 rounded-[32px] border border-slate-200 dark:border-emerald-900/40 shadow-xs space-y-3.5">
-            <div className="relative w-full sm:w-72">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-              <input
-                type="text"
-                value={rekapSearch}
-                onChange={(e) => setRekapSearch(e.target.value)}
-                placeholder="Cari nama santri di rekap..."
-                className="w-full h-9 pl-9 pr-3 rounded-xl border border-slate-200 dark:border-emerald-900/60 bg-slate-50 dark:bg-emerald-950/30 text-xs font-semibold outline-none"
-              />
-            </div>
+              {/* Tabel Rekap Santri */}
+              <div className="bg-white dark:bg-[#0c1815] p-5 sm:p-6 rounded-[32px] border border-slate-200 dark:border-emerald-900/40 shadow-xs space-y-3.5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="relative w-full sm:w-72">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                    <input
+                      type="text"
+                      value={rekapSearch}
+                      onChange={(e) => setRekapSearch(e.target.value)}
+                      placeholder="Cari santri di lembar rekap..."
+                      className="w-full h-9 pl-9 pr-3 rounded-xl border border-slate-200 dark:border-emerald-900/60 bg-slate-50 dark:bg-emerald-950/30 text-xs font-semibold outline-none"
+                    />
+                  </div>
+                  <span className="text-xs text-slate-400">
+                    Menampilkan <strong>{rekapDataRows.length} Santri</strong>
+                  </span>
+                </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-slate-200 dark:border-emerald-900/40 text-slate-400 uppercase text-[10px]">
-                    <th className="py-3 px-3 w-10">No</th>
-                    <th className="py-3 px-3 w-20">NIS</th>
-                    <th className="py-3 px-3">Nama Santri</th>
-                    <th className="py-3 px-3">Kamar</th>
-                    <th className="py-3 px-3">Kelas</th>
-                    <th className="py-3 px-3 text-center">H</th>
-                    <th className="py-3 px-3 text-center">S</th>
-                    <th className="py-3 px-3 text-center">I</th>
-                    <th className="py-3 px-3 text-center">G</th>
-                    <th className="py-3 px-3 text-right">% Disiplin</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-emerald-900/30 font-medium">
-                  {rekapDataRows
-                    .filter((r) => r.student.full_name.toLowerCase().includes(rekapSearch.toLowerCase()) || r.student.nis.includes(rekapSearch))
-                    .map((row, idx) => (
-                      <tr key={row.student.id} className="hover:bg-slate-50/50 dark:hover:bg-emerald-950/20">
-                        <td className="py-3 px-3 text-slate-400 font-mono">{idx + 1}</td>
-                        <td className="py-3 px-3 font-mono font-bold text-slate-600">{row.student.nis}</td>
-                        <td className="py-3 px-3 font-bold text-slate-900 dark:text-white">{row.student.full_name}</td>
-                        <td className="py-3 px-3 text-slate-500">{row.student.dorm}</td>
-                        <td className="py-3 px-3 text-slate-500">{row.student.class_name}</td>
-                        <td className="py-3 px-3 text-center font-bold text-emerald-600">{row.hadir}</td>
-                        <td className="py-3 px-3 text-center font-bold text-amber-600">{row.sakit}</td>
-                        <td className="py-3 px-3 text-center font-bold text-sky-600">{row.izin}</td>
-                        <td className="py-3 px-3 text-center font-bold text-rose-600">{row.ghoib}</td>
-                        <td className="py-3 px-3 text-right">
-                          <span
-                            className={`px-2.5 py-1 rounded-xl text-[11px] font-black border ${
-                              row.disciplinePct >= 85
-                                ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/20"
-                                : row.disciplinePct >= 70
-                                ? "bg-amber-500/10 text-amber-700 border-amber-500/20"
-                                : "bg-rose-500/10 text-rose-700 border-rose-500/20"
-                            }`}
-                          >
-                            {row.disciplinePct}%
-                          </span>
-                        </td>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-200 dark:border-emerald-900/40 text-slate-400 uppercase text-[10px]">
+                        <th className="py-3 px-3 w-10">No</th>
+                        <th className="py-3 px-3 w-24">NIS</th>
+                        <th className="py-3 px-3">Nama Santri</th>
+                        <th className="py-3 px-3">Kamar</th>
+                        <th className="py-3 px-3">Kelas</th>
+                        <th className="py-3 px-3 text-center">H</th>
+                        <th className="py-3 px-3 text-center">S</th>
+                        <th className="py-3 px-3 text-center">I</th>
+                        <th className="py-3 px-3 text-center">G</th>
+                        <th className="py-3 px-3 text-right">% Disiplin</th>
                       </tr>
-                    ))}
-                </tbody>
-              </table>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-emerald-900/30 font-medium">
+                      {rekapDataRows
+                        .filter((r) => r.student.full_name.toLowerCase().includes(rekapSearch.toLowerCase()) || r.student.nis.includes(rekapSearch))
+                        .map((row, idx) => (
+                          <tr key={row.student.id} className="hover:bg-slate-50/50 dark:hover:bg-emerald-950/20">
+                            <td className="py-2.5 px-3 text-slate-400 font-mono">{idx + 1}</td>
+                            <td className="py-2.5 px-3 font-mono font-bold text-slate-600">{row.student.nis}</td>
+                            <td className="py-2.5 px-3 font-bold text-slate-900 dark:text-white">{row.student.full_name}</td>
+                            <td className="py-2.5 px-3 text-slate-500">{row.student.dorm}</td>
+                            <td className="py-2.5 px-3 text-slate-500">{row.student.class_name}</td>
+                            <td className="py-2.5 px-3 text-center font-bold text-emerald-600">{row.hadir}</td>
+                            <td className="py-2.5 px-3 text-center font-bold text-amber-600">{row.sakit}</td>
+                            <td className="py-2.5 px-3 text-center font-bold text-sky-600">{row.izin}</td>
+                            <td className="py-2.5 px-3 text-center font-bold text-rose-600">{row.ghoib}</td>
+                            <td className="py-2.5 px-3 text-right">
+                              <span
+                                className={`px-2 py-0.5 rounded-lg text-[10px] font-black border ${
+                                  row.disciplinePct >= 85
+                                    ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/20"
+                                    : row.disciplinePct >= 70
+                                    ? "bg-amber-500/10 text-amber-700 border-amber-500/20"
+                                    : "bg-rose-500/10 text-rose-700 border-rose-500/20"
+                                }`}
+                              >
+                                {row.disciplinePct}%
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="bg-white dark:bg-[#0c1815] p-12 rounded-[32px] border border-dashed border-slate-200 dark:border-emerald-900/40 text-center space-y-2">
+              <Filter className="w-7 h-7 text-emerald-600 mx-auto" />
+              <h3 className="text-sm font-bold text-slate-800 dark:text-white">Pilih Parameter Rekapitulasi</h3>
+              <p className="text-xs text-slate-400">
+                Tentukan cakupan rombel dan rentang waktu di atas, lalu klik <b>Tampilkan Data Rekapitulasi</b> untuk melihat hasil.
+              </p>
+            </div>
+          )}
         </div>
       )}
     </div>
