@@ -149,7 +149,7 @@ export default function PermissionsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // ===========================================================================
-  // 4. FETCH DATA & EVENT LISTENERS
+  // 4. FETCH DATA DENGAN BATCH PAGINATION
   // ===========================================================================
   useEffect(() => {
     fetchPermissions();
@@ -171,14 +171,33 @@ export default function PermissionsPage() {
   async function fetchPermissions() {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("permissions")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .range(0, 999);
+      let allPerms: any[] = [];
+      let page = 0;
+      const pageSize = 1000;
+      let hasMore = true;
 
-      if (error) throw error;
-      setPermissions(data || []);
+      while (hasMore) {
+        const from = page * pageSize;
+        const to = from + pageSize - 1;
+
+        const { data, error } = await supabase
+          .from("permissions")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .range(from, to);
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          allPerms = [...allPerms, ...data];
+          if (data.length < pageSize) hasMore = false;
+          else page++;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      setPermissions(allPerms || []);
     } catch (err: any) {
       console.warn("Sinkronisasi tabel perizinan:", err.message);
     } finally {
@@ -190,11 +209,11 @@ export default function PermissionsPage() {
   // 5. HELPER SANITASI DATA
   // ===========================================================================
   const getStudentName = (st: any) => {
-    return st?.nama_lengkap || st?.name || st?.nama || st?.full_name || st?.nama_santri || "Nama Santri";
+    return st?.nama_lengkap || st?.full_name || st?.name || st?.nama || st?.nama_santri || "Nama Santri";
   };
 
   const getStudentClass = (st: any) => {
-    return st?.class || st?.kelas || st?.rombel || "-";
+    return st?.class || st?.kelas || st?.class_name || st?.rombel || "-";
   };
 
   const getStudentDorm = (st: any) => {
@@ -209,7 +228,7 @@ export default function PermissionsPage() {
   };
 
   // ===========================================================================
-  // 6. MULTI-SANTRI SELECTION HANDLERS
+  // 6. MULTI-SANTRI SELECTION & REAL SEARCH KE SUPABASE
   // ===========================================================================
   const addStudentToSelection = (student: Student) => {
     const finalName = getStudentName(student);
@@ -251,9 +270,10 @@ export default function PermissionsPage() {
     setSelectedStudentsList([]);
   };
 
+  // Pencarian Cepat di Toolbar (Mencakup seluruh 1.171+ santri)
   const handleQuickSearchChange = async (val: string) => {
     setSearchQuery(val);
-    const cleaned = val.trim().toLowerCase();
+    const cleaned = val.trim();
 
     if (!cleaned) {
       setQuickStudentResults([]);
@@ -265,14 +285,14 @@ export default function PermissionsPage() {
     setShowQuickDropdown(true);
 
     try {
-      const { data, error } = await supabase.from("students").select("*").limit(50);
+      const { data, error } = await supabase
+        .from("students")
+        .select("*")
+        .or(`full_name.ilike.%${cleaned}%,nis.ilike.%${cleaned}%,name.ilike.%${cleaned}%,nama_lengkap.ilike.%${cleaned}%`)
+        .limit(10);
+
       if (!error && data) {
-        const matches = data.filter((st: any) => {
-          const name = getStudentName(st).toLowerCase();
-          const nis = String(st?.nis || "").toLowerCase();
-          return name.includes(cleaned) || nis.includes(cleaned);
-        });
-        setQuickStudentResults(matches.slice(0, 5));
+        setQuickStudentResults(data);
       }
     } catch (e) {
       console.error(e);
@@ -281,9 +301,10 @@ export default function PermissionsPage() {
     }
   };
 
+  // Pencarian di Modal Form Izin (Mencakup seluruh 1.171+ santri)
   const handleSearchStudent = async (queryText: string) => {
     setStudentSearchInput(queryText);
-    const cleaned = queryText.trim().toLowerCase();
+    const cleaned = queryText.trim();
 
     if (!cleaned) {
       setStudentSearchResults([]);
@@ -295,16 +316,14 @@ export default function PermissionsPage() {
     setShowDropdownResults(true);
 
     try {
-      const { data, error } = await supabase.from("students").select("*").limit(50);
+      const { data, error } = await supabase
+        .from("students")
+        .select("*")
+        .or(`full_name.ilike.%${cleaned}%,nis.ilike.%${cleaned}%,name.ilike.%${cleaned}%,nama_lengkap.ilike.%${cleaned}%`)
+        .limit(15);
+
       if (error) throw error;
-
-      const filtered = (data || []).filter((st: any) => {
-        const name = getStudentName(st).toLowerCase();
-        const nis = String(st?.nis || "").toLowerCase();
-        return name.includes(cleaned) || nis.includes(cleaned);
-      });
-
-      setStudentSearchResults(filtered.slice(0, 8));
+      setStudentSearchResults(data || []);
     } catch (err) {
       console.error("Gagal mencari santri:", err);
     } finally {
@@ -550,7 +569,7 @@ export default function PermissionsPage() {
       <div className="pointer-events-none absolute -top-10 -right-10 h-72 w-72 rounded-full bg-emerald-500/10 blur-[100px]" />
       <div className="pointer-events-none absolute top-48 -left-10 h-72 w-72 rounded-full bg-teal-500/10 blur-[100px]" />
 
-      {/* ================= HEADER HERO BANNER (SUPER COLORFUL & INTERAKTIF) ================= */}
+      {/* ================= HEADER HERO BANNER ================= */}
       <div className="relative overflow-hidden rounded-[36px] bg-gradient-to-r from-emerald-950 via-[#064e3b] to-teal-950 p-6 sm:p-8 text-white shadow-2xl border border-emerald-500/40">
         <div className="absolute -top-32 -right-32 w-80 h-80 rounded-full bg-emerald-400/20 blur-[80px] pointer-events-none animate-pulse" />
         <div className="absolute -bottom-32 -left-32 w-80 h-80 rounded-full bg-amber-400/20 blur-[80px] pointer-events-none" />
