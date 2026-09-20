@@ -125,7 +125,7 @@ export default function ViolationsDashboardPage() {
   const [dossierPeriodFilter, setDossierPeriodFilter] = useState<"all" | "7days" | "30days" | "semester">("all");
 
   // ===========================================================================
-  // 4. FETCH DATA VIOLATIONS & STUDENTS (FULL LOOP BATCH)
+  // 4. FETCH DATA VIOLATIONS & STUDENTS
   // ===========================================================================
   useEffect(() => {
     fetchData();
@@ -175,7 +175,13 @@ export default function ViolationsDashboardPage() {
         .order("created_at", { ascending: false });
 
       if (vError) throw vError;
-      setViolations(vData || []);
+      
+      const normalizedVData = (vData || []).map((v: any) => ({
+        ...v,
+        id: String(v.id),
+      }));
+
+      setViolations(normalizedVData);
       setSelectedIds([]);
     } catch (err: any) {
       console.warn("Gagal memuat catatan pelanggaran:", err.message);
@@ -245,7 +251,6 @@ export default function ViolationsDashboardPage() {
     }
   };
 
-  // Opsi Dropdown Dinamis
   const availableClasses = useMemo(() => {
     const set = new Set<string>();
     Object.values(studentsMap).forEach((st) => {
@@ -349,22 +354,23 @@ export default function ViolationsDashboardPage() {
 
   const isAllFilteredSelected = useMemo(() => {
     if (filteredViolations.length === 0) return false;
-    return filteredViolations.every((v) => selectedIds.includes(v.id));
+    return filteredViolations.every((v) => selectedIds.includes(String(v.id)));
   }, [filteredViolations, selectedIds]);
 
   const handleToggleSelectAll = () => {
     if (isAllFilteredSelected) {
-      const filteredIdSet = new Set(filteredViolations.map((v) => v.id));
+      const filteredIdSet = new Set(filteredViolations.map((v) => String(v.id)));
       setSelectedIds((prev) => prev.filter((id) => !filteredIdSet.has(id)));
     } else {
-      const newIds = new Set([...selectedIds, ...filteredViolations.map((v) => v.id)]);
+      const newIds = new Set([...selectedIds, ...filteredViolations.map((v) => String(v.id))]);
       setSelectedIds(Array.from(newIds));
     }
   };
 
   const handleToggleSelect = (id: string) => {
+    const targetId = String(id);
     setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+      prev.includes(targetId) ? prev.filter((i) => i !== targetId) : [...prev, targetId]
     );
   };
 
@@ -392,12 +398,11 @@ export default function ViolationsDashboardPage() {
       right: { style: "thin", color: { argb: "CBD5E1" } },
     };
 
-    // Kop Resmi
     ws.mergeCells("A1:K1");
     const titleCell = ws.getCell("A1");
     titleCell.value = "PONDOK PESANTREN CONDONG - REKAPITULASI KEDISIPLINAN SANTRI";
     titleCell.font = { name: "Segoe UI", size: 12, bold: true, color: { argb: "FFFFFF" } };
-    titleCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "881337" } }; // Rose/Maroon
+    titleCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "881337" } };
     titleCell.alignment = { horizontal: "center", vertical: "middle" };
     ws.getRow(1).height = 24;
 
@@ -411,7 +416,6 @@ export default function ViolationsDashboardPage() {
 
     ws.addRow([]);
 
-    // Header Kolom
     const headers = ["NO", "TANGGAL", "NIS", "NAMA SANTRI", "KELAS", "KAMAR", "KONSULAT", "KATEGORI", "BENTUK PELANGGARAN", "POIN", "STATUS"];
     const hRow = ws.getRow(4);
     hRow.values = headers;
@@ -755,16 +759,22 @@ export default function ViolationsDashboardPage() {
     }, 400);
   };
 
-  // Action Handlers
+  // ===========================================================================
+  // ACTION HANDLERS
+  // ===========================================================================
   const handleConfirmDelete = async () => {
     if (!itemToDelete) return;
     setIsDeleting(true);
     try {
-      const { error } = await supabase.from("violations").delete().eq("id", itemToDelete.id);
+      const { error } = await supabase
+        .from("violations")
+        .delete()
+        .eq("id", itemToDelete.id);
+
       if (error) throw error;
       playScanSound("success");
-      setViolations((prev) => prev.filter((v) => v.id !== itemToDelete.id));
-      setSelectedIds((prev) => prev.filter((id) => id !== itemToDelete.id));
+      setViolations((prev) => prev.filter((v) => String(v.id) !== String(itemToDelete.id)));
+      setSelectedIds((prev) => prev.filter((id) => id !== String(itemToDelete.id)));
       setItemToDelete(null);
     } catch (err: any) {
       playScanSound("error");
@@ -783,6 +793,7 @@ export default function ViolationsDashboardPage() {
         .from("violations")
         .update({ status: editStatus, sanction: editSanction.trim() })
         .eq("id", editingItem.id);
+
       if (error) throw error;
       playScanSound("success");
       await fetchData();
@@ -802,7 +813,12 @@ export default function ViolationsDashboardPage() {
     try {
       const payload: any = { status: batchStatus };
       if (updateSanctionToo && batchSanction.trim()) payload.sanction = batchSanction.trim();
-      const { error } = await supabase.from("violations").update(payload).in("id", selectedIds);
+      
+      const { error } = await supabase
+        .from("violations")
+        .update(payload)
+        .in("id", selectedIds);
+
       if (error) throw error;
       playScanSound("success");
       await fetchData();
@@ -820,10 +836,14 @@ export default function ViolationsDashboardPage() {
     if (selectedIds.length === 0) return;
     setIsBatchDeleting(true);
     try {
-      const { error } = await supabase.from("violations").delete().in("id", selectedIds);
+      const { error } = await supabase
+        .from("violations")
+        .delete()
+        .in("id", selectedIds);
+
       if (error) throw error;
       playScanSound("success");
-      setViolations((prev) => prev.filter((v) => !selectedIds.includes(v.id)));
+      setViolations((prev) => prev.filter((v) => !selectedIds.includes(String(v.id))));
       setSelectedIds([]);
       setShowBatchDeleteModal(false);
     } catch (err: any) {
@@ -835,7 +855,7 @@ export default function ViolationsDashboardPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto font-sans relative pb-24">
+    <div className="space-y-6 max-w-7xl mx-auto font-sans relative pb-28">
       {/* ================= HEADER HERO BANNER ================= */}
       <div className="relative overflow-hidden rounded-[32px] bg-gradient-to-r from-rose-950 via-[#7f1d1d] to-rose-900 p-5 sm:p-7 text-white shadow-xl border border-rose-500/40">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -868,7 +888,6 @@ export default function ViolationsDashboardPage() {
             </div>
           </div>
 
-          {/* Action Buttons Ringkas & Efisien */}
           <div className="flex items-center gap-2 shrink-0 self-end md:self-auto flex-wrap">
             <button
               type="button"
@@ -944,7 +963,6 @@ export default function ViolationsDashboardPage() {
           />
         </div>
 
-        {/* Tab Status Cepat */}
         <div className="flex items-center gap-2 shrink-0">
           <div className="flex items-center bg-slate-100 dark:bg-rose-950/40 p-1 rounded-2xl border border-slate-200 dark:border-rose-900/40 text-xs font-bold">
             {[
@@ -1008,8 +1026,8 @@ export default function ViolationsDashboardPage() {
 
       {/* ================= MODAL FILTER KRITERIA LENGKAP ================= */}
       {showFilterModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="w-full max-w-md overflow-hidden rounded-[32px] border border-slate-800 bg-slate-900 p-6 text-white space-y-4 shadow-2xl animate-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="w-full max-w-md overflow-hidden rounded-[32px] border border-slate-800 bg-slate-900 p-6 text-white space-y-4 shadow-2xl animate-in zoom-in-95 duration-150 relative z-[101]">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center space-x-2 text-rose-400 font-black text-sm">
                 <Filter className="h-4 w-4" />
@@ -1108,14 +1126,14 @@ export default function ViolationsDashboardPage() {
               <button
                 type="button"
                 onClick={resetAllFilters}
-                className="flex-1 py-2.5 rounded-xl bg-slate-800 text-slate-300 font-bold hover:bg-slate-700 transition active:scale-95 text-xs"
+                className="flex-1 py-2.5 rounded-xl bg-slate-800 text-slate-300 font-bold hover:bg-slate-700 transition active:scale-95 text-xs cursor-pointer"
               >
                 Reset
               </button>
               <button
                 type="button"
                 onClick={() => setShowFilterModal(false)}
-                className="flex-1 py-2.5 rounded-xl bg-rose-500 text-slate-950 font-black hover:bg-rose-400 transition active:scale-95 text-xs"
+                className="flex-1 py-2.5 rounded-xl bg-rose-500 text-slate-950 font-black hover:bg-rose-400 transition active:scale-95 text-xs cursor-pointer"
               >
                 Terapkan Filter
               </button>
@@ -1125,14 +1143,14 @@ export default function ViolationsDashboardPage() {
       )}
 
       {/* ================= DAFTAR TABEL PELANGGARAN ================= */}
-      <div className="overflow-hidden rounded-3xl border border-slate-200/80 dark:border-rose-900/40 bg-white/90 dark:bg-[#1a0f12] shadow-xl backdrop-blur-xl">
+      <div className="overflow-hidden rounded-3xl border border-slate-200/80 dark:border-rose-900/40 bg-white/90 dark:bg-[#1a0f12] shadow-xl backdrop-blur-xl relative z-10">
         {/* Tampilan Mobile */}
         <div className="block md:hidden divide-y divide-slate-100 dark:divide-rose-900/30">
           <div className="p-3 bg-slate-50 dark:bg-rose-950/40 flex items-center justify-between border-b border-slate-200 dark:border-rose-900/40 text-xs font-bold">
             <button
               type="button"
               onClick={handleToggleSelectAll}
-              className="inline-flex items-center space-x-2 text-slate-600 dark:text-slate-300"
+              className="inline-flex items-center space-x-2 text-slate-600 dark:text-slate-300 cursor-pointer"
             >
               {isAllFilteredSelected ? <CheckSquare className="h-4 w-4 text-rose-500" /> : <Square className="h-4 w-4" />}
               <span>Pilih Semua ({filteredViolations.length})</span>
@@ -1148,7 +1166,7 @@ export default function ViolationsDashboardPage() {
             <div className="py-12 text-center text-slate-400 text-xs">Tidak ada catatan pelanggaran.</div>
           ) : (
             filteredViolations.map((v) => {
-              const isSelected = selectedIds.includes(v.id);
+              const isSelected = selectedIds.includes(String(v.id));
               const meta = studentsMap[v.nis] || {};
               return (
                 <div key={v.id} className="p-4 space-y-2.5">
@@ -1157,14 +1175,14 @@ export default function ViolationsDashboardPage() {
                       <input
                         type="checkbox"
                         checked={isSelected}
-                        onChange={() => handleToggleSelect(v.id)}
-                        className="rounded text-rose-600 h-4 w-4"
+                        onChange={() => handleToggleSelect(String(v.id))}
+                        className="rounded text-rose-600 h-4 w-4 cursor-pointer"
                       />
                       <div className="min-w-0">
                         <button
                           type="button"
                           onClick={() => handleOpenStudentDossier(v)}
-                          className="font-bold text-sm text-slate-900 dark:text-white truncate hover:underline text-left block"
+                          className="font-bold text-sm text-slate-900 dark:text-white truncate hover:underline text-left block cursor-pointer"
                         >
                           {v.student_name}
                         </button>
@@ -1191,7 +1209,7 @@ export default function ViolationsDashboardPage() {
                       <button
                         type="button"
                         onClick={() => handleOpenStudentDossier(v)}
-                        className="p-1.5 rounded-lg border border-slate-200 dark:border-rose-900/40 text-slate-500"
+                        className="p-1.5 rounded-lg border border-slate-200 dark:border-rose-900/40 text-slate-500 cursor-pointer"
                         title="Rekam Jejak"
                       >
                         <History className="h-4 w-4" />
@@ -1203,7 +1221,7 @@ export default function ViolationsDashboardPage() {
                           setEditStatus(v.status);
                           setEditSanction(v.sanction || "");
                         }}
-                        className="p-1.5 rounded-lg border border-slate-200 dark:border-rose-900/40 text-slate-500"
+                        className="p-1.5 rounded-lg border border-slate-200 dark:border-rose-900/40 text-slate-500 cursor-pointer"
                         title="Edit"
                       >
                         <Edit className="h-4 w-4" />
@@ -1211,7 +1229,7 @@ export default function ViolationsDashboardPage() {
                       <button
                         type="button"
                         onClick={() => setItemToDelete(v)}
-                        className="p-1.5 rounded-lg border border-slate-200 dark:border-rose-900/40 text-rose-500"
+                        className="p-1.5 rounded-lg border border-slate-200 dark:border-rose-900/40 text-rose-500 cursor-pointer"
                         title="Hapus"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -1258,7 +1276,7 @@ export default function ViolationsDashboardPage() {
                 </tr>
               ) : (
                 filteredViolations.map((v) => {
-                  const isSelected = selectedIds.includes(v.id);
+                  const isSelected = selectedIds.includes(String(v.id));
                   const meta = studentsMap[v.nis] || {};
                   return (
                     <tr key={v.id} className={`hover:bg-rose-500/[0.03] transition ${isSelected ? "bg-rose-500/10" : ""}`}>
@@ -1266,15 +1284,15 @@ export default function ViolationsDashboardPage() {
                         <input
                           type="checkbox"
                           checked={isSelected}
-                          onChange={() => handleToggleSelect(v.id)}
-                          className="rounded text-rose-600 h-4 w-4"
+                          onChange={() => handleToggleSelect(String(v.id))}
+                          className="rounded text-rose-600 h-4 w-4 cursor-pointer"
                         />
                       </td>
                       <td className="py-3.5 px-4">
                         <button
                           type="button"
                           onClick={() => handleOpenStudentDossier(v)}
-                          className="font-bold text-sm text-slate-900 dark:text-white hover:underline text-left block"
+                          className="font-bold text-sm text-slate-900 dark:text-white hover:underline text-left block cursor-pointer"
                         >
                           {v.student_name}
                         </button>
@@ -1304,7 +1322,7 @@ export default function ViolationsDashboardPage() {
                           <button
                             type="button"
                             onClick={() => handleOpenStudentDossier(v)}
-                            className="p-1.5 rounded-xl border border-slate-200 dark:border-rose-900/40 text-slate-500 hover:text-cyan-500"
+                            className="p-1.5 rounded-xl border border-slate-200 dark:border-rose-900/40 text-slate-500 hover:text-cyan-500 cursor-pointer"
                             title="Rekam Jejak"
                           >
                             <History className="h-4 w-4" />
@@ -1316,7 +1334,7 @@ export default function ViolationsDashboardPage() {
                               setEditStatus(v.status);
                               setEditSanction(v.sanction || "");
                             }}
-                            className="p-1.5 rounded-xl border border-slate-200 dark:border-rose-900/40 text-slate-500 hover:text-amber-500"
+                            className="p-1.5 rounded-xl border border-slate-200 dark:border-rose-900/40 text-slate-500 hover:text-amber-500 cursor-pointer"
                             title="Edit"
                           >
                             <Edit className="h-4 w-4" />
@@ -1324,7 +1342,7 @@ export default function ViolationsDashboardPage() {
                           <button
                             type="button"
                             onClick={() => setItemToDelete(v)}
-                            className="p-1.5 rounded-xl border border-slate-200 dark:border-rose-900/40 text-rose-500 hover:bg-rose-500/10"
+                            className="p-1.5 rounded-xl border border-slate-200 dark:border-rose-900/40 text-rose-500 hover:bg-rose-500/10 cursor-pointer"
                             title="Hapus"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -1342,23 +1360,28 @@ export default function ViolationsDashboardPage() {
 
       {/* ================= FLOATING ACTION BAR ================= */}
       {selectedIds.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-900 border border-slate-800 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] bg-slate-900 border border-slate-800 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-bottom-5">
           <span className="text-xs font-bold">{selectedIds.length} Kasus Dipilih</span>
           <button
             type="button"
             onClick={() => setShowBatchEditModal(true)}
-            className="px-3 py-1.5 bg-amber-500 text-slate-950 font-bold rounded-xl text-xs"
+            className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs transition cursor-pointer active:scale-95"
           >
             Edit Status
           </button>
           <button
             type="button"
             onClick={() => setShowBatchDeleteModal(true)}
-            className="px-3 py-1.5 bg-rose-600 text-white font-bold rounded-xl text-xs"
+            className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-black rounded-xl text-xs transition cursor-pointer active:scale-95"
           >
             Hapus
           </button>
-          <button type="button" onClick={() => setSelectedIds([])} className="p-1 text-slate-400 hover:text-white">
+          <button 
+            type="button" 
+            onClick={() => setSelectedIds([])} 
+            className="p-1 text-slate-400 hover:text-white transition cursor-pointer"
+            title="Batal Pilih"
+          >
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -1366,8 +1389,8 @@ export default function ViolationsDashboardPage() {
 
       {/* ================= MODAL DOSSIER SANTRI ================= */}
       {selectedStudentForDossier && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="w-full max-w-2xl rounded-[32px] border border-slate-800 bg-slate-900 p-6 text-white space-y-4 shadow-2xl">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="w-full max-w-2xl rounded-[32px] border border-slate-800 bg-slate-900 p-6 text-white space-y-4 shadow-2xl relative z-[101]">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div>
                 <h3 className="font-extrabold text-base">{selectedStudentForDossier.name}</h3>
@@ -1378,14 +1401,14 @@ export default function ViolationsDashboardPage() {
               <button
                 type="button"
                 onClick={() => setSelectedStudentForDossier(null)}
-                className="text-slate-400 hover:text-white"
+                className="text-slate-400 hover:text-white cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             <div className="max-h-64 overflow-y-auto space-y-2 text-xs">
-              {studentDossierViolations.map((v, idx) => (
+              {studentDossierViolations.map((v) => (
                 <div key={v.id} className="p-3 bg-slate-950 rounded-xl border border-slate-800 flex justify-between">
                   <div>
                     <p className="font-bold">{v.violation_name}</p>
@@ -1400,7 +1423,7 @@ export default function ViolationsDashboardPage() {
               <button
                 type="button"
                 onClick={handlePrintStudentDossier}
-                className="px-4 py-2 bg-rose-500 text-slate-950 font-bold rounded-xl text-xs flex items-center gap-1.5"
+                className="px-4 py-2 bg-rose-500 text-slate-950 font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer"
               >
                 <Printer className="h-4 w-4" />
                 <span>Cetak Rapor</span>
@@ -1408,9 +1431,262 @@ export default function ViolationsDashboardPage() {
               <button
                 type="button"
                 onClick={() => setSelectedStudentForDossier(null)}
-                className="px-4 py-2 bg-slate-800 text-slate-300 font-bold rounded-xl text-xs"
+                className="px-4 py-2 bg-slate-800 text-slate-300 font-bold rounded-xl text-xs cursor-pointer"
               >
                 Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL EDIT SINGLE ================= */}
+      {editingItem && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="w-full max-w-md overflow-hidden rounded-[28px] border border-slate-800 bg-slate-900/95 p-6 text-white space-y-4 shadow-2xl animate-in zoom-in-95 relative z-[101]">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center space-x-2.5">
+                <Edit className="h-5 w-5 text-amber-400" />
+                <div>
+                  <h3 className="font-black text-sm text-white">Tindak Lanjut Pelanggaran</h3>
+                  <p className="text-[11px] text-slate-400">{editingItem.student_name} ({editingItem.nis})</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingItem(null)}
+                className="text-slate-400 hover:text-white cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEdit} className="space-y-3.5 text-xs">
+              <div className="space-y-1">
+                <label className="font-bold text-slate-300">Status Pembinaan</label>
+                <select
+                  value={editStatus}
+                  onChange={(e) => setEditStatus(e.target.value as any)}
+                  className="w-full h-10 rounded-xl border border-slate-800 bg-slate-950 px-3 font-bold text-amber-400 outline-none focus:border-amber-500 cursor-pointer"
+                >
+                  <option value="Proses">Dalam Proses</option>
+                  <option value="Ditindak">Sudah Ditindak</option>
+                  <option value="Selesai">Selesai Dibina</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-slate-300">Bentuk Sanksi / Takzir</label>
+                <textarea
+                  rows={3}
+                  value={editSanction}
+                  onChange={(e) => setEditSanction(e.target.value)}
+                  placeholder="Keterangan takzir atau tindak lanjut pembinaan..."
+                  className="w-full rounded-xl border border-slate-800 bg-slate-950 p-3 text-xs text-white outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="flex gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingItem(null)}
+                  className="flex-1 py-2.5 rounded-xl border border-slate-700 bg-slate-800 text-slate-300 font-bold hover:bg-slate-700 transition cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUpdating}
+                  className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black shadow-md transition flex items-center justify-center space-x-1.5 cursor-pointer"
+                >
+                  {isUpdating ? <RefreshCw className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                  <span>Simpan Perubahan</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL EDIT MASSAL ================= */}
+      {showBatchEditModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="w-full max-w-md overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/95 p-6 text-white space-y-4 shadow-2xl animate-in zoom-in-95 relative z-[101]">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center space-x-2.5">
+                <div className="h-9 w-9 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/30 flex items-center justify-center">
+                  <Layers className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-black text-sm text-white">Edit {selectedIds.length} Pelanggaran Sekaligus</h3>
+                  <p className="text-[11px] text-slate-400">Pembaruan status massal santri terpilih</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowBatchEditModal(false)}
+                className="text-slate-400 hover:text-white p-1 cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveBatchEdit} className="space-y-4 text-xs">
+              <div className="space-y-1.5">
+                <label className="font-bold text-slate-300">Ubah Status Pembinaan Menjadi:</label>
+                <select
+                  value={batchStatus}
+                  onChange={(e) => setBatchStatus(e.target.value as any)}
+                  className="w-full h-10 rounded-xl border border-slate-800 bg-slate-950 px-3 font-bold text-amber-400 outline-none focus:border-amber-500 cursor-pointer"
+                >
+                  <option value="Proses">Dalam Proses</option>
+                  <option value="Ditindak">Sudah Ditindak</option>
+                  <option value="Selesai">Selesai Dibina</option>
+                </select>
+              </div>
+
+              <div className="space-y-2 pt-2 border-t border-slate-800">
+                <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={updateSanctionToo}
+                    onChange={(e) => setUpdateSanctionToo(e.target.checked)}
+                    className="rounded text-amber-500 focus:ring-amber-500 h-4 w-4"
+                  />
+                  <span>Perbarui Bentuk Sanksi / Takzir Massal</span>
+                </label>
+
+                {updateSanctionToo && (
+                  <textarea
+                    rows={2}
+                    value={batchSanction}
+                    onChange={(e) => setBatchSanction(e.target.value)}
+                    placeholder="Tuliskan sanksi baru untuk semua santri yang dipilih..."
+                    className="w-full rounded-xl border border-slate-800 bg-slate-950 p-2.5 text-xs text-white outline-none focus:border-amber-500"
+                  />
+                )}
+              </div>
+
+              <div className="flex gap-2 pt-2 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowBatchEditModal(false)}
+                  className="flex-1 py-2.5 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={isBatchUpdating}
+                  className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-md transition disabled:opacity-50 flex items-center justify-center space-x-1.5 cursor-pointer"
+                >
+                  {isBatchUpdating ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4 stroke-[3]" />}
+                  <span>Simpan Perubahan</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL HAPUS MASSAL ================= */}
+      {showBatchDeleteModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="w-full max-w-sm rounded-3xl border border-slate-800 bg-slate-900 p-6 text-white space-y-4 shadow-2xl animate-in zoom-in-95 relative z-[101]">
+            <div className="flex items-center space-x-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-500 border border-rose-500/30">
+                <Trash2 className="h-6 w-6 stroke-[2.3]" />
+              </div>
+              <div>
+                <h3 className="font-bold text-base text-white">Hapus {selectedIds.length} Catatan?</h3>
+                <p className="text-xs text-slate-400">Data pelanggaran yang dipilih akan dihapus permanen</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-300 bg-slate-950/80 p-3 rounded-2xl border border-slate-800">
+              Apakah Anda yakin ingin menghapus <strong>{selectedIds.length} catatan kedisiplinan</strong> sekaligus?
+            </p>
+
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setShowBatchDeleteModal(false)}
+                disabled={isBatchDeleting}
+                className="flex-1 py-2.5 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmBatchDelete}
+                disabled={isBatchDeleting}
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-md transition disabled:opacity-50 flex items-center justify-center space-x-1.5 cursor-pointer"
+              >
+                {isBatchDeleting ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                <span>Ya, Hapus Semua</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL HAPUS SINGLE ================= */}
+      {itemToDelete && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="w-full max-w-md overflow-hidden rounded-[28px] border border-slate-800 bg-slate-900/95 p-6 text-white space-y-5 shadow-2xl animate-in zoom-in-95 duration-150 relative z-[101]">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center space-x-3.5">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-500 border border-rose-500/30 shadow-lg shadow-rose-500/10 animate-pulse">
+                  <AlertTriangle className="h-6 w-6 stroke-[2.3]" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-white leading-tight">Hapus Catatan Disiplin?</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">Data pelanggaran santri akan dihapus permanen</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setItemToDelete(null)}
+                className="text-slate-400 hover:text-white rounded-xl p-1 hover:bg-slate-800 transition cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-4 space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">Santri:</span>
+                <span className="font-extrabold text-white text-sm">{itemToDelete.student_name}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400">NIS:</span>
+                <span className="font-mono font-bold text-cyan-400">{itemToDelete.nis}</span>
+              </div>
+              <div className="flex items-center justify-between border-t border-slate-800/80 pt-2">
+                <span className="text-slate-400">Pelanggaran:</span>
+                <span className="font-semibold text-rose-300 text-right max-w-[220px] truncate">
+                  {itemToDelete.violation_name}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 pt-1">
+              <button
+                type="button"
+                onClick={() => setItemToDelete(null)}
+                disabled={isDeleting}
+                className="flex-1 rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-slate-800 py-3 text-xs font-bold text-slate-300 transition cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                className="flex-1 inline-flex items-center justify-center space-x-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 py-3 text-xs font-black text-white shadow-lg shadow-rose-600/30 transition disabled:opacity-50 cursor-pointer"
+              >
+                {isDeleting ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                <span>Ya, Hapus Data</span>
               </button>
             </div>
           </div>
