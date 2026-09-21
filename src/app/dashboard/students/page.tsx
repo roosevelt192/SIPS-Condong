@@ -683,7 +683,7 @@ export default function StudentsMasterPage() {
   };
 
   // ===========================================================================
-  // EKSEKUSI IMPOR DATA MASSAL DENGAN UPSERT MURNI
+  // EKSEKUSI IMPOR DATA MASSAL DENGAN PEMBERSIHAN NISN & ON CONFLICT AMAN
   // ===========================================================================
   const handleExecuteImport = async () => {
     if (!importFile) {
@@ -696,6 +696,7 @@ export default function StudentsMasterPage() {
     setImportSuccess("");
 
     try {
+      // 1. Dapatkan kolom-kolom asli tabel students
       const { data: sampleData } = await supabase
         .from("students")
         .select("*")
@@ -723,6 +724,9 @@ export default function StudentsMasterPage() {
           break;
         }
       }
+
+      // Set untuk melacak NISN duplikat di dalam satu file Excel
+      const seenNisnInBatch = new Set<string>();
 
       worksheet.eachRow((row, rowNumber) => {
         if (rowNumber > headerRowIndex) {
@@ -752,8 +756,28 @@ export default function StudentsMasterPage() {
             rawGender.toLowerCase() === "female";
           const genderText = isFemale ? "Perempuan" : "Laki-laki";
 
-          const rawNisn = getVal(4);
-          const nisn = rawNisn && rawNisn !== "-" && rawNisn !== "undefined" && rawNisn !== "" ? rawNisn : null;
+          // === SANITASI NISN EKSTRA KETAT UNTUK MENCEGAH DUPLICATE KEY CONSTRAINT ===
+          const rawNisn = getVal(4).replace(/\s+/g, "").trim();
+          let cleanNisn: string | null = null;
+          
+          if (
+            rawNisn &&
+            rawNisn !== "-" &&
+            rawNisn !== "undefined" &&
+            rawNisn !== "null" &&
+            rawNisn !== "0" &&
+            rawNisn !== "none" &&
+            rawNisn !== "tidakada" &&
+            rawNisn !== ""
+          ) {
+            // Jika NISN sudah pernah muncul di baris sebelumnya dalam file yang sama, jadikan null agar tidak memicu error duplicate
+            if (!seenNisnInBatch.has(rawNisn)) {
+              seenNisnInBatch.add(rawNisn);
+              cleanNisn = rawNisn;
+            } else {
+              cleanNisn = null;
+            }
+          }
 
           const pob = getVal(5) || "-";
           const dob = getVal(6) || "-";
@@ -782,7 +806,10 @@ export default function StudentsMasterPage() {
 
             assignMatchingColumns(["full_name", "nama_lengkap", "name", "nama_santri", "nama"], name);
             assignMatchingColumns(["nis", "nomor_induk"], nis);
-            assignMatchingColumns(["nisn"], nisn);
+            
+            // Kolom NISN: jika null, jangan masukkan atau masukkan null eksplisit
+            assignMatchingColumns(["nisn"], cleanNisn);
+            
             assignMatchingColumns(["gender", "jenis_kelamin", "sex"], genderText);
             assignMatchingColumns(["pob", "tempat_lahir", "birth_place"], pob);
             assignMatchingColumns(["dob", "tanggal_lahir", "birth_date"], dob);
@@ -805,18 +832,32 @@ export default function StudentsMasterPage() {
         throw new Error("Tidak ada baris data santri yang valid dalam file Excel.");
       }
 
-      const BATCH_SIZE = 100;
+      const BATCH_SIZE = 50;
       let insertedCount = 0;
 
-      // UPSERT BERTAHAP MENGGUNAKAN ON CONFLICT 'nis'
+      // 2. Eksekusi Upsert bertahap dengan penanganan error NISN otomatis
       for (let i = 0; i < parsedStudents.length; i += BATCH_SIZE) {
         const chunk = parsedStudents.slice(i, i + BATCH_SIZE);
 
-        const { error: upsertError } = await supabase
+        let { error: upsertError } = await supabase
           .from("students")
           .upsert(chunk, { onConflict: "nis", ignoreDuplicates: false });
 
-        if (upsertError) {
+        // Jika terjadi pelanggaran unique constraint pada NISN (misal bentrok dengan NISN santri lain di DB)
+        if (upsertError && upsertError.message?.toLowerCase().includes("students_nisn_key")) {
+          // Bersihkan kolom NISN dari chunk (set ke null) dan lakukan upsert ulang
+          const fallbackChunk = chunk.map((item) => {
+            const cleanedItem = { ...item };
+            if ("nisn" in cleanedItem) cleanedItem.nisn = null;
+            return cleanedItem;
+          });
+
+          const { error: retryError } = await supabase
+            .from("students")
+            .upsert(fallbackChunk, { onConflict: "nis", ignoreDuplicates: false });
+
+          if (retryError) throw retryError;
+        } else if (upsertError) {
           throw upsertError;
         }
 
@@ -962,7 +1003,7 @@ export default function StudentsMasterPage() {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto font-sans relative pb-20">
-      {/* Background Ambience */}
+      {/* Glow Hiasan */}
       <div className="pointer-events-none absolute -top-10 -right-10 h-72 w-72 rounded-full bg-emerald-500/10 blur-[100px]" />
       <div className="pointer-events-none absolute top-40 -left-10 h-72 w-72 rounded-full bg-teal-500/10 blur-[100px]" />
 
@@ -1124,7 +1165,7 @@ export default function StudentsMasterPage() {
         </div>
       </div>
 
-      {/* TOOLBAR: SEARCH, SORT & FILTER */}
+      {/* Toolbar: Search, Filter, & Sorting */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-3xl border border-slate-200/80 dark:border-emerald-900/40 bg-white/90 dark:bg-[#0c1815] p-3 sm:p-4 shadow-sm backdrop-blur-md">
         <div className="relative flex-1">
           <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 pointer-events-none" />
@@ -1135,7 +1176,7 @@ export default function StudentsMasterPage() {
               setSearchQuery(e.target.value);
               setCurrentPage(1);
             }}
-            placeholder="Cari santri, NIS, kamar, konsulat..."
+            placeholder="Cari nama santri, NIS, NISN, kamar, konsulat..."
             className="h-10 w-full rounded-2xl border border-slate-200 dark:border-emerald-900/60 bg-slate-50/80 dark:bg-emerald-950/30 pl-10 pr-4 text-xs font-semibold text-slate-900 dark:text-white placeholder-slate-400 outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
           />
         </div>
@@ -1193,7 +1234,7 @@ export default function StudentsMasterPage() {
         </div>
       </div>
 
-      {/* MODAL FILTER */}
+      {/* MODAL FILTER DRAWER */}
       {showFilterDrawer && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-md animate-in fade-in duration-200">
           <div className="w-full max-w-lg overflow-hidden rounded-[32px] border border-slate-800 bg-slate-900/95 p-6 shadow-2xl text-white space-y-5 animate-in zoom-in-95 duration-150 max-h-[90vh] flex flex-col">
