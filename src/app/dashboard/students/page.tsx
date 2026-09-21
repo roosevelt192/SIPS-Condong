@@ -73,13 +73,13 @@ export default function StudentsMasterPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // ================= STATE FILTER LENGKAP & PRESISI =================
-  const [filterGrade, setFilterGrade] = useState("all"); // Tingkat/Angkatan Kelas (VII, VIII, 1 KMI, dll)
-  const [filterClass, setFilterClass] = useState("all"); // Rombel Kelas Spesifik (VIII A, VIII H, dll)
-  const [filterDorm, setFilterDorm] = useState("all"); // Kamar / Asrama
-  const [filterConsulate, setFilterConsulate] = useState("all"); // Asal Konsulat
-  const [filterStatus, setFilterStatus] = useState("all"); // Status Aktif/Non-Aktif
-  const [showFilterDrawer, setShowFilterDrawer] = useState(false); // Modal Drawer Filter Mobile/Desktop
+  // Filter States
+  const [filterGrade, setFilterGrade] = useState("all");
+  const [filterClass, setFilterClass] = useState("all");
+  const [filterDorm, setFilterDorm] = useState("all");
+  const [filterConsulate, setFilterConsulate] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [showFilterDrawer, setShowFilterDrawer] = useState(false);
 
   // Sorting State
   const [sortField, setSortField] = useState<SortField>("name");
@@ -261,12 +261,10 @@ export default function StudentsMasterPage() {
     setCurrentPage(1);
   };
 
-  // ================= DAFTAR OPSI FILTER DINAMIS & TERVERIFIKASI =================
   const availableGrades = useMemo(() => {
     const set = new Set<string>();
     students.forEach((s) => {
       if (s.class && s.class !== "-") {
-        // Ambil kata pertama sebagai tingkat/tingkatan angkatan (misal: "VII H" -> "VII", "1 KMI" -> "1")
         const gradePart = s.class.split(" ")[0]?.trim();
         if (gradePart) set.add(gradePart);
       }
@@ -302,7 +300,6 @@ export default function StudentsMasterPage() {
     return Array.from(set).sort((a, b) => a.localeCompare(b, "id"));
   }, [students]);
 
-  // Hitung jumlah filter aktif untuk badge indikator
   const activeFiltersCount = useMemo(() => {
     let count = 0;
     if (filterGrade !== "all") count++;
@@ -322,7 +319,6 @@ export default function StudentsMasterPage() {
     setCurrentPage(1);
   };
 
-  // ================= LOGIKA FILTERING PRESISI & TANPA BUG =================
   const filteredStudents = useMemo(() => {
     const filtered = students.filter((s) => {
       const q = searchQuery.toLowerCase().trim();
@@ -335,20 +331,11 @@ export default function StudentsMasterPage() {
         s.consulate.toLowerCase().includes(q) ||
         s.class.toLowerCase().includes(q);
 
-      // Filter Tingkat Angkatan (Kata pertama dari rombel)
       const gradePart = s.class.split(" ")[0]?.trim() || "";
       const matchesGrade = filterGrade === "all" || gradePart.toLowerCase() === filterGrade.toLowerCase();
-
-      // Filter Rombel Kelas Spesifik
       const matchesClass = filterClass === "all" || s.class.toLowerCase() === filterClass.toLowerCase();
-
-      // Filter Kamar Asrama (Case-Insensitive & Trimmed)
       const matchesDorm = filterDorm === "all" || s.dorm.toLowerCase() === filterDorm.toLowerCase();
-
-      // Filter Konsulat
       const matchesConsulate = filterConsulate === "all" || s.consulate.toLowerCase() === filterConsulate.toLowerCase();
-
-      // Filter Status
       const matchesStatus = filterStatus === "all" || s.status === filterStatus;
 
       return matchesSearch && matchesGrade && matchesClass && matchesDorm && matchesConsulate && matchesStatus;
@@ -695,6 +682,9 @@ export default function StudentsMasterPage() {
     }
   };
 
+  // ===========================================================================
+  // EKSEKUSI IMPOR DATA MASSAL DENGAN UPSERT MURNI
+  // ===========================================================================
   const handleExecuteImport = async () => {
     if (!importFile) {
       setImportError("Pilih file Excel terlebih dahulu.");
@@ -818,31 +808,23 @@ export default function StudentsMasterPage() {
       const BATCH_SIZE = 100;
       let insertedCount = 0;
 
+      // UPSERT BERTAHAP MENGGUNAKAN ON CONFLICT 'nis'
       for (let i = 0; i < parsedStudents.length; i += BATCH_SIZE) {
         const chunk = parsedStudents.slice(i, i + BATCH_SIZE);
-        const conflictCol = existingCols.includes("nis") ? "nis" : undefined;
-        let insertError = null;
 
-        if (conflictCol) {
-          const { error } = await supabase
-            .from("students")
-            .upsert(chunk, { onConflict: conflictCol });
-          insertError = error;
-        } else {
-          const { error } = await supabase.from("students").insert(chunk);
-          insertError = error;
-        }
+        const { error: upsertError } = await supabase
+          .from("students")
+          .upsert(chunk, { onConflict: "nis", ignoreDuplicates: false });
 
-        if (insertError) {
-          const { error: fallbackErr } = await supabase.from("students").insert(chunk);
-          if (fallbackErr) throw fallbackErr;
+        if (upsertError) {
+          throw upsertError;
         }
 
         insertedCount += chunk.length;
       }
 
       playScanSound("success");
-      setImportSuccess(`Berhasil mengimpor seluruh ${insertedCount} data santri ke database SIPS!`);
+      setImportSuccess(`Berhasil mengimpor & memperbarui seluruh ${insertedCount} data santri ke database SIPS!`);
       await fetchStudents();
 
       setTimeout(() => {
@@ -980,7 +962,7 @@ export default function StudentsMasterPage() {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto font-sans relative pb-20">
-      {/* Glow Hiasan */}
+      {/* Background Ambience */}
       <div className="pointer-events-none absolute -top-10 -right-10 h-72 w-72 rounded-full bg-emerald-500/10 blur-[100px]" />
       <div className="pointer-events-none absolute top-40 -left-10 h-72 w-72 rounded-full bg-teal-500/10 blur-[100px]" />
 
@@ -1142,9 +1124,8 @@ export default function StudentsMasterPage() {
         </div>
       </div>
 
-      {/* ================= TOOLBAR PINTAR (RESPONSIF & TIDAK RUMIT) ================= */}
+      {/* TOOLBAR: SEARCH, SORT & FILTER */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-3xl border border-slate-200/80 dark:border-emerald-900/40 bg-white/90 dark:bg-[#0c1815] p-3 sm:p-4 shadow-sm backdrop-blur-md">
-        {/* Input Pencarian Universal */}
         <div className="relative flex-1">
           <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 pointer-events-none" />
           <input
@@ -1159,7 +1140,6 @@ export default function StudentsMasterPage() {
           />
         </div>
 
-        {/* Tombol Sorting & Tombol Filter Utama */}
         <div className="flex items-center gap-2 shrink-0">
           <div className="flex items-center space-x-1.5 rounded-2xl border border-slate-200 dark:border-emerald-900/60 bg-slate-50/80 dark:bg-emerald-950/30 px-3 py-1.5 text-xs h-10">
             <ArrowUpDown className="h-3.5 w-3.5 text-slate-400" />
@@ -1182,7 +1162,6 @@ export default function StudentsMasterPage() {
             </select>
           </div>
 
-          {/* Tombol Buka Panel Filter Multi-Kriteria dengan Badge */}
           <button
             type="button"
             onClick={() => setShowFilterDrawer(true)}
@@ -1214,11 +1193,10 @@ export default function StudentsMasterPage() {
         </div>
       </div>
 
-      {/* ================= MODAL PANEL FILTER LENGKAP & RAPI (DESKTOP & MOBILE FRIENDLY) ================= */}
+      {/* MODAL FILTER */}
       {showFilterDrawer && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-md animate-in fade-in duration-200">
           <div className="w-full max-w-lg overflow-hidden rounded-[32px] border border-slate-800 bg-slate-900/95 p-6 shadow-2xl text-white space-y-5 animate-in zoom-in-95 duration-150 max-h-[90vh] flex flex-col">
-            {/* Header Modal Filter */}
             <div className="flex items-center justify-between border-b border-slate-800 pb-3.5 shrink-0">
               <div className="flex items-center space-x-2.5">
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
@@ -1238,9 +1216,7 @@ export default function StudentsMasterPage() {
               </button>
             </div>
 
-            {/* Isi Form Filter (Scrollable di Mobile) */}
             <div className="space-y-4 overflow-y-auto pr-1 text-xs">
-              {/* 1. Filter Tingkat Angkatan (Satu Angkatan) */}
               <div className="space-y-1.5">
                 <label className="font-bold text-slate-300 flex items-center justify-between">
                   <span>1. Tingkat / Angkatan Kelas</span>
@@ -1250,7 +1226,7 @@ export default function StudentsMasterPage() {
                   value={filterGrade}
                   onChange={(e) => {
                     setFilterGrade(e.target.value);
-                    setFilterClass("all"); // Reset rombel spesifik saat tingkat berubah
+                    setFilterClass("all");
                     setCurrentPage(1);
                   }}
                   className="w-full h-11 rounded-2xl bg-slate-950 border border-slate-800 px-3.5 font-bold text-white outline-none focus:border-emerald-500 cursor-pointer transition shadow-inner"
@@ -1264,7 +1240,6 @@ export default function StudentsMasterPage() {
                 </select>
               </div>
 
-              {/* 2. Filter Rombel Kelas Spesifik */}
               <div className="space-y-1.5">
                 <label className="font-bold text-slate-300">2. Rombel Kelas Spesifik</label>
                 <select
@@ -1284,7 +1259,6 @@ export default function StudentsMasterPage() {
                 </select>
               </div>
 
-              {/* 3. Filter Kamar Asrama */}
               <div className="space-y-1.5">
                 <label className="font-bold text-slate-300">3. Kamar / Gedung Asrama</label>
                 <select
@@ -1304,7 +1278,6 @@ export default function StudentsMasterPage() {
                 </select>
               </div>
 
-              {/* 4. Filter Asal Konsulat */}
               <div className="space-y-1.5">
                 <label className="font-bold text-slate-300">4. Asal Wilayah / Konsulat</label>
                 <select
@@ -1324,7 +1297,6 @@ export default function StudentsMasterPage() {
                 </select>
               </div>
 
-              {/* 5. Filter Status Santri */}
               <div className="space-y-1.5">
                 <label className="font-bold text-slate-300">5. Status Keaktifan</label>
                 <select
@@ -1342,7 +1314,6 @@ export default function StudentsMasterPage() {
               </div>
             </div>
 
-            {/* Footer Aksi Filter */}
             <div className="flex gap-2.5 pt-3 border-t border-slate-800 shrink-0">
               <button
                 type="button"
@@ -1363,9 +1334,9 @@ export default function StudentsMasterPage() {
         </div>
       )}
 
-      {/* DATA CONTAINER: CARD VIEW PADA HP & TABEL ELEGAN PADA DESKTOP */}
+      {/* DATA CONTAINER */}
       <div className="overflow-hidden rounded-3xl border border-slate-200/80 dark:border-emerald-900/40 bg-white/90 dark:bg-[#0c1815] shadow-xl shadow-slate-200/30 dark:shadow-black/40 backdrop-blur-xl relative">
-        {/* TAMPILAN 1: MOBILE CARD LIST */}
+        {/* MOBILE CARD LIST */}
         <div className="block md:hidden divide-y divide-slate-100 dark:divide-emerald-900/30">
           <div className="p-4 bg-slate-50/90 dark:bg-emerald-950/40 flex items-center justify-between border-b border-slate-200 dark:border-emerald-900/40">
             <button
@@ -1529,7 +1500,7 @@ export default function StudentsMasterPage() {
           )}
         </div>
 
-        {/* TAMPILAN 2: DESKTOP TABLE VIEW */}
+        {/* DESKTOP TABLE VIEW */}
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -1851,7 +1822,7 @@ export default function StudentsMasterPage() {
         </div>
       )}
 
-      {/* MODAL KONFIRMASI HAPUS BANYAK SANTRI */}
+      {/* MODAL BULK DELETE */}
       {showBulkDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-md animate-in fade-in duration-200">
           <div className="w-full max-w-md overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/95 p-6 shadow-2xl text-white space-y-5 animate-in zoom-in-95 duration-150">
@@ -1916,7 +1887,7 @@ export default function StudentsMasterPage() {
         </div>
       )}
 
-      {/* Modal Hapus Satuan */}
+      {/* MODAL SINGLE DELETE */}
       {studentToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-md animate-in fade-in duration-200">
           <div className="w-full max-w-md overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/95 p-6 shadow-2xl text-white space-y-5 animate-in zoom-in-95 duration-150">
@@ -1994,7 +1965,7 @@ export default function StudentsMasterPage() {
         </div>
       )}
 
-      {/* Modal Zoom Foto */}
+      {/* MODAL ZOOM FOTO */}
       {zoomedPhoto && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-md animate-in fade-in duration-200">
           <div className="relative max-w-sm w-full overflow-hidden rounded-3xl border border-slate-800 bg-slate-900 shadow-2xl p-4 text-center space-y-3">
@@ -2015,7 +1986,7 @@ export default function StudentsMasterPage() {
         </div>
       )}
 
-      {/* Modal Import Excel */}
+      {/* MODAL IMPORT EXCEL */}
       {showImportModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-md animate-in fade-in duration-200">
           <div className="w-full max-w-lg overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/95 p-6 shadow-2xl text-white space-y-5 animate-in zoom-in-95 duration-150">
@@ -2135,7 +2106,7 @@ export default function StudentsMasterPage() {
         </div>
       )}
 
-      {/* Modal Export Excel */}
+      {/* MODAL EXPORT EXCEL */}
       {showExportModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-md animate-in fade-in duration-200">
           <div className="w-full max-w-xl overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/95 p-6 shadow-2xl text-white space-y-5 animate-in zoom-in-95 duration-150">
@@ -2221,7 +2192,7 @@ export default function StudentsMasterPage() {
         </div>
       )}
 
-      {/* Modal KTS Landscape */}
+      {/* MODAL KTS LANDSCAPE */}
       {selectedStudentForKTS && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-md animate-in fade-in duration-200">
           <div className="w-full max-w-[680px] overflow-hidden rounded-[32px] border border-slate-800 bg-slate-900 shadow-2xl text-white space-y-4 animate-in zoom-in-95 duration-150 p-6">
@@ -2335,7 +2306,7 @@ export default function StudentsMasterPage() {
         </div>
       )}
 
-      {/* Modal Upload Foto Massal */}
+      {/* MODAL BULK PHOTO UPLOAD */}
       {showBulkPhotoModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-md animate-in fade-in duration-200">
           <div className="w-full max-w-lg overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/95 p-6 shadow-2xl text-white space-y-5 animate-in zoom-in-95 duration-150">
