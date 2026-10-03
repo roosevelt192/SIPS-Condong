@@ -5,6 +5,7 @@
 // =============================================================================
 import { useEffect, useState, useMemo, useRef } from "react";
 import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   FileCheck2,
   QrCode,
@@ -26,8 +27,17 @@ import {
   Check,
   Edit,
   Trash2,
+  Square,
+  CheckSquare,
+  MinusSquare,
+  Camera,
+  Play,
+  Square as SquareIcon,
+  LogOut,
+  LogIn,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
+import { Html5Qrcode } from "html5-qrcode";
 import { supabase } from "@/lib/supabase";
 import QRScannerModal from "@/components/QRScannerModal";
 import { parseQRCodeText, generateStandardQRPayload } from "@/lib/qrParser";
@@ -87,7 +97,12 @@ export default function PermissionsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"all" | "approved" | "out_pondok" | "overdue" | "back_pondok">("all");
 
-  // Modal & Scanner States
+  // State Pilihan Massal (Bulk Select)
+  const [selectedPermissionIds, setSelectedPermissionIds] = useState<string[]>([]);
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
+  // Modal & Scanner Form States
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const [selectedPermitForPrint, setSelectedPermitForPrint] = useState<Permission | null>(null);
@@ -110,7 +125,7 @@ export default function PermissionsPage() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [editFormError, setEditFormError] = useState("");
 
-  // State Hapus Modal
+  // State Hapus Modal Tunggal
   const [permitToDelete, setPermitToDelete] = useState<Permission | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -147,6 +162,7 @@ export default function PermissionsPage() {
 
   const [formError, setFormError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [toastMsg, setToastMsg] = useState("");
 
   // ===========================================================================
   // 4. FETCH DATA DENGAN BATCH PAGINATION
@@ -206,7 +222,7 @@ export default function PermissionsPage() {
   }
 
   // ===========================================================================
-  // 5. HELPER SANITASI DATA
+  // 5. HELPER SANITASI DATA & STATUS WAKTU
   // ===========================================================================
   const getStudentName = (st: any) => {
     return st?.nama_lengkap || st?.full_name || st?.name || st?.nama || st?.nama_santri || "Nama Santri";
@@ -220,15 +236,141 @@ export default function PermissionsPage() {
     return st?.dorm || st?.kamar_asrama || st?.asrama || st?.kobong || "-";
   };
 
-  const isOverdue = (item: Permission) => {
+  const isCurrentlyOverdue = (item: Permission) => {
     if (item.status === "out_pondok") {
       return new Date() > new Date(item.return_target);
     }
     return false;
   };
 
+  const wasCompletedLate = (item: Permission) => {
+    if ((item.status === "back_pondok" || item.status === "completed") && item.actual_in_at) {
+      return new Date(item.actual_in_at) > new Date(item.return_target);
+    }
+    return false;
+  };
+
   // ===========================================================================
-  // 6. MULTI-SANTRI SELECTION & REAL SEARCH KE SUPABASE
+  // 6. COMPUTED STATS & FILTERED DATA
+  // ===========================================================================
+  const stats = useMemo(() => {
+    const totalActive = permissions.filter((p) => p.status === "approved" || p.status === "out_pondok").length;
+    const currentlyOut = permissions.filter((p) => p.status === "out_pondok").length;
+    const overdueCount = permissions.filter(isCurrentlyOverdue).length;
+    const completedCount = permissions.filter((p) => p.status === "back_pondok" || p.status === "completed").length;
+
+    return { totalActive, currentlyOut, overdueCount, completedCount };
+  }, [permissions]);
+
+  const filteredPermissions = useMemo(() => {
+    return permissions.filter((item) => {
+      const matchesSearch =
+        item.student_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.nis.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.category.toLowerCase().includes(searchQuery.toLowerCase());
+
+      if (!matchesSearch) return false;
+
+      if (activeTab === "approved") return item.status === "approved";
+      if (activeTab === "out_pondok") return item.status === "out_pondok" && !isCurrentlyOverdue(item);
+      if (activeTab === "overdue") return isCurrentlyOverdue(item);
+      if (activeTab === "back_pondok") return item.status === "back_pondok" || item.status === "completed";
+
+      return true;
+    });
+  }, [permissions, searchQuery, activeTab]);
+
+  // ===========================================================================
+  // 7. EKSEKUSI LANGSUNG STATUS GERBANG (QUICK ACTION)
+  // ===========================================================================
+  const handleQuickStatusChange = async (permitId: string, targetStatus: Permission["status"]) => {
+    try {
+      const nowIso = new Date().toISOString();
+      const updateData: any = { status: targetStatus };
+      if (targetStatus === "out_pondok") updateData.actual_out_at = nowIso;
+      if (targetStatus === "back_pondok") updateData.actual_in_at = nowIso;
+
+      const { error } = await supabase
+        .from("permissions")
+        .update(updateData)
+        .eq("id", permitId);
+
+      if (error) throw error;
+
+      playScanSound("success");
+      setToastMsg("Status perizinan berhasil diperbarui.");
+      setTimeout(() => setToastMsg(""), 3000);
+      fetchPermissions();
+    } catch (err: any) {
+      playScanSound("error");
+      alert("Gagal memperbarui status: " + err.message);
+    }
+  };
+
+  // ===========================================================================
+  // 8. MULTI-SELECT & BULK DELETE / BULK ACTION HANDLERS
+  // ===========================================================================
+  const handleSelectAllToggle = () => {
+    if (selectedPermissionIds.length === filteredPermissions.length) {
+      setSelectedPermissionIds([]);
+    } else {
+      setSelectedPermissionIds(filteredPermissions.map((p) => p.id));
+    }
+  };
+
+  const handleSelectOneToggle = (id: string) => {
+    setSelectedPermissionIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkDeleteConfirm = async () => {
+    if (selectedPermissionIds.length === 0) return;
+    setIsBulkDeleting(true);
+
+    try {
+      const { error } = await supabase
+        .from("permissions")
+        .delete()
+        .in("id", selectedPermissionIds);
+
+      if (error) throw error;
+
+      playScanSound("success");
+      setPermissions((prev) => prev.filter((p) => !selectedPermissionIds.includes(p.id)));
+      setSelectedPermissionIds([]);
+      setShowBulkDeleteModal(false);
+    } catch (err: any) {
+      playScanSound("error");
+      alert("Gagal menghapus data terpilih: " + err.message);
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
+  const handleBulkComplete = async () => {
+    if (selectedPermissionIds.length === 0) return;
+    try {
+      const nowIso = new Date().toISOString();
+      const { error } = await supabase
+        .from("permissions")
+        .update({ status: "back_pondok", actual_in_at: nowIso })
+        .in("id", selectedPermissionIds);
+
+      if (error) throw error;
+
+      playScanSound("success");
+      setToastMsg(`Berhasil menyelesaikan ${selectedPermissionIds.length} izin terpilih.`);
+      setTimeout(() => setToastMsg(""), 3000);
+      setSelectedPermissionIds([]);
+      fetchPermissions();
+    } catch (err: any) {
+      alert("Gagal memproses massal: " + err.message);
+    }
+  };
+
+  // ===========================================================================
+  // 9. MULTI-SANTRI SELECTION & REAL SEARCH KE SUPABASE
   // ===========================================================================
   const addStudentToSelection = (student: Student) => {
     const finalName = getStudentName(student);
@@ -270,7 +412,6 @@ export default function PermissionsPage() {
     setSelectedStudentsList([]);
   };
 
-  // Pencarian Cepat di Toolbar (Mencakup seluruh 1.171+ santri)
   const handleQuickSearchChange = async (val: string) => {
     setSearchQuery(val);
     const cleaned = val.trim();
@@ -301,7 +442,6 @@ export default function PermissionsPage() {
     }
   };
 
-  // Pencarian di Modal Form Izin (Mencakup seluruh 1.171+ santri)
   const handleSearchStudent = async (queryText: string) => {
     setStudentSearchInput(queryText);
     const cleaned = queryText.trim();
@@ -331,9 +471,6 @@ export default function PermissionsPage() {
     }
   };
 
-  // ===========================================================================
-  // 7. SCAN KTS BERULANG
-  // ===========================================================================
   const handleScanSuccess = async (decodedText: string) => {
     setFormError("");
     try {
@@ -362,9 +499,6 @@ export default function PermissionsPage() {
     }
   };
 
-  // ===========================================================================
-  // 8. SUBMIT PENERBITAN MASSAL
-  // ===========================================================================
   const handleConfirmPermission = async (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedStudentsList.length === 0) {
@@ -427,9 +561,6 @@ export default function PermissionsPage() {
     }
   };
 
-  // ===========================================================================
-  // 9. EDIT & DELETE HANDLERS
-  // ===========================================================================
   const handleOpenEditModal = (p: Permission) => {
     setEditingPermit(p);
     setEditFormError("");
@@ -533,38 +664,22 @@ export default function PermissionsPage() {
     }
   };
 
-  // ===========================================================================
-  // 10. COMPUTED METRICS & FILTERED DATA
-  // ===========================================================================
-  const stats = useMemo(() => {
-    const totalActive = permissions.filter((p) => p.status === "approved" || p.status === "out_pondok").length;
-    const currentlyOut = permissions.filter((p) => p.status === "out_pondok").length;
-    const overdueCount = permissions.filter(isOverdue).length;
-    const completedCount = permissions.filter((p) => p.status === "back_pondok" || p.status === "completed").length;
-
-    return { totalActive, currentlyOut, overdueCount, completedCount };
-  }, [permissions]);
-
-  const filteredPermissions = useMemo(() => {
-    return permissions.filter((item) => {
-      const matchesSearch =
-        item.student_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.nis.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.category.toLowerCase().includes(searchQuery.toLowerCase());
-
-      if (!matchesSearch) return false;
-
-      if (activeTab === "approved") return item.status === "approved";
-      if (activeTab === "out_pondok") return item.status === "out_pondok" && !isOverdue(item);
-      if (activeTab === "overdue") return isOverdue(item);
-      if (activeTab === "back_pondok") return item.status === "back_pondok" || item.status === "completed";
-
-      return true;
-    });
-  }, [permissions, searchQuery, activeTab]);
-
   return (
     <div className="space-y-6 max-w-7xl mx-auto font-sans relative pb-16 transition-all duration-300">
+      <AnimatePresence>
+        {toastMsg && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed top-6 right-6 z-50 flex items-center space-x-2 bg-emerald-950 text-emerald-200 border border-emerald-500/30 px-4 py-2.5 rounded-2xl shadow-xl backdrop-blur-md text-xs font-bold"
+          >
+            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            <span>{toastMsg}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Background Subtle Glows */}
       <div className="pointer-events-none absolute -top-10 -right-10 h-72 w-72 rounded-full bg-emerald-500/10 blur-[100px]" />
       <div className="pointer-events-none absolute top-48 -left-10 h-72 w-72 rounded-full bg-teal-500/10 blur-[100px]" />
@@ -603,12 +718,35 @@ export default function PermissionsPage() {
                 Input Perizinan Santri
               </h1>
               <p className="text-xs text-emerald-100/90 font-medium truncate">
-                Monitoring perizinan keluar/pulang santri dan verifikasi barcode gerbang terintegrasi
+                Monitoring perizinan keluar/pulang santri dan verifikasi gerbang terintegrasi
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 xl:justify-end shrink-0">
+          <div className="flex items-center gap-2.5 xl:justify-end shrink-0 flex-wrap">
+            {selectedPermissionIds.length > 0 && (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleBulkComplete}
+                  className="inline-flex items-center space-x-1.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 text-xs font-black shadow-lg shadow-emerald-600/30 transition active:scale-95 cursor-pointer"
+                  title="Tandai seluruh santri terpilih sudah kembali ke pondok"
+                >
+                  <LogIn className="h-4 w-4" />
+                  <span>Selesaikan Izin ({selectedPermissionIds.length})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowBulkDeleteModal(true)}
+                  className="inline-flex items-center space-x-1.5 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white px-4 py-2.5 text-xs font-black shadow-lg shadow-rose-600/30 transition active:scale-95 cursor-pointer"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span>Hapus ({selectedPermissionIds.length})</span>
+                </button>
+              </div>
+            )}
+
             <button
               type="button"
               onClick={fetchPermissions}
@@ -629,16 +767,6 @@ export default function PermissionsPage() {
             >
               <Plus className="h-4 w-4 stroke-[2.5]" />
               <span className="whitespace-nowrap">Input Manual</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setShowScanner(true)}
-              className="inline-flex items-center space-x-1.5 rounded-2xl bg-gradient-to-r from-amber-400 via-emerald-500 to-teal-400 hover:from-amber-300 hover:to-teal-300 px-4 py-2.5 text-xs font-black text-slate-950 shadow-lg shadow-emerald-900/30 transition active:scale-95 cursor-pointer"
-            >
-              <QrCode className="h-4 w-4 stroke-[2.5]" />
-              <span className="whitespace-nowrap">Scan KTS</span>
-              <Sparkles className="h-3.5 w-3.5 opacity-70 animate-pulse" />
             </button>
           </div>
         </div>
@@ -838,7 +966,10 @@ export default function PermissionsPage() {
             </div>
           ) : (
             filteredPermissions.map((p) => {
-              const late = isOverdue(p);
+              const late = isCurrentlyOverdue(p);
+              const completedLate = wasCompletedLate(p);
+              const isSelected = selectedPermissionIds.includes(p.id);
+
               return (
                 <div
                   key={p.id}
@@ -848,6 +979,13 @@ export default function PermissionsPage() {
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center space-x-2.5 min-w-0">
+                      <button
+                        type="button"
+                        onClick={() => handleSelectOneToggle(p.id)}
+                        className="text-emerald-600 dark:text-emerald-400 cursor-pointer p-1"
+                      >
+                        {isSelected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4 text-slate-400" />}
+                      </button>
                       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 font-black text-xs">
                         {p.student_name.charAt(0)}
                       </div>
@@ -866,6 +1004,11 @@ export default function PermissionsPage() {
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 text-[10px] font-black uppercase tracking-wider animate-pulse">
                           <AlertTriangle className="h-3 w-3" />
                           <span>Terlambat</span>
+                        </span>
+                      ) : completedLate ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-[10px] font-black uppercase tracking-wider">
+                          <AlertTriangle className="h-3 w-3" />
+                          <span>Selesai (Terlambat)</span>
                         </span>
                       ) : (
                         <span
@@ -888,6 +1031,30 @@ export default function PermissionsPage() {
                         </span>
                       )}
                     </div>
+                  </div>
+
+                  {/* Tombol Eksekusi Cepat Status Gerbang (Rapi di Mobile) */}
+                  <div className="flex items-center gap-2 pt-1">
+                    {p.status === "approved" && (
+                      <button
+                        type="button"
+                        onClick={() => handleQuickStatusChange(p.id, "out_pondok")}
+                        className="w-full py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        <span>Proses Keluar Gerbang</span>
+                      </button>
+                    )}
+                    {(p.status === "out_pondok" || late) && (
+                      <button
+                        type="button"
+                        onClick={() => handleQuickStatusChange(p.id, "back_pondok")}
+                        className="w-full py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition"
+                      >
+                        <LogIn className="h-4 w-4" />
+                        <span>Tandai Kembali ke Pondok</span>
+                      </button>
+                    )}
                   </div>
 
                   <div className="space-y-1.5 bg-slate-50 dark:bg-emerald-950/30 p-3 rounded-2xl border border-slate-100 dark:border-emerald-900/30">
@@ -956,29 +1123,45 @@ export default function PermissionsPage() {
           )}
         </div>
 
-        {/* TAMPILAN 2: DESKTOP TABLE VIEW */}
+        {/* TAMPILAN 2: DESKTOP TABLE VIEW (DENGAN KOLOM AKSI YANG SANGAT RAPI) */}
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 dark:border-emerald-900/40 bg-slate-50/90 dark:bg-emerald-950/40 text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 select-none">
+                <th className="py-4 px-3 w-10 text-center">
+                  <button
+                    type="button"
+                    onClick={handleSelectAllToggle}
+                    className="text-emerald-600 dark:text-emerald-400 cursor-pointer"
+                    title="Pilih Semua di Halaman Ini"
+                  >
+                    {filteredPermissions.length > 0 && selectedPermissionIds.length === filteredPermissions.length ? (
+                      <CheckSquare className="h-4 w-4" />
+                    ) : selectedPermissionIds.length > 0 ? (
+                      <MinusSquare className="h-4 w-4" />
+                    ) : (
+                      <Square className="h-4 w-4 text-slate-400" />
+                    )}
+                  </button>
+                </th>
                 <th className="py-4 px-4 font-bold">Santri &amp; NIS</th>
                 <th className="py-4 px-4 font-bold">Kategori &amp; Keterangan</th>
                 <th className="py-4 px-4 font-bold">Jadwal Waktu Izin</th>
                 <th className="py-4 px-4 text-center font-bold">Status Gerbang</th>
-                <th className="py-4 px-4 text-center font-bold">Aksi</th>
+                <th className="py-4 px-4 text-center font-bold">Aksi / Eksekusi Cepat</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-emerald-900/30 font-medium">
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="py-16 text-center text-slate-400">
+                  <td colSpan={6} className="py-16 text-center text-slate-400">
                     <RefreshCw className="h-7 w-7 animate-spin mx-auto mb-2 text-emerald-600" />
                     <span className="text-xs font-semibold">Menghubungkan ke basis data perizinan...</span>
                   </td>
                 </tr>
               ) : filteredPermissions.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-16 text-center text-slate-400 space-y-3">
+                  <td colSpan={6} className="py-16 text-center text-slate-400 space-y-3">
                     <FileCheck2 className="h-10 w-10 mx-auto text-slate-400 opacity-40" />
                     <div>
                       <p className="font-bold text-sm text-slate-700 dark:text-slate-300">Belum ada data perizinan</p>
@@ -1001,7 +1184,10 @@ export default function PermissionsPage() {
                 </tr>
               ) : (
                 filteredPermissions.map((p) => {
-                  const late = isOverdue(p);
+                  const late = isCurrentlyOverdue(p);
+                  const completedLate = wasCompletedLate(p);
+                  const isSelected = selectedPermissionIds.includes(p.id);
+
                   return (
                     <tr
                       key={p.id}
@@ -1009,6 +1195,16 @@ export default function PermissionsPage() {
                         late ? "bg-rose-500/[0.06] dark:bg-rose-950/20" : ""
                       }`}
                     >
+                      <td className="py-3.5 px-3 text-center">
+                        <button
+                          type="button"
+                          onClick={() => handleSelectOneToggle(p.id)}
+                          className="text-emerald-600 dark:text-emerald-400 cursor-pointer"
+                        >
+                          {isSelected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4 text-slate-400" />}
+                        </button>
+                      </td>
+
                       <td className="py-3.5 px-4">
                         <div className="flex items-center space-x-3">
                           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 font-black text-xs group-hover:scale-105 transition-transform">
@@ -1063,6 +1259,11 @@ export default function PermissionsPage() {
                             <AlertTriangle className="h-3.5 w-3.5" />
                             <span>Terlambat</span>
                           </span>
+                        ) : completedLate ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-[10px] font-black uppercase tracking-wider">
+                            <AlertTriangle className="h-3.5 w-3.5" />
+                            <span>Selesai (Terlambat)</span>
+                          </span>
                         ) : (
                           <span
                             className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider ${
@@ -1085,34 +1286,65 @@ export default function PermissionsPage() {
                         )}
                       </td>
 
+                      {/* KOLOM AKSI YANG SANGAT RAPI */}
                       <td className="py-3.5 px-4 text-center">
-                        <div className="flex items-center justify-center space-x-1">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedPermitForPrint(p)}
-                            className="p-2 rounded-xl border border-slate-200 dark:border-emerald-900/40 text-slate-500 dark:text-slate-400 hover:text-emerald-600 hover:border-emerald-500/40 hover:bg-emerald-500/10 transition active:scale-90 cursor-pointer"
-                            title="Cetak Slip Izin"
-                          >
-                            <Printer className="h-4 w-4" />
-                          </button>
+                        <div className="flex flex-col items-center justify-center gap-1.5 min-w-[140px]">
+                          {/* Tombol Utama Status Keluar / Kembali */}
+                          {p.status === "approved" && (
+                            <button
+                              type="button"
+                              onClick={() => handleQuickStatusChange(p.id, "out_pondok")}
+                              className="w-full py-1.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-[11px] flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition active:scale-95"
+                              title="Eksekusi Santri Keluar Gerbang"
+                            >
+                              <LogOut className="h-3.5 w-3.5" />
+                              <span>Proses Keluar</span>
+                            </button>
+                          )}
 
-                          <button
-                            type="button"
-                            onClick={() => handleOpenEditModal(p)}
-                            className="p-2 rounded-xl border border-slate-200 dark:border-emerald-900/40 text-slate-500 dark:text-slate-400 hover:text-amber-500 hover:border-amber-500/40 hover:bg-amber-500/10 transition active:scale-90 cursor-pointer"
-                            title="Edit Data Izin"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </button>
+                          {(p.status === "out_pondok" || late) && (
+                            <button
+                              type="button"
+                              onClick={() => handleQuickStatusChange(p.id, "back_pondok")}
+                              className="w-full py-1.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[11px] flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition active:scale-95"
+                              title="Eksekusi Santri Tiba Kembali"
+                            >
+                              <LogIn className="h-3.5 w-3.5" />
+                              <span>Tandai Kembali</span>
+                            </button>
+                          )}
 
-                          <button
-                            type="button"
-                            onClick={() => setPermitToDelete(p)}
-                            className="p-2 rounded-xl border border-slate-200 dark:border-emerald-900/40 text-slate-500 dark:text-slate-400 hover:text-rose-500 hover:border-rose-500/40 hover:bg-rose-500/10 transition active:scale-90 cursor-pointer"
-                            title="Hapus Data Izin"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                          {/* Tombol Sekunder Dikelompokkan dalam Baris Terpisah */}
+                          <div className="flex items-center justify-center gap-1 w-full pt-0.5 border-t border-slate-100 dark:border-emerald-900/30">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedPermitForPrint(p)}
+                              className="flex-1 py-1 rounded-lg border border-slate-200 dark:border-emerald-900/40 text-slate-600 dark:text-slate-300 hover:text-emerald-600 hover:bg-emerald-500/10 transition text-[10px] font-bold flex items-center justify-center gap-1 cursor-pointer"
+                              title="Cetak Slip Izin"
+                            >
+                              <Printer className="h-3 w-3" />
+                              <span>Slip</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditModal(p)}
+                              className="flex-1 py-1 rounded-lg border border-slate-200 dark:border-emerald-900/40 text-slate-600 dark:text-slate-300 hover:text-amber-500 hover:bg-amber-500/10 transition text-[10px] font-bold flex items-center justify-center gap-1 cursor-pointer"
+                              title="Edit Data Izin"
+                            >
+                              <Edit className="h-3 w-3" />
+                              <span>Edit</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setPermitToDelete(p)}
+                              className="px-2 py-1 rounded-lg border border-slate-200 dark:border-emerald-900/40 text-rose-500 hover:bg-rose-500/10 transition text-[10px] font-bold flex items-center justify-center cursor-pointer"
+                              title="Hapus Data Izin"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </div>
                         </div>
                       </td>
                     </tr>
@@ -1123,6 +1355,43 @@ export default function PermissionsPage() {
           </table>
         </div>
       </div>
+
+      {/* ================= MODAL KONFIRMASI HAPUS MASSAL ================= */}
+      {showBulkDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="w-full max-w-sm rounded-3xl border border-slate-800 bg-slate-900 p-6 text-white space-y-4 shadow-2xl animate-in zoom-in-95">
+            <div className="flex items-center space-x-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-500 border border-rose-500/30">
+                <Trash2 className="h-6 w-6 stroke-[2.3]" />
+              </div>
+              <div>
+                <h3 className="font-bold text-base text-white">Hapus {selectedPermissionIds.length} Izin Terpilih?</h3>
+                <p className="text-xs text-slate-400">Tindakan ini tidak dapat dibatalkan</p>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setShowBulkDeleteModal(false)}
+                disabled={isBulkDeleting}
+                className="flex-1 py-2.5 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleBulkDeleteConfirm}
+                disabled={isBulkDeleting}
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-md transition disabled:opacity-50 flex items-center justify-center space-x-1.5 cursor-pointer"
+              >
+                {isBulkDeleting ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                <span>Ya, Hapus Semua</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ================= MODAL EDIT IZIN ================= */}
       {editingPermit && (
@@ -1286,7 +1555,7 @@ export default function PermissionsPage() {
         </div>
       )}
 
-      {/* ================= MODAL KONFIRMASI HAPUS ================= */}
+      {/* ================= MODAL KONFIRMASI HAPUS TUNGGAL ================= */}
       {permitToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-md animate-in fade-in duration-200">
           <div className="w-full max-w-sm rounded-3xl border border-slate-800 bg-slate-900 p-6 text-white space-y-4 shadow-2xl animate-in zoom-in-95">

@@ -6,6 +6,8 @@ import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import JSZip from "jszip";
 import { QRCodeSVG } from "qrcode.react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import {
   GraduationCap,
   Plus,
@@ -40,6 +42,10 @@ import {
   ArrowDown,
   ArrowLeft,
   RotateCcw,
+  FileText,
+  Printer,
+  ShieldAlert,
+  Award,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { generateStandardQRPayload } from "@/lib/qrParser";
@@ -97,6 +103,9 @@ export default function StudentsMasterPage() {
   // Modal States
   const [selectedStudentForKTS, setSelectedStudentForKTS] = useState<Student | null>(null);
   const [zoomedPhoto, setZoomedPhoto] = useState<{ url: string; name: string } | null>(null);
+
+  // Cetak Rapor Individual State
+  const [isGeneratingDossierPDF, setIsGeneratingDossierPDF] = useState(false);
 
   // Export Modal State
   const [showExportModal, setShowExportModal] = useState(false);
@@ -250,6 +259,203 @@ export default function StudentsMasterPage() {
       setLoading(false);
     }
   }
+
+  // ===========================================================================
+  // GENERATOR PDF RAPOR INDIVIDUAL SANTRI
+  // ===========================================================================
+  const handlePrintIndividualDossier = async (student: Student) => {
+    setIsGeneratingDossierPDF(true);
+    playScanSound("success");
+
+    try {
+      const { data: violations } = await supabase.from("violations").select("*").eq("student_id", student.id);
+      const { data: permits } = await supabase.from("permissions").select("*").eq("student_id", student.id);
+      const { data: achievements } = await supabase.from("achievements").select("*").eq("student_id", student.id);
+
+      const doc = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+      });
+
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 15;
+
+      // --- KOP SURAT ---
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+      doc.setTextColor(4, 120, 87);
+      doc.text("PONDOK PESANTREN CONDONG TASIKMALAYA", pageWidth / 2, 14, { align: "center" });
+
+      doc.setFontSize(11);
+      doc.setTextColor(15, 23, 42);
+      doc.text("PUSAT INFORMASI PENGASUHAN SANTRI (SIPS)", pageWidth / 2, 19, { align: "center" });
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(100);
+      doc.text("Laporan Resmi Rekam Jejak & Dossier Perkembangan Santri Tahun Ajaran 2026/2027", pageWidth / 2, 24, { align: "center" });
+
+      doc.setDrawColor(15, 23, 42);
+      doc.setLineWidth(0.6);
+      doc.line(margin, 27, pageWidth - margin, 27);
+
+      // --- BIODATA KOTAK ---
+      doc.setFillColor(248, 250, 252);
+      doc.rect(margin, 31, pageWidth - (margin * 2), 16, "F");
+      doc.setDrawColor(226, 232, 240);
+      doc.rect(margin, 31, pageWidth - (margin * 2), 16, "D");
+
+      doc.setFontSize(7);
+      doc.setTextColor(100);
+      doc.text("NAMA LENGKAP", margin + 4, 35);
+      doc.text("NOMOR INDUK (NIS)", margin + 65, 35);
+      doc.text("KELAS / TINGKAT", margin + 110, 35);
+      doc.text("ASRAMA / KAMAR", margin + 145, 35);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9.5);
+      doc.setTextColor(15, 23, 42);
+      doc.text(student.name || "-", margin + 4, 42);
+      doc.text(String(student.nis || "-"), margin + 65, 42);
+      doc.text(String(student.class || "-"), margin + 110, 42);
+      doc.text(String(student.dorm || "-"), margin + 145, 42);
+
+      // --- POIN DISIPLIN ---
+      doc.setFillColor(236, 253, 245);
+      doc.rect(margin, 51, pageWidth - (margin * 2), 11, "F");
+      doc.setDrawColor(167, 243, 208);
+      doc.rect(margin, 51, pageWidth - (margin * 2), 11, "D");
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(4, 120, 87);
+      doc.text(`Akumulasi Poin Disiplin Santri: ${student.points ?? 100} / 100`, margin + 4, 58);
+
+      let currentY = 68;
+
+      // --- TABEL 1: PELANGGARAN ---
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(15, 23, 42);
+      doc.text(`1. Catatan Pelanggaran & Sanksi Disiplin (${(violations || []).length} Kasus)`, margin, currentY);
+      currentY += 2;
+
+      const violationBody = (violations || []).length === 0 
+        ? [["1", "Tidak ada catatan pelanggaran. Santri berdisiplin baik.", "-", "-"]]
+        : (violations || []).map((v: any, idx: number) => [
+            String(idx + 1),
+            v.violation_name || v.description || "Pelanggaran Tata Tertib",
+            v.sanction || "Pembinaan",
+            `-${v.points_deducted || v.points || 5}`,
+          ]);
+
+      autoTable(doc, {
+        startY: currentY,
+        head: [["No", "Bentuk Pelanggaran", "Sanksi / Tindakan", "Poin"]],
+        body: violationBody,
+        theme: "grid",
+        styles: { fontSize: 7.5, cellPadding: 2, valign: "middle" },
+        headStyles: { fillColor: [6, 78, 59], textColor: [255, 255, 255], fontStyle: "bold", halign: "center" },
+        columnStyles: { 0: { halign: "center", cellWidth: 8 }, 3: { halign: "center", cellWidth: 15 } },
+        margin: { left: margin, right: margin },
+      });
+
+      // @ts-ignore
+      currentY = doc.lastAutoTable.finalY + 8;
+
+      // --- TABEL 2: PERIZINAN ---
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.text(`2. Rekapitulasi Perizinan Keluar / Masuk (${(permits || []).length} Izin Tercatat)`, margin, currentY);
+      currentY += 2;
+
+      const permitBody = (permits || []).length === 0
+        ? [["1", "Belum ada catatan perizinan keluar gerbang.", "-", "-"]]
+        : (permits || []).map((p: any, idx: number) => [
+            String(idx + 1),
+            p.reason || "Keperluan Keluarga",
+            new Date(p.created_at || Date.now()).toLocaleDateString("id-ID"),
+            p.status || "Selesai",
+          ]);
+
+      autoTable(doc, {
+        startY: currentY,
+        head: [["No", "Keperluan / Keterangan", "Tanggal", "Status"]],
+        body: permitBody,
+        theme: "grid",
+        styles: { fontSize: 7.5, cellPadding: 2, valign: "middle" },
+        headStyles: { fillColor: [6, 78, 59], textColor: [255, 255, 255], fontStyle: "bold", halign: "center" },
+        columnStyles: { 0: { halign: "center", cellWidth: 8 }, 3: { halign: "center", cellWidth: 20 } },
+        margin: { left: margin, right: margin },
+      });
+
+      // @ts-ignore
+      currentY = doc.lastAutoTable.finalY + 8;
+
+      // --- TABEL 3: PRESTASI ---
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.text(`3. Catatan Prestasi & Penghargaan (${(achievements || []).length} Prestasi)`, margin, currentY);
+      currentY += 2;
+
+      const achievementBody = (achievements || []).length === 0
+        ? [["1", "Belum ada catatan prestasi formal.", "-"]]
+        : (achievements || []).map((a: any, idx: number) => [
+            String(idx + 1),
+            a.achievement_name || a.title || "Penghargaan Pesantren",
+            a.level || "Internal Pondok",
+          ]);
+
+      autoTable(doc, {
+        startY: currentY,
+        head: [["No", "Jenis Prestasi / Perlombaan", "Tingkat"]],
+        body: achievementBody,
+        theme: "grid",
+        styles: { fontSize: 7.5, cellPadding: 2, valign: "middle" },
+        headStyles: { fillColor: [6, 78, 59], textColor: [255, 255, 255], fontStyle: "bold", halign: "center" },
+        columnStyles: { 0: { halign: "center", cellWidth: 8 } },
+        margin: { left: margin, right: margin },
+      });
+
+      // --- TANDA TANGAN (FORMAT 3 KOLOM SEIMBANG) ---
+      // @ts-ignore
+      let signY = doc.lastAutoTable.finalY + 12;
+      if (signY > pageHeight - 35) {
+        doc.addPage();
+        signY = 25;
+      }
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(51, 65, 85);
+
+      // Baris 1: Mengetahui (Tengah) & Tanggal (Kanan)
+      doc.text("Mengetahui,", pageWidth / 2, signY, { align: "center" });
+      doc.text(`Tasikmalaya, ${new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}`, pageWidth - margin, signY, { align: "right" });
+
+      // Baris 2: Jabatan (Kiri, Tengah, Kanan)
+      doc.setFont("helvetica", "bold");
+      doc.text("Wali Kelas / Asrama", margin + 5, signY + 5, { align: "left" });
+      doc.text("Orang Tua / Wali Santri", pageWidth / 2, signY + 5, { align: "center" });
+      doc.text("Bagian Pengasuhan Santri", pageWidth - margin, signY + 5, { align: "right" });
+
+      // Baris 3: Area Tanda Tangan / Titik-titik yang Seragam
+      doc.setFont("helvetica", "normal");
+      doc.text("( ........................................ )", margin + 5, signY + 23, { align: "left" });
+      doc.text("( ........................................ )", pageWidth / 2, signY + 23, { align: "center" });
+      doc.text("( ........................................ )", pageWidth - margin, signY + 23, { align: "right" });
+
+      doc.save(`SIPS_Rapor_${student.nis}_${student.name.replace(/\s+/g, "_")}.pdf`);
+      playScanSound("success");
+    } catch (err: any) {
+      console.error("Gagal mencetak rapor:", err);
+      alert("Gagal mencetak rapor: " + err.message);
+    } finally {
+      setIsGeneratingDossierPDF(false);
+    }
+  };
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -682,9 +888,6 @@ export default function StudentsMasterPage() {
     }
   };
 
-  // ===========================================================================
-  // EKSEKUSI IMPOR DATA MASSAL DENGAN PEMBERSIHAN NISN & ON CONFLICT AMAN
-  // ===========================================================================
   const handleExecuteImport = async () => {
     if (!importFile) {
       setImportError("Pilih file Excel terlebih dahulu.");
@@ -696,7 +899,6 @@ export default function StudentsMasterPage() {
     setImportSuccess("");
 
     try {
-      // 1. Dapatkan kolom-kolom asli tabel students
       const { data: sampleData } = await supabase
         .from("students")
         .select("*")
@@ -725,7 +927,6 @@ export default function StudentsMasterPage() {
         }
       }
 
-      // Set untuk melacak NISN duplikat di dalam satu file Excel
       const seenNisnInBatch = new Set<string>();
 
       worksheet.eachRow((row, rowNumber) => {
@@ -756,7 +957,6 @@ export default function StudentsMasterPage() {
             rawGender.toLowerCase() === "female";
           const genderText = isFemale ? "Perempuan" : "Laki-laki";
 
-          // === SANITASI NISN EKSTRA KETAT UNTUK MENCEGAH DUPLICATE KEY CONSTRAINT ===
           const rawNisn = getVal(4).replace(/\s+/g, "").trim();
           let cleanNisn: string | null = null;
           
@@ -770,7 +970,6 @@ export default function StudentsMasterPage() {
             rawNisn !== "tidakada" &&
             rawNisn !== ""
           ) {
-            // Jika NISN sudah pernah muncul di baris sebelumnya dalam file yang sama, jadikan null agar tidak memicu error duplicate
             if (!seenNisnInBatch.has(rawNisn)) {
               seenNisnInBatch.add(rawNisn);
               cleanNisn = rawNisn;
@@ -806,10 +1005,7 @@ export default function StudentsMasterPage() {
 
             assignMatchingColumns(["full_name", "nama_lengkap", "name", "nama_santri", "nama"], name);
             assignMatchingColumns(["nis", "nomor_induk"], nis);
-            
-            // Kolom NISN: jika null, jangan masukkan atau masukkan null eksplisit
             assignMatchingColumns(["nisn"], cleanNisn);
-            
             assignMatchingColumns(["gender", "jenis_kelamin", "sex"], genderText);
             assignMatchingColumns(["pob", "tempat_lahir", "birth_place"], pob);
             assignMatchingColumns(["dob", "tanggal_lahir", "birth_date"], dob);
@@ -835,7 +1031,6 @@ export default function StudentsMasterPage() {
       const BATCH_SIZE = 50;
       let insertedCount = 0;
 
-      // 2. Eksekusi Upsert bertahap dengan penanganan error NISN otomatis
       for (let i = 0; i < parsedStudents.length; i += BATCH_SIZE) {
         const chunk = parsedStudents.slice(i, i + BATCH_SIZE);
 
@@ -843,9 +1038,7 @@ export default function StudentsMasterPage() {
           .from("students")
           .upsert(chunk, { onConflict: "nis", ignoreDuplicates: false });
 
-        // Jika terjadi pelanggaran unique constraint pada NISN (misal bentrok dengan NISN santri lain di DB)
         if (upsertError && upsertError.message?.toLowerCase().includes("students_nisn_key")) {
-          // Bersihkan kolom NISN dari chunk (set ke null) dan lakukan upsert ulang
           const fallbackChunk = chunk.map((item) => {
             const cleanedItem = { ...item };
             if ("nisn" in cleanedItem) cleanedItem.nisn = null;
@@ -1487,26 +1680,18 @@ export default function StudentsMasterPage() {
                         <span className="truncate">{s.consulate}</span>
                       </div>
 
-                      <div className="pt-1 flex items-center justify-between border-t border-slate-100 dark:border-emerald-900/30 text-xs">
-                        <span className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-[120px]">
-                          Wali: {s.guardian_name}
-                        </span>
-                        {s.guardian_phone !== "-" ? (
-                          <a
-                            href={`https://wa.me/${s.guardian_phone.replace(/^0/, "62")}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center space-x-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
-                          >
-                            <Phone className="h-3 w-3" />
-                            <span>{s.guardian_phone}</span>
-                          </a>
-                        ) : (
-                          <span className="text-[11px] text-slate-400">-</span>
-                        )}
-                      </div>
+                      <div className="pt-2 flex items-center justify-end gap-1.5 border-t border-slate-100 dark:border-emerald-900/30 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() => handlePrintIndividualDossier(s)}
+                          disabled={isGeneratingDossierPDF}
+                          className="inline-flex items-center space-x-1 rounded-xl bg-cyan-50 dark:bg-cyan-950/40 text-cyan-700 dark:text-cyan-300 border border-cyan-500/20 px-2.5 py-1 text-xs font-bold active:scale-95 cursor-pointer disabled:opacity-50"
+                          title="Cetak Rapor Individual"
+                        >
+                          <FileText className="h-3.5 w-3.5" />
+                          <span>Rapor</span>
+                        </button>
 
-                      <div className="pt-2 flex items-center justify-end gap-1 border-t border-slate-100 dark:border-emerald-900/30">
                         <button
                           type="button"
                           onClick={() => setSelectedStudentForKTS(s)}
@@ -1747,6 +1932,16 @@ export default function StudentsMasterPage() {
 
                       <td className="py-3.5 px-4 text-right">
                         <div className="flex items-center justify-end space-x-1">
+                          <button
+                            type="button"
+                            onClick={() => handlePrintIndividualDossier(s)}
+                            disabled={isGeneratingDossierPDF}
+                            className="rounded-xl p-2 text-cyan-600 dark:text-cyan-400 hover:bg-cyan-500/10 transition active:scale-90 cursor-pointer disabled:opacity-50"
+                            title="Cetak Rapor Individual"
+                          >
+                            <FileText className="h-4 w-4" />
+                          </button>
+
                           <button
                             type="button"
                             onClick={() => setSelectedStudentForKTS(s)}
@@ -2080,7 +2275,7 @@ export default function StudentsMasterPage() {
 
             {importError && (
               <div className="rounded-xl border border-rose-500/30 bg-rose-950/40 p-3 text-xs font-semibold text-rose-300 animate-in fade-in">
-                ⚠️ {importError}
+                ⚠ {importError}
               </div>
             )}
             {importSuccess && (
