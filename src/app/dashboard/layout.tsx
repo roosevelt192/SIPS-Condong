@@ -830,7 +830,7 @@ export default function DashboardLayout({
                 className="inline-flex items-center space-x-1.5 rounded-2xl bg-[#064e3b] dark:bg-emerald-700 hover:bg-emerald-800 text-white px-3.5 py-2 text-xs font-black shadow-md transition active:scale-95 whitespace-nowrap"
               >
                 <QrCode className="h-4 w-4 stroke-[2.5]" />
-                <span className="hidden md:inline">Simulasi Gerbang</span>
+                <span className="hidden md:inline">Verifikasi Perizinan</span>
               </Link>
             )}
 

@@ -30,9 +30,6 @@ import {
   Square,
   CheckSquare,
   MinusSquare,
-  Camera,
-  Play,
-  Square as SquareIcon,
   LogOut,
   LogIn,
 } from "lucide-react";
@@ -77,6 +74,8 @@ interface Permission {
   student_id: string;
   nis: string;
   student_name: string;
+  class_name?: string;
+  dorm?: string;
   reason: string;
   category: string;
   companion_info?: string;
@@ -165,7 +164,7 @@ export default function PermissionsPage() {
   const [toastMsg, setToastMsg] = useState("");
 
   // ===========================================================================
-  // 4. FETCH DATA DENGAN BATCH PAGINATION
+  // 4. FETCH DATA DENGAN BATCH PAGINATION & JOIN KELAS/KAMAR
   // ===========================================================================
   useEffect(() => {
     fetchPermissions();
@@ -213,7 +212,45 @@ export default function PermissionsPage() {
         }
       }
 
-      setPermissions(allPerms || []);
+      let allStudents: any[] = [];
+      let sPage = 0;
+      let sHasMore = true;
+      while (sHasMore) {
+        const from = sPage * pageSize;
+        const to = from + pageSize - 1;
+        const { data: sData } = await supabase.from("students").select("*").range(from, to);
+        if (sData && sData.length > 0) {
+          allStudents = [...allStudents, ...sData];
+          if (sData.length < pageSize) sHasMore = false;
+          else sPage++;
+        } else {
+          sHasMore = false;
+        }
+      }
+
+      const studentMapById = new Map();
+      const studentMapByNis = new Map();
+
+      allStudents.forEach((st: any) => {
+        const resolvedClass = st.kelas || st.class_name || st.class || st.rombel || "-";
+        const resolvedDorm = st.kamar_asrama || st.dorm || st.asrama || st.kobong || st.room || "-";
+        const stObj = { ...st, resolvedClass, resolvedDorm };
+
+        if (st.id) studentMapById.set(String(st.id).trim(), stObj);
+        if (st.nis) studentMapByNis.set(String(st.nis).trim(), stObj);
+        if (st.nomor_induk) studentMapByNis.set(String(st.nomor_induk).trim(), stObj);
+      });
+
+      const enrichedPerms = allPerms.map((p) => {
+        const matched = studentMapById.get(String(p.student_id).trim()) || studentMapByNis.get(String(p.nis).trim()) || {};
+        return {
+          ...p,
+          class_name: p.class_name || matched.resolvedClass || "-",
+          dorm: p.dorm || matched.resolvedDorm || "-",
+        };
+      });
+
+      setPermissions(enrichedPerms || []);
     } catch (err: any) {
       console.warn("Sinkronisasi tabel perizinan:", err.message);
     } finally {
@@ -222,7 +259,7 @@ export default function PermissionsPage() {
   }
 
   // ===========================================================================
-  // 5. HELPER SANITASI DATA & STATUS WAKTU
+  // 5. HELPER SANITASI DATA & WAKTU BAHASA INDONESIA
   // ===========================================================================
   const getStudentName = (st: any) => {
     return st?.nama_lengkap || st?.full_name || st?.name || st?.nama || st?.nama_santri || "Nama Santri";
@@ -233,7 +270,24 @@ export default function PermissionsPage() {
   };
 
   const getStudentDorm = (st: any) => {
-    return st?.dorm || st?.kamar_asrama || st?.asrama || st?.kobong || "-";
+    return st?.dorm || st?.kamar_asrama || st?.asrama || st?.kobong || st?.room || "-";
+  };
+
+  const formatTanggalIndo = (dateStr: string) => {
+    if (!dateStr) return "-";
+    try {
+      const dt = new Date(dateStr);
+      return dt.toLocaleDateString("id-ID", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch {
+      return dateStr;
+    }
   };
 
   const isCurrentlyOverdue = (item: Permission) => {
@@ -267,7 +321,9 @@ export default function PermissionsPage() {
       const matchesSearch =
         item.student_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.nis.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.category.toLowerCase().includes(searchQuery.toLowerCase());
+        item.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (item.class_name && item.class_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (item.dorm && item.dorm.toLowerCase().includes(searchQuery.toLowerCase()));
 
       if (!matchesSearch) return false;
 
@@ -524,6 +580,8 @@ export default function PermissionsPage() {
         student_id: st.student_id,
         nis: st.nis,
         student_name: st.student_name,
+        class_name: st.class_name,
+        dorm: st.dorm,
         category: formData.category,
         reason: formData.reason,
         companion_info: companionText,
@@ -695,7 +753,7 @@ export default function PermissionsPage() {
             <Link
               href="/dashboard"
               className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/20 bg-white/10 text-white hover:bg-white/20 transition-all active:scale-90 shadow-sm backdrop-blur-md"
-              title="Kembali ke Dashboard Utama"
+              title="Kembali ke Beranda"
             >
               <ArrowLeft className="h-5 w-5 stroke-[2.4]" />
             </Link>
@@ -708,17 +766,17 @@ export default function PermissionsPage() {
               <div className="flex items-center space-x-2">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-emerald-200 text-[10px] font-black uppercase tracking-wider backdrop-blur-xl">
                   <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
-                  GATE CONTROL
+                  KONTROL GERBANG
                 </span>
                 <span className="rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold px-2.5 py-0.5">
                   Perizinan SIPS
                 </span>
               </div>
               <h1 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight bg-gradient-to-r from-white via-emerald-100 to-amber-300 bg-clip-text text-transparent truncate">
-                Input Perizinan Santri
+                Manajemen Perizinan Santri
               </h1>
               <p className="text-xs text-emerald-100/90 font-medium truncate">
-                Monitoring perizinan keluar/pulang santri dan verifikasi gerbang terintegrasi
+                Pencatatan keluar/pulang santri dan verifikasi gerbang terintegrasi secara langsung
               </p>
             </div>
           </div>
@@ -864,7 +922,7 @@ export default function PermissionsPage() {
               type="text"
               value={searchQuery}
               onChange={(e) => handleQuickSearchChange(e.target.value)}
-              placeholder="Cari santri / terbitkan izin instan..."
+              placeholder="Cari santri, NIS, kelas, atau asrama..."
               className="h-10 w-full rounded-2xl border border-slate-200 dark:border-emerald-900/60 bg-white dark:bg-[#0c1815] pl-10 pr-4 text-xs font-semibold text-slate-900 dark:text-white placeholder-slate-400 outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 shadow-xs"
             />
             {isQuickSearching && (
@@ -993,9 +1051,11 @@ export default function PermissionsPage() {
                         <p className="font-extrabold text-sm text-slate-900 dark:text-white truncate">
                           {p.student_name}
                         </p>
-                        <span className="font-mono text-[11px] text-emerald-700 dark:text-emerald-400 font-bold">
-                          NIS: {p.nis}
-                        </span>
+                        <div className="font-mono text-[11px] text-emerald-700 dark:text-emerald-400 font-bold space-y-0.5">
+                          <p>NIS: {p.nis}</p>
+                          <p>Kelas: {p.class_name || "-"}</p>
+                          <p>Kamar: {p.dorm || "-"}</p>
+                        </div>
                       </div>
                     </div>
 
@@ -1033,7 +1093,7 @@ export default function PermissionsPage() {
                     </div>
                   </div>
 
-                  {/* Tombol Eksekusi Cepat Status Gerbang (Rapi di Mobile) */}
+                  {/* Tombol Eksekusi Cepat Status Gerbang */}
                   <div className="flex items-center gap-2 pt-1">
                     {p.status === "approved" && (
                       <button
@@ -1078,13 +1138,13 @@ export default function PermissionsPage() {
                     <div className="space-y-0.5">
                       <span className="text-[10px] text-slate-400 block font-semibold">🛫 Berangkat:</span>
                       <span className="font-bold text-slate-800 dark:text-slate-200">
-                        {new Date(p.departure_target).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" })}
+                        {formatTanggalIndo(p.departure_target)}
                       </span>
                     </div>
                     <div className="space-y-0.5">
                       <span className="text-[10px] text-slate-400 block font-semibold">🛬 Batas Kembali:</span>
                       <span className={`font-bold ${late ? "text-rose-500 font-black" : "text-slate-800 dark:text-slate-200"}`}>
-                        {new Date(p.return_target).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" })}
+                        {formatTanggalIndo(p.return_target)}
                       </span>
                     </div>
                   </div>
@@ -1105,7 +1165,7 @@ export default function PermissionsPage() {
                       className="inline-flex items-center space-x-1 rounded-xl bg-slate-100 dark:bg-emerald-950/40 text-slate-700 dark:text-slate-200 px-3 py-1.5 text-xs font-bold active:scale-95 border border-emerald-900/20"
                     >
                       <Edit className="h-3.5 w-3.5" />
-                      <span>Edit</span>
+                      <span>Ubah</span>
                     </button>
 
                     <button
@@ -1123,7 +1183,7 @@ export default function PermissionsPage() {
           )}
         </div>
 
-        {/* TAMPILAN 2: DESKTOP TABLE VIEW (DENGAN KOLOM AKSI YANG SANGAT RAPI) */}
+        {/* TAMPILAN 2: DESKTOP TABLE VIEW (SUSUNAN MENURUN: NAMA, NIS, KELAS, KAMAR) */}
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
@@ -1144,7 +1204,7 @@ export default function PermissionsPage() {
                     )}
                   </button>
                 </th>
-                <th className="py-4 px-4 font-bold">Santri &amp; NIS</th>
+                <th className="py-4 px-4 font-bold">Santri, NIS, Kelas &amp; Kamar</th>
                 <th className="py-4 px-4 font-bold">Kategori &amp; Keterangan</th>
                 <th className="py-4 px-4 font-bold">Jadwal Waktu Izin</th>
                 <th className="py-4 px-4 text-center font-bold">Status Gerbang</th>
@@ -1205,18 +1265,25 @@ export default function PermissionsPage() {
                         </button>
                       </td>
 
+                      {/* KOLOM SANTRI: TAMPILAN MENURUN (NAMA, NIS, KELAS, KAMAR) */}
                       <td className="py-3.5 px-4">
-                        <div className="flex items-center space-x-3">
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 font-black text-xs group-hover:scale-105 transition-transform">
+                        <div className="flex items-start space-x-3">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 font-black text-xs group-hover:scale-105 transition-transform mt-0.5">
                             {p.student_name.charAt(0)}
                           </div>
-                          <div>
+                          <div className="space-y-0.5">
                             <p className="font-bold text-slate-900 dark:text-white text-sm group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
                               {p.student_name}
                             </p>
-                            <span className="font-mono text-[11px] text-emerald-700 dark:text-emerald-400 font-bold">
+                            <p className="font-mono text-[11px] text-slate-600 dark:text-slate-300 font-semibold">
                               NIS: {p.nis}
-                            </span>
+                            </p>
+                            <p className="text-[11px] text-slate-500">
+                              Kelas: <strong className="text-slate-700 dark:text-slate-200">{p.class_name || "-"}</strong>
+                            </p>
+                            <p className="text-[11px] text-slate-500">
+                              Kamar: <strong className="text-slate-700 dark:text-slate-200">{p.dorm || "-"}</strong>
+                            </p>
                           </div>
                         </div>
                       </td>
@@ -1241,7 +1308,7 @@ export default function PermissionsPage() {
                       <td className="py-3.5 px-4 space-y-1 text-[11px]">
                         <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300 font-semibold">
                           <span className="text-xs">🛫</span>
-                          <span>{new Date(p.departure_target).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}</span>
+                          <span>{formatTanggalIndo(p.departure_target)}</span>
                         </div>
                         <div
                           className={`flex items-center gap-1.5 font-semibold ${
@@ -1249,7 +1316,7 @@ export default function PermissionsPage() {
                           }`}
                         >
                           <span className="text-xs">🛬</span>
-                          <span>{new Date(p.return_target).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}</span>
+                          <span>{formatTanggalIndo(p.return_target)}</span>
                         </div>
                       </td>
 
@@ -1289,7 +1356,6 @@ export default function PermissionsPage() {
                       {/* KOLOM AKSI YANG SANGAT RAPI */}
                       <td className="py-3.5 px-4 text-center">
                         <div className="flex flex-col items-center justify-center gap-1.5 min-w-[140px]">
-                          {/* Tombol Utama Status Keluar / Kembali */}
                           {p.status === "approved" && (
                             <button
                               type="button"
@@ -1314,7 +1380,6 @@ export default function PermissionsPage() {
                             </button>
                           )}
 
-                          {/* Tombol Sekunder Dikelompokkan dalam Baris Terpisah */}
                           <div className="flex items-center justify-center gap-1 w-full pt-0.5 border-t border-slate-100 dark:border-emerald-900/30">
                             <button
                               type="button"
@@ -1330,10 +1395,10 @@ export default function PermissionsPage() {
                               type="button"
                               onClick={() => handleOpenEditModal(p)}
                               className="flex-1 py-1 rounded-lg border border-slate-200 dark:border-emerald-900/40 text-slate-600 dark:text-slate-300 hover:text-amber-500 hover:bg-amber-500/10 transition text-[10px] font-bold flex items-center justify-center gap-1 cursor-pointer"
-                              title="Edit Data Izin"
+                              title="Ubah Data Izin"
                             >
                               <Edit className="h-3 w-3" />
-                              <span>Edit</span>
+                              <span>Ubah</span>
                             </button>
 
                             <button
@@ -1403,7 +1468,7 @@ export default function PermissionsPage() {
                   <Edit className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-base text-white">Edit Data Izin Santri</h3>
+                  <h3 className="font-extrabold text-base text-white">Ubah Data Izin Santri</h3>
                   <p className="text-xs text-slate-400">{editingPermit.student_name} (NIS: {editingPermit.nis})</p>
                 </div>
               </div>
@@ -2002,6 +2067,10 @@ export default function PermissionsPage() {
                   <span className="font-bold text-slate-900">{selectedPermitForPrint.nis}</span>
                 </div>
                 <div className="flex justify-between">
+                  <span className="text-slate-600">Kelas / Kamar:</span>
+                  <span className="font-bold text-slate-900">{selectedPermitForPrint.class_name || "-"} / {selectedPermitForPrint.dorm || "-"}</span>
+                </div>
+                <div className="flex justify-between">
                   <span className="text-slate-600">Kategori:</span>
                   <span className="font-bold text-slate-900">{selectedPermitForPrint.category}</span>
                 </div>
@@ -2025,19 +2094,13 @@ export default function PermissionsPage() {
                 <div className="flex justify-between text-[10px]">
                   <span className="text-slate-600">Berangkat:</span>
                   <span className="font-bold">
-                    {new Date(selectedPermitForPrint.departure_target).toLocaleString("id-ID", {
-                      dateStyle: "short",
-                      timeStyle: "short",
-                    })}
+                    {formatTanggalIndo(selectedPermitForPrint.departure_target)}
                   </span>
                 </div>
                 <div className="flex justify-between text-[10px]">
                   <span className="text-rose-600 font-bold">Batas Tiba:</span>
                   <span className="font-black text-rose-600">
-                    {new Date(selectedPermitForPrint.return_target).toLocaleString("id-ID", {
-                      dateStyle: "short",
-                      timeStyle: "short",
-                    })}
+                    {formatTanggalIndo(selectedPermitForPrint.return_target)}
                   </span>
                 </div>
               </div>
@@ -2070,7 +2133,7 @@ export default function PermissionsPage() {
               <button
                 type="button"
                 onClick={() => window.print()}
-                className="flex-1 py-2.5 rounded-xl bg-emerald-700 text-white font-black text-xs hover:bg-emerald-800 transition flex items-center justify-center gap-1.5 shadow-md shadow-emerald-700/20 cursor-pointer"
+                className="flex-1 py-2.5 rounded-xl bg-emerald-700 text-white font-black text-xs hover:bg-emerald-800 transition flex items-center justify-center gap-1.5 shadow-md shadow-emerald-700/20 transition cursor-pointer"
               >
                 <Printer className="h-4 w-4" />
                 <span>Cetak Surat</span>
