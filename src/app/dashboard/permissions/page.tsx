@@ -245,8 +245,8 @@ export default function PermissionsPage() {
         const matched = studentMapById.get(String(p.student_id).trim()) || studentMapByNis.get(String(p.nis).trim()) || {};
         return {
           ...p,
-          class_name: p.class_name || matched.resolvedClass || "-",
-          dorm: p.dorm || matched.resolvedDorm || "-",
+          class_name: matched.resolvedClass || "-",
+          dorm: matched.resolvedDorm || "-",
         };
       });
 
@@ -576,12 +576,11 @@ export default function PermissionsPage() {
           ? "Sendiri (Mandiri)"
           : `${formData.companion_type}${formData.companion_detail ? ` - ${formData.companion_detail}` : ""}`;
 
+      // HANYA simpan data yang valid ke kolom tabel permissions (tanpa class_name/dorm)
       const payloads = selectedStudentsList.map((st) => ({
         student_id: st.student_id,
         nis: st.nis,
         student_name: st.student_name,
-        class_name: st.class_name,
-        dorm: st.dorm,
         category: formData.category,
         reason: formData.reason,
         companion_info: companionText,
