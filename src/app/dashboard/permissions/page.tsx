@@ -34,7 +34,6 @@ import {
   LogIn,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
-import { Html5Qrcode } from "html5-qrcode";
 import { supabase } from "@/lib/supabase";
 import QRScannerModal from "@/components/QRScannerModal";
 import { parseQRCodeText, generateStandardQRPayload } from "@/lib/qrParser";
@@ -164,7 +163,7 @@ export default function PermissionsPage() {
   const [toastMsg, setToastMsg] = useState("");
 
   // ===========================================================================
-  // 4. FETCH DATA DENGAN BATCH PAGINATION & JOIN KELAS/KAMAR
+  // 4. FETCH DATA PERIZINAN & RELASI DATABASE SANTRI
   // ===========================================================================
   useEffect(() => {
     fetchPermissions();
@@ -186,6 +185,7 @@ export default function PermissionsPage() {
   async function fetchPermissions() {
     setLoading(true);
     try {
+      // 1. Ambil Data Perizinan
       let allPerms: any[] = [];
       let page = 0;
       const pageSize = 1000;
@@ -212,65 +212,62 @@ export default function PermissionsPage() {
         }
       }
 
-      let allStudents: any[] = [];
-      let sPage = 0;
-      let sHasMore = true;
-      while (sHasMore) {
-        const from = sPage * pageSize;
-        const to = from + pageSize - 1;
-        const { data: sData } = await supabase.from("students").select("*").range(from, to);
-        if (sData && sData.length > 0) {
-          allStudents = [...allStudents, ...sData];
-          if (sData.length < pageSize) sHasMore = false;
-          else sPage++;
-        } else {
-          sHasMore = false;
-        }
+      // 2. Ambil Data Santri Terkait
+      const uniqueNisList = Array.from(new Set(allPerms.map((p) => String(p.nis || "").trim()).filter(Boolean)));
+      const uniqueIdList = Array.from(new Set(allPerms.map((p) => String(p.student_id || "").trim()).filter(Boolean)));
+
+      let studentsMap: Record<string, any> = {};
+
+      if (uniqueNisList.length > 0 || uniqueIdList.length > 0) {
+        const { data: studentsData } = await supabase
+          .from("students")
+          .select("*");
+
+        (studentsData || []).forEach((st: any) => {
+          const resolvedClass = st.kelas || st.class_name || st.class || st.rombel || "-";
+          const resolvedDorm = st.kamar_asrama || st.dorm || st.asrama || st.kobong || st.room || "-";
+          const normalized = { ...st, resolvedClass, resolvedDorm };
+
+          if (st.id) studentsMap[String(st.id).trim()] = normalized;
+          if (st.nis) studentsMap[String(st.nis).trim()] = normalized;
+          if (st.nomor_induk) studentsMap[String(st.nomor_induk).trim()] = normalized;
+        });
       }
 
-      const studentMapById = new Map();
-      const studentMapByNis = new Map();
-
-      allStudents.forEach((st: any) => {
-        const resolvedClass = st.kelas || st.class_name || st.class || st.rombel || "-";
-        const resolvedDorm = st.kamar_asrama || st.dorm || st.asrama || st.kobong || st.room || "-";
-        const stObj = { ...st, resolvedClass, resolvedDorm };
-
-        if (st.id) studentMapById.set(String(st.id).trim(), stObj);
-        if (st.nis) studentMapByNis.set(String(st.nis).trim(), stObj);
-        if (st.nomor_induk) studentMapByNis.set(String(st.nomor_induk).trim(), stObj);
-      });
-
+      // 3. Gabungkan Relasi
       const enrichedPerms = allPerms.map((p) => {
-        const matched = studentMapById.get(String(p.student_id).trim()) || studentMapByNis.get(String(p.nis).trim()) || {};
+        const keyId = String(p.student_id || "").trim();
+        const keyNis = String(p.nis || "").trim();
+        const studentInfo = studentsMap[keyId] || studentsMap[keyNis] || {};
+
         return {
           ...p,
-          class_name: matched.resolvedClass || "-",
-          dorm: matched.resolvedDorm || "-",
+          class_name: studentInfo.resolvedClass || "-",
+          dorm: studentInfo.resolvedDorm || "-",
         };
       });
 
-      setPermissions(enrichedPerms || []);
+      setPermissions(enrichedPerms);
     } catch (err: any) {
-      console.warn("Sinkronisasi tabel perizinan:", err.message);
+      console.warn("Gagal menyinkronkan data perizinan:", err.message);
     } finally {
       setLoading(false);
     }
   }
 
   // ===========================================================================
-  // 5. HELPER SANITASI DATA & WAKTU BAHASA INDONESIA
+  // 5. HELPER FORMAT & WAKTU
   // ===========================================================================
   const getStudentName = (st: any) => {
     return st?.nama_lengkap || st?.full_name || st?.name || st?.nama || st?.nama_santri || "Nama Santri";
   };
 
   const getStudentClass = (st: any) => {
-    return st?.class || st?.kelas || st?.class_name || st?.rombel || "-";
+    return st?.kelas || st?.class_name || st?.class || st?.rombel || "-";
   };
 
   const getStudentDorm = (st: any) => {
-    return st?.dorm || st?.kamar_asrama || st?.asrama || st?.kobong || st?.room || "-";
+    return st?.kamar_asrama || st?.dorm || st?.asrama || st?.kobong || st?.room || "-";
   };
 
   const formatTanggalIndo = (dateStr: string) => {
@@ -305,7 +302,7 @@ export default function PermissionsPage() {
   };
 
   // ===========================================================================
-  // 6. COMPUTED STATS & FILTERED DATA
+  // 6. METRIK & FILTER
   // ===========================================================================
   const stats = useMemo(() => {
     const totalActive = permissions.filter((p) => p.status === "approved" || p.status === "out_pondok").length;
@@ -318,12 +315,13 @@ export default function PermissionsPage() {
 
   const filteredPermissions = useMemo(() => {
     return permissions.filter((item) => {
+      const q = searchQuery.toLowerCase();
       const matchesSearch =
-        item.student_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.nis.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (item.class_name && item.class_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (item.dorm && item.dorm.toLowerCase().includes(searchQuery.toLowerCase()));
+        item.student_name.toLowerCase().includes(q) ||
+        item.nis.toLowerCase().includes(q) ||
+        item.category.toLowerCase().includes(q) ||
+        (item.class_name && item.class_name.toLowerCase().includes(q)) ||
+        (item.dorm && item.dorm.toLowerCase().includes(q));
 
       if (!matchesSearch) return false;
 
@@ -337,7 +335,7 @@ export default function PermissionsPage() {
   }, [permissions, searchQuery, activeTab]);
 
   // ===========================================================================
-  // 7. EKSEKUSI LANGSUNG STATUS GERBANG (QUICK ACTION)
+  // 7. EKSEKUSI STATUS PERIZINAN
   // ===========================================================================
   const handleQuickStatusChange = async (permitId: string, targetStatus: Permission["status"]) => {
     try {
@@ -363,9 +361,6 @@ export default function PermissionsPage() {
     }
   };
 
-  // ===========================================================================
-  // 8. MULTI-SELECT & BULK DELETE / BULK ACTION HANDLERS
-  // ===========================================================================
   const handleSelectAllToggle = () => {
     if (selectedPermissionIds.length === filteredPermissions.length) {
       setSelectedPermissionIds([]);
@@ -398,7 +393,7 @@ export default function PermissionsPage() {
       setShowBulkDeleteModal(false);
     } catch (err: any) {
       playScanSound("error");
-      alert("Gagal menghapus data terpilih: " + err.message);
+      alert("Gagal menghapus data: " + err.message);
     } finally {
       setIsBulkDeleting(false);
     }
@@ -426,7 +421,7 @@ export default function PermissionsPage() {
   };
 
   // ===========================================================================
-  // 9. MULTI-SANTRI SELECTION & REAL SEARCH KE SUPABASE
+  // 8. MULTI-SANTRI SELECTION & FORM SUBMISSION (DENGAN DUKUNGAN TOMBOL ENTER)
   // ===========================================================================
   const addStudentToSelection = (student: Student) => {
     const finalName = getStudentName(student);
@@ -555,8 +550,8 @@ export default function PermissionsPage() {
     }
   };
 
-  const handleConfirmPermission = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Eksekusi Submit Perizinan
+  const executeSubmitPermission = async () => {
     if (selectedStudentsList.length === 0) {
       setFormError("Silakan pilih minimal 1 santri untuk diterbitkan izinnya.");
       return;
@@ -576,7 +571,6 @@ export default function PermissionsPage() {
           ? "Sendiri (Mandiri)"
           : `${formData.companion_type}${formData.companion_detail ? ` - ${formData.companion_detail}` : ""}`;
 
-      // HANYA simpan data yang valid ke kolom tabel permissions (tanpa class_name/dorm)
       const payloads = selectedStudentsList.map((st) => ({
         student_id: st.student_id,
         nis: st.nis,
@@ -615,6 +609,31 @@ export default function PermissionsPage() {
       setFormError(err.message || "Gagal menerbitkan surat izin santri.");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleConfirmPermission = (e: React.FormEvent) => {
+    e.preventDefault();
+    executeSubmitPermission();
+  };
+
+  // Keyboard shortcut: Tekan Enter untuk submit langsung
+  const handleFormKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      // Jika di dropdown pencarian, biarkan memilih opsi
+      if (showDropdownResults && studentSearchResults.length > 0) return;
+      
+      // Jika di textarea, izinkan enter biasa untuk baris baru, dan gunakan Ctrl+Enter untuk submit
+      if (e.target instanceof HTMLTextAreaElement) {
+        if (e.ctrlKey) {
+          e.preventDefault();
+          executeSubmitPermission();
+        }
+        return;
+      }
+
+      e.preventDefault();
+      executeSubmitPermission();
     }
   };
 
@@ -737,7 +756,7 @@ export default function PermissionsPage() {
         )}
       </AnimatePresence>
 
-      {/* Background Subtle Glows */}
+      {/* Glow Aksentuasi */}
       <div className="pointer-events-none absolute -top-10 -right-10 h-72 w-72 rounded-full bg-emerald-500/10 blur-[100px]" />
       <div className="pointer-events-none absolute top-48 -left-10 h-72 w-72 rounded-full bg-teal-500/10 blur-[100px]" />
 
@@ -829,7 +848,7 @@ export default function PermissionsPage() {
         </div>
       </div>
 
-      {/* ================= KARTU STATISTIK METRIK ================= */}
+      {/* ================= KARTU STATISTIK ================= */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
         {[
           {
@@ -912,7 +931,7 @@ export default function PermissionsPage() {
         })}
       </div>
 
-      {/* ================= TOOLBAR PENCARIAN & STATUS TABS ================= */}
+      {/* ================= PENCARIAN & STATUS TABS ================= */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
         <div className="relative flex-1 max-w-md" ref={quickSearchRef}>
           <div className="relative group">
@@ -992,10 +1011,10 @@ export default function PermissionsPage() {
         </div>
       </div>
 
-      {/* ================= DATA PERIZINAN: RESPONSIVE DUAL-VIEW ================= */}
+      {/* ================= TABEL DATA PERIZINAN ================= */}
       <div className="overflow-hidden rounded-3xl border border-slate-200/80 dark:border-emerald-900/40 bg-white/90 dark:bg-[#0c1815] shadow-xl shadow-slate-200/30 dark:shadow-black/40 backdrop-blur-xl">
         
-        {/* TAMPILAN 1: MOBILE CARD VIEW */}
+        {/* VIEW MOBILE */}
         <div className="block md:hidden divide-y divide-slate-100 dark:divide-emerald-900/30">
           {loading ? (
             <div className="py-16 text-center text-slate-400">
@@ -1092,7 +1111,6 @@ export default function PermissionsPage() {
                     </div>
                   </div>
 
-                  {/* Tombol Eksekusi Cepat Status Gerbang */}
                   <div className="flex items-center gap-2 pt-1">
                     {p.status === "approved" && (
                       <button
@@ -1182,7 +1200,7 @@ export default function PermissionsPage() {
           )}
         </div>
 
-        {/* TAMPILAN 2: DESKTOP TABLE VIEW (SUSUNAN MENURUN: NAMA, NIS, KELAS, KAMAR) */}
+        {/* VIEW DESKTOP */}
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
@@ -1352,7 +1370,7 @@ export default function PermissionsPage() {
                         )}
                       </td>
 
-                      {/* KOLOM AKSI YANG SANGAT RAPI */}
+                      {/* KOLOM AKSI */}
                       <td className="py-3.5 px-4 text-center">
                         <div className="flex flex-col items-center justify-center gap-1.5 min-w-[140px]">
                           {p.status === "approved" && (
@@ -1661,7 +1679,7 @@ export default function PermissionsPage() {
         </div>
       )}
 
-      {/* ================= MODAL FORM BUAT IZIN BARU ================= */}
+      {/* ================= MODAL FORM BUAT IZIN BARU (DUKUNGAN TEKAN ENTER) ================= */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 sm:p-6 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
           <div className="w-full max-w-2xl my-auto overflow-hidden rounded-[32px] border border-slate-800 bg-slate-900/95 p-6 sm:p-8 text-white space-y-5 shadow-2xl animate-in zoom-in-95 duration-150">
@@ -1675,7 +1693,7 @@ export default function PermissionsPage() {
                     Formulir Penerbitan Izin Santri
                   </h3>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    Mendukung izin perorangan maupun rombongan sekaligus
+                    Mendukung izin perorangan maupun rombongan sekaligus (Tekan <strong className="text-emerald-400">Enter</strong> untuk langsung menerbitkan)
                   </p>
                 </div>
               </div>
@@ -1695,7 +1713,7 @@ export default function PermissionsPage() {
               </div>
             )}
 
-            <form onSubmit={handleConfirmPermission} className="space-y-4 text-xs font-sans">
+            <form onSubmit={handleConfirmPermission} onKeyDown={handleFormKeyDown} className="space-y-4 text-xs font-sans">
               <div className="space-y-2 relative" ref={modalDropdownRef}>
                 <div className="flex items-center justify-between">
                   <label className="font-bold text-xs sm:text-sm text-slate-200">
@@ -1913,7 +1931,7 @@ export default function PermissionsPage() {
                   rows={2}
                   value={formData.reason}
                   onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
-                  placeholder="Tuliskan detail keperluan izin santri..."
+                  placeholder="Tuliskan detail keperluan izin santri... (Ctrl + Enter untuk terbitkan langsung)"
                   className="w-full rounded-2xl border border-slate-800 bg-slate-950 p-3 text-xs text-white placeholder-slate-500 outline-none focus:border-emerald-500 transition"
                 />
               </div>
