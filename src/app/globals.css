@@ -45,6 +45,27 @@
   }
 }
 
+*:focus-visible {
+  outline: 2px solid #047857;
+  outline-offset: 3px;
+}
+
+.dark *:focus-visible {
+  outline-color: #34d399;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .impeccable-card,
+  .impeccable-tap {
+    transition: none;
+  }
+
+  .impeccable-card:hover,
+  .impeccable-tap:active {
+    transform: none;
+  }
+}
+
 :root {
   --font-jakarta: "Plus Jakarta Sans", sans-serif;
   /* Skala 92% membuat seluruh font, padding, dan kartu Tailwind 

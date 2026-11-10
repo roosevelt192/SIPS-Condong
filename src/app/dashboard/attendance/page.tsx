@@ -18,9 +18,7 @@ import {
   ChevronRight,
   Filter,
   Info,
-  Check,
   X,
-  RefreshCw,
   QrCode,
   Fingerprint,
   Clock,
@@ -72,6 +70,12 @@ interface AttendanceRecord {
 }
 
 const PRAYER_LIST = ["shubuh", "dzuhur", "ashar", "maghrib", "isya"] as const;
+const ATTENDANCE_STATUS_LABELS = {
+  hadir: "Hadir",
+  sakit: "Sakit",
+  izin: "Izin",
+  ghoib: "Ghoib",
+} as const;
 
 const formatDateIndo = (dateStr: string) => {
   if (!dateStr) return "-";
@@ -101,7 +105,6 @@ export default function AttendanceDashboardPage() {
   const [students, setStudents] = useState<Student[]>([]);
   const [sessions, setSessions] = useState<AttendanceSession[]>([]);
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
-  const [loading, setLoading] = useState(true);
   const [toastMsg, setToastMsg] = useState("");
 
   // Modul 1: Input Cepat
@@ -163,7 +166,6 @@ export default function AttendanceDashboardPage() {
   const [rekapSearch, setRekapSearch] = useState("");
 
   const loadDatabaseData = useCallback(async () => {
-    setLoading(true);
     try {
       let allStudents: any[] = [];
       let page = 0;
@@ -206,8 +208,6 @@ export default function AttendanceDashboardPage() {
       if (recData) setRecords(recData);
     } catch (err) {
       console.error("Gagal sinkron data presensi:", err);
-    } finally {
-      setLoading(false);
     }
   }, []);
 
@@ -1341,7 +1341,7 @@ export default function AttendanceDashboardPage() {
                   <span className="px-2.5 py-1 rounded-xl bg-amber-500/10 text-amber-700 dark:text-amber-300 font-black border border-amber-500/20">
                     Sakit: {liveCount.sakit}
                   </span>
-                  <span className="px-2.5 py-1 rounded-xl bg-sky-500/10 text-sky-700 dark:text-sky-300 font-black border border-sky-500/20">
+                  <span className="px-2.5 py-1 rounded-xl bg-teal-500/10 text-teal-700 dark:text-teal-300 font-black border border-teal-500/20">
                     Izin: {liveCount.izin}
                   </span>
                   <span className="px-2.5 py-1 rounded-xl bg-rose-500/10 text-rose-700 dark:text-rose-300 font-black border border-rose-500/20">
@@ -1372,7 +1372,84 @@ export default function AttendanceDashboardPage() {
                   />
                 </div>
 
-                <div className="overflow-x-auto">
+                <div className="space-y-3 md:hidden">
+                  {filteredSheetStudents.length === 0 ? (
+                    <p className="rounded-2xl bg-slate-50 p-6 text-center text-sm text-slate-500 dark:bg-emerald-950/30">
+                      Tidak ada santri yang cocok dengan pencarian.
+                    </p>
+                  ) : (
+                    filteredSheetStudents.map((st, index) => {
+                      const currentVal = attendanceSheet[st.id] || { status: "hadir", notes: "" };
+
+                      return (
+                        <article
+                          key={st.id}
+                          className="space-y-3 rounded-2xl border border-slate-200 p-4 dark:border-emerald-900/40"
+                        >
+                          <div>
+                            <h3 className="font-bold text-slate-900 dark:text-white">{st.full_name}</h3>
+                            <p className="mt-0.5 font-mono text-xs text-slate-500">NIS: {st.nis}</p>
+                            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600 dark:text-slate-300">
+                              <span>Kamar: {st.dorm}</span>
+                              <span>Kelas: {st.class_name}</span>
+                              <span>Nomor: {index + 1}</span>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2">
+                            {(["hadir", "sakit", "izin", "ghoib"] as const).map((status) => {
+                              const isActive = currentVal.status === status;
+                              return (
+                                <button
+                                  key={status}
+                                  type="button"
+                                  aria-pressed={isActive}
+                                  onClick={() =>
+                                    setAttendanceSheet((prev) => ({
+                                      ...prev,
+                                      [st.id]: { ...prev[st.id], status },
+                                    }))
+                                  }
+                                  className={`min-h-11 rounded-xl border px-3 text-sm font-bold transition ${
+                                    isActive
+                                      ? status === "hadir"
+                                        ? "border-emerald-600 bg-emerald-600 text-white"
+                                        : status === "sakit"
+                                        ? "border-amber-500 bg-amber-500 text-white"
+                                        : status === "izin"
+                                        ? "border-teal-600 bg-teal-600 text-white"
+                                        : "border-rose-600 bg-rose-600 text-white"
+                                      : "border-slate-200 text-slate-600 dark:border-emerald-900/50 dark:text-slate-300"
+                                  }`}
+                                >
+                                  {ATTENDANCE_STATUS_LABELS[status]}
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          <label className="block space-y-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
+                            <span>Catatan</span>
+                            <input
+                              type="text"
+                              value={currentVal.notes || ""}
+                              onChange={(e) =>
+                                setAttendanceSheet((prev) => ({
+                                  ...prev,
+                                  [st.id]: { ...prev[st.id], notes: e.target.value },
+                                }))
+                              }
+                              placeholder="Keterangan izin atau sakit"
+                              className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm outline-none focus:border-emerald-500 dark:border-emerald-900/60 dark:bg-emerald-950/30"
+                            />
+                          </label>
+                        </article>
+                      );
+                    })
+                  )}
+                </div>
+
+                <div className="hidden overflow-x-auto md:block">
                   <table className="w-full text-left text-xs">
                     <thead>
                       <tr className="border-b border-slate-200 dark:border-emerald-900/40 text-slate-400 uppercase text-[10px]">
@@ -1402,13 +1479,15 @@ export default function AttendanceDashboardPage() {
                                   const colorMap = {
                                     hadir: "bg-emerald-600 text-white",
                                     sakit: "bg-amber-500 text-white",
-                                    izin: "bg-sky-500 text-white",
+                                    izin: "bg-teal-600 text-white",
                                     ghoib: "bg-rose-600 text-white",
                                   };
                                   return (
                                     <button
                                       key={stKey}
                                       type="button"
+                                      aria-label={`${ATTENDANCE_STATUS_LABELS[stKey]} untuk ${st.full_name}`}
+                                      aria-pressed={isActive}
                                       onClick={() =>
                                         setAttendanceSheet((prev) => ({
                                           ...prev,

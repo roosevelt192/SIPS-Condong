@@ -351,7 +351,7 @@ export default function DashboardLayout({
         {
           title: "Akses Gerbang",
           items: [
-            { name: "Pos Gerbang & Scanner", href: "/dashboard/security-gate", icon: QrCode, badge: "Gate" },
+            { name: "Pos Gerbang & Pemindai", href: "/dashboard/security-gate", icon: QrCode, badge: "Gerbang" },
             { name: "Dashboard Utama", href: "/dashboard", icon: LayoutDashboard },
             { name: "Perizinan Santri", href: "/dashboard/permissions", icon: FileCheck2 },
           ],
@@ -367,7 +367,7 @@ export default function DashboardLayout({
             name: "Dashboard",
             href: "/dashboard",
             icon: LayoutDashboard,
-            badge: "Live",
+            badge: "Aktif",
             badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
           },
         ],
@@ -392,7 +392,7 @@ export default function DashboardLayout({
             name: "Presensi Santri",
             href: "/dashboard/attendance",
             icon: CalendarCheck,
-            badge: "Live",
+            badge: "Aktif",
             badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30 font-bold",
           },
           {
@@ -411,7 +411,7 @@ export default function DashboardLayout({
         items: [
           { name: "Pusat Laporan", href: "/dashboard/reports", icon: FileSpreadsheet },
           {
-            name: "Audit Logs",
+            name: "Log Audit",
             href: "/dashboard/audit-logs",
             icon: History,
             badge: "Audit",

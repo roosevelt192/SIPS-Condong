@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { X, Camera, RefreshCw, AlertCircle, Sparkles } from "lucide-react";
 import { parseQRCodeText } from "@/lib/qrParser";
@@ -23,14 +23,62 @@ export default function QRScannerModal({
   const [errorMsg, setErrorMsg] = useState("");
   const [isStarting, setIsStarting] = useState(true);
   const scannerRef = useRef<Html5Qrcode | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const onScanSuccessRef = useRef(onScanSuccess);
+
+  useEffect(() => {
+    if (isOpen) closeButtonRef.current?.focus();
+  }, [isOpen]);
+
+  useEffect(() => {
+    onScanSuccessRef.current = onScanSuccess;
+  }, [onScanSuccess]);
+
+  const stopScanner = useCallback(async () => {
+    const scanner = scannerRef.current;
+    if (!scanner) return;
+
+    try {
+      if (scanner.isScanning) await scanner.stop();
+      scanner.clear();
+    } catch (error) {
+      console.warn("Stop scanner warning:", error);
+    } finally {
+      if (scannerRef.current === scanner) scannerRef.current = null;
+    }
+  }, []);
+
+  const handleDialogKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      void stopScanner();
+      onClose();
+      return;
+    }
+
+    if (event.key !== "Tab" || !dialogRef.current) return;
+
+    const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    );
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+
+    if (!first || !last) return;
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
 
   useEffect(() => {
     if (!isOpen) return;
 
     let isMounted = true;
-    setErrorMsg("");
-    setIsStarting(true);
-
     const startScanner = async () => {
       try {
         const html5QrCode = new Html5Qrcode("sips-qr-reader-region");
@@ -47,8 +95,8 @@ export default function QRScannerModal({
             if (isMounted) {
               // Bersihkan dan ekstrak payload mentah ke NIS/ID murni
               const { searchKey } = parseQRCodeText(decodedText);
-              onScanSuccess(searchKey);
-              stopScanner();
+              onScanSuccessRef.current(searchKey);
+              void stopScanner();
             }
           },
           () => {
@@ -56,10 +104,18 @@ export default function QRScannerModal({
           }
         );
 
-        if (isMounted) setIsStarting(false);
-      } catch (err: any) {
         if (isMounted) {
-          setErrorMsg(err?.message || "Gagal mengakses kamera. Pastikan izin kamera aktif.");
+          setIsStarting(false);
+        } else {
+          await stopScanner();
+        }
+      } catch (error: unknown) {
+        if (isMounted) {
+          setErrorMsg(
+            error instanceof Error
+              ? error.message
+              : "Gagal mengakses kamera. Pastikan izin kamera aktif."
+          );
           setIsStarting(false);
         }
       }
@@ -67,34 +123,30 @@ export default function QRScannerModal({
 
     // Beri jeda kecil agar elemen DOM render terlebih dahulu
     const timer = setTimeout(() => {
+      setErrorMsg("");
+      setIsStarting(true);
       startScanner();
     }, 200);
 
     return () => {
       clearTimeout(timer);
       isMounted = false;
-      stopScanner();
+      void stopScanner();
     };
-  }, [isOpen]);
-
-  const stopScanner = async () => {
-    if (scannerRef.current && scannerRef.current.isScanning) {
-      try {
-        await scannerRef.current.stop();
-        scannerRef.current.clear();
-      } catch (e) {
-        console.warn("Stop scanner warning:", e);
-      } finally {
-        scannerRef.current = null;
-      }
-    }
-  };
+  }, [isOpen, stopScanner]);
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="w-full max-w-md overflow-hidden rounded-3xl border border-slate-800 bg-slate-900 shadow-2xl text-white p-6 space-y-4">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="qr-scanner-title"
+        ref={dialogRef}
+        onKeyDown={handleDialogKeyDown}
+        className="my-auto max-h-[85vh] w-full max-w-md overflow-y-auto rounded-3xl border border-slate-800 bg-slate-900 p-6 text-white shadow-2xl custom-scrollbar space-y-4"
+      >
         {/* Topbar */}
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <div className="flex items-center space-x-2">
@@ -102,12 +154,14 @@ export default function QRScannerModal({
               <Camera className="h-4 w-4" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-white">{title}</h3>
+              <h3 id="qr-scanner-title" className="text-sm font-bold text-white">{title}</h3>
               <p className="text-[10px] text-slate-400">{description}</p>
             </div>
           </div>
           <button
             type="button"
+            aria-label="Tutup pemindai"
+            ref={closeButtonRef}
             onClick={() => {
               stopScanner();
               onClose();
